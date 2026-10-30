@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-520 -440 1040 880">
+<!-- Gusset's mark sewing itself together, for the start-up splash (Round r24): the two hooks slide in, the zigzag between
+     them is sewn in from left to right, and the mark as it is drawn everywhere else settles over the pieces. The logo is
+     all rights reserved (TRADEMARKS.md). Under reduced motion it is the mark, still: every part's own style is how it ends. -->
+<style>
+  .up { animation: up .30s cubic-bezier(.2,.7,.3,1) backwards; }
+  .lo { animation: lo .30s cubic-bezier(.2,.7,.3,1) backwards; }
+  .band { animation: sew .28s .22s linear backwards; transform-box: fill-box; transform-origin: 0 50%; }
+  .whole { animation: settle .01s .50s backwards; }
+  @keyframes up { from { transform: translate(110px, -110px); opacity: 0; } }
+  @keyframes lo { from { transform: translate(-110px, 110px); opacity: 0; } }
+  @keyframes sew { from { transform: scaleX(0); } }
+  @keyframes settle { from { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+</style>
+<defs><clipPath id="seam"><rect class="band" x="-270" y="-172" width="540" height="344"/></clipPath></defs>
+<path class="up" fill="#E8412F" d="M402 11 L402 -135 L214 -323 L-87 -323 L-87 -167 L-402 -167 L-402 -11 L-69 -11 L87 -167 L265 11 Z"/>
+<path class="lo" fill="#E8412F" d="M-402 -11 L-402 135 L-214 323 L87 323 L87 167 L402 167 L402 11 L69 11 L-87 167 L-265 -11 Z"/>
+<path clip-path="url(#seam)" fill="#FAFAF7" d="M87 -167 L265 11 L69 11 L-87 167 L-265 -11 L-69 -11 Z"/>
+<path class="whole" fill="#E8412F" fill-rule="evenodd" d="M214 -323 L-87 -323 L-87 -167 L-402 -167 L-402 135 L-214 323 L87 323 L87 167 L402 167 L402 -135 Z M87 -167 L265 11 L69 11 L-87 167 L-265 -11 L-69 -11 Z"/>
+</svg>

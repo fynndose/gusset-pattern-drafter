@@ -1,0 +1,2234 @@
+{
+ "v": 11,
+ "cloth": {
+  "res": 20,
+  "substeps": 20,
+  "self": true,
+  "worker": true
+ },
+ "nextId": 7,
+ "nextSegId": 14327,
+ "nextShapeId": 1,
+ "notch": {
+  "type": "I",
+  "len": 6,
+  "color": "#00a37a",
+  "width": 2,
+  "dup": true
+ },
+ "grading": {
+  "groups": [
+   {
+    "id": 1,
+    "name": "Sizes (placeholder)",
+    "base": 3,
+    "sizes": [
+     {
+      "id": 1,
+      "name": "XS",
+      "color": "#e03131"
+     },
+     {
+      "id": 2,
+      "name": "S",
+      "color": "#f08c00"
+     },
+     {
+      "id": 3,
+      "name": "M",
+      "color": "#2f9e44"
+     },
+     {
+      "id": 4,
+      "name": "L",
+      "color": "#1971c2"
+     },
+     {
+      "id": 5,
+      "name": "XL",
+      "color": "#9c36b5"
+     }
+    ]
+   }
+  ],
+  "tables": [],
+  "active": null,
+  "nest": false,
+  "nextId": 6
+ },
+ "guides": [],
+ "measures": [],
+ "links": [],
+ "pieces": [
+  {
+   "id": 1,
+   "name": "Curved",
+   "on": true,
+   "pts": [
+    {
+     "x": 0,
+     "y": 0
+    },
+    {
+     "x": 300,
+     "y": 0
+    },
+    {
+     "x": 300,
+     "y": 400
+    },
+    {
+     "x": 0,
+     "y": 400
+    }
+   ],
+   "segs": [
+    {
+     "id": 1,
+     "curved": true,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": [],
+     "cps": [
+      {
+       "x": 100,
+       "y": -30,
+       "u": 0.34020565921447304
+      },
+      {
+       "x": 200,
+       "y": -20,
+       "u": 0.6676888186206493
+      }
+     ]
+    },
+    {
+     "id": 2,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 3,
+     "curved": true,
+     "c1": {
+      "x": 200,
+      "y": 440
+     },
+     "c2": {
+      "x": 100,
+      "y": 440
+     },
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 4,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    }
+   ],
+   "closed": true,
+   "internals": [],
+   "bases": [],
+   "grain": null,
+   "anno": null,
+   "notes": [
+    {
+     "text": "cut 2",
+     "x": 150,
+     "y": 200
+    }
+   ],
+   "punches": [
+    {
+     "x": 150,
+     "y": 300,
+     "d": 10,
+     "name": ""
+    }
+   ],
+   "graphics": [
+    {
+     "id": 1,
+     "name": "dot",
+     "img": 1,
+     "x": 60,
+     "y": 19.248498289238427,
+     "w": 60,
+     "h": 60,
+     "angle": 0,
+     "flip": false,
+     "face": "front",
+     "tile": "none",
+     "over": false,
+     "lock": false
+    }
+   ],
+   "darts": [],
+   "category": "",
+   "classification": "",
+   "quantity": 1,
+   "lock": false,
+   "layer": 0,
+   "shrink": {
+    "w": 100,
+    "h": 100
+   }
+  },
+  {
+   "id": 5,
+   "name": "Skirt front",
+   "on": true,
+   "pts": [
+    {
+     "x": 600,
+     "y": 0
+    },
+    {
+     "x": 814.5979245526721,
+     "y": -12
+    },
+    {
+     "x": 839.5,
+     "y": 210
+    },
+    {
+     "x": 839.5,
+     "y": 600
+    },
+    {
+     "x": 600,
+     "y": 600
+    },
+    {
+     "x": 360.5,
+     "y": 600
+    },
+    {
+     "x": 360.5,
+     "y": 210
+    },
+    {
+     "x": 385.4020754473279,
+     "y": -12
+    }
+   ],
+   "segs": [
+    {
+     "id": 265,
+     "curved": true,
+     "c1": {
+      "x": 671.5326415175573,
+      "y": 0
+     },
+     "c2": {
+      "x": 743.0652830351147,
+      "y": -12
+     },
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 266,
+     "curved": true,
+     "c1": {
+      "x": 827.048962276336,
+      "y": 65.69999999999999
+     },
+     "c2": {
+      "x": 839.5,
+      "y": 132.3
+     },
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 267,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 268,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 14323,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 14324,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 14325,
+     "curved": true,
+     "c1": {
+      "x": 360.5,
+      "y": 132.3
+     },
+     "c2": {
+      "x": 372.95103772366394,
+      "y": 65.69999999999999
+     },
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 14326,
+     "curved": true,
+     "c1": {
+      "x": 456.9347169648853,
+      "y": -12
+     },
+     "c2": {
+      "x": 528.4673584824427,
+      "y": 0
+     },
+     "sa": 0,
+     "notches": []
+    }
+   ],
+   "closed": true,
+   "internals": [],
+   "bases": [],
+   "grain": {
+    "a": {
+     "x": 719.75,
+     "y": 210
+    },
+    "b": {
+     "x": 719.75,
+     "y": 540
+    }
+   },
+   "anno": null,
+   "notes": [],
+   "punches": [],
+   "graphics": [],
+   "darts": [
+    {
+     "sid": 265,
+     "t": 0.5,
+     "width": 20,
+     "depth": 90,
+     "folded": true
+    },
+    {
+     "sid": 14326,
+     "t": 0.5,
+     "width": 20,
+     "depth": 90,
+     "folded": true,
+     "cap": 2
+    }
+   ],
+   "category": "",
+   "classification": "",
+   "quantity": 1,
+   "lock": false,
+   "layer": 0,
+   "shrink": {
+    "w": 100,
+    "h": 100
+   },
+   "half": {
+    "s": 265,
+    "m": 14323,
+    "map": {
+     "265": 14326,
+     "266": 14325,
+     "267": 14324,
+     "268": 14323
+    },
+    "kids": {}
+   },
+   "block": {
+    "type": "skirt",
+    "key": "skirt#5",
+    "part": "f",
+    "level": "simple",
+    "given": {}
+   }
+  },
+  {
+   "id": 3,
+   "name": "Skirt back",
+   "on": true,
+   "pts": [
+    {
+     "x": 899.5,
+     "y": 0
+    },
+    {
+     "x": 1114.150579835232,
+     "y": -11.187078168660744
+    },
+    {
+     "x": 1144.5,
+     "y": 210
+    },
+    {
+     "x": 1144.5,
+     "y": 600
+    },
+    {
+     "x": 899.5,
+     "y": 600
+    }
+   ],
+   "segs": [
+    {
+     "id": 14310,
+     "curved": true,
+     "c1": {
+      "x": 971.0501932784107,
+      "y": 0
+     },
+     "c2": {
+      "x": 1042.6003865568214,
+      "y": -11.187078168660744
+     },
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 14311,
+     "curved": true,
+     "c1": {
+      "x": 1129.325289917616,
+      "y": 66.22839919037051
+     },
+     "c2": {
+      "x": 1144.5,
+      "y": 132.58452264096874
+     },
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 14312,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 14313,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 14314,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    }
+   ],
+   "closed": true,
+   "internals": [],
+   "bases": [],
+   "grain": {
+    "a": {
+     "x": 1022,
+     "y": 210
+    },
+    "b": {
+     "x": 1022,
+     "y": 540
+    }
+   },
+   "anno": null,
+   "notes": [],
+   "punches": [],
+   "graphics": [],
+   "darts": [
+    {
+     "sid": 14310,
+     "t": 0.5,
+     "width": 30,
+     "depth": 130,
+     "folded": true
+    }
+   ],
+   "category": "",
+   "classification": "",
+   "quantity": 1,
+   "lock": false,
+   "layer": 0,
+   "shrink": {
+    "w": 100,
+    "h": 100
+   },
+   "block": {
+    "type": "skirt",
+    "key": "skirt#5",
+    "part": "b",
+    "level": "simple",
+    "given": {}
+   }
+  },
+  {
+   "id": 6,
+   "name": "Skirt back (mirror)",
+   "on": true,
+   "pts": [
+    {
+     "x": -299.5,
+     "y": 0
+    },
+    {
+     "x": -514.1505798352321,
+     "y": -11.187078168660744
+    },
+    {
+     "x": -544.5,
+     "y": 210
+    },
+    {
+     "x": -544.5,
+     "y": 600
+    },
+    {
+     "x": -299.5,
+     "y": 600
+    }
+   ],
+   "segs": [
+    {
+     "id": 14310,
+     "curved": true,
+     "c1": {
+      "x": -371.0501932784107,
+      "y": 0
+     },
+     "c2": {
+      "x": -442.6003865568214,
+      "y": -11.187078168660744
+     },
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 14311,
+     "curved": true,
+     "c1": {
+      "x": -529.3252899176159,
+      "y": 66.22839919037051
+     },
+     "c2": {
+      "x": -544.5,
+      "y": 132.58452264096874
+     },
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 14312,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 14313,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 14314,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    }
+   ],
+   "closed": true,
+   "internals": [],
+   "bases": [],
+   "grain": {
+    "a": {
+     "x": -422,
+     "y": 210
+    },
+    "b": {
+     "x": -422,
+     "y": 540
+    }
+   },
+   "anno": null,
+   "notes": [],
+   "punches": [],
+   "graphics": [],
+   "darts": [
+    {
+     "sid": 14310,
+     "t": 0.5,
+     "width": 30,
+     "depth": 130,
+     "folded": true
+    }
+   ],
+   "category": "",
+   "classification": "",
+   "quantity": 1,
+   "lock": false,
+   "layer": 0,
+   "shrink": {
+    "w": 100,
+    "h": 100
+   },
+   "link": {
+    "of": 3,
+    "kind": "symmetric",
+    "m": [
+     -1,
+     0,
+     0,
+     1,
+     600,
+     0
+    ]
+   },
+   "block": {
+    "type": "skirt",
+    "key": "skirt#5",
+    "part": "bl",
+    "level": "simple",
+    "given": {}
+   }
+  },
+  {
+   "id": 4,
+   "name": "Skirt waistband",
+   "on": true,
+   "pts": [
+    {
+     "x": 205,
+     "y": -102
+    },
+    {
+     "x": 390,
+     "y": -102
+    },
+    {
+     "x": 585,
+     "y": -102
+    },
+    {
+     "x": 780,
+     "y": -102
+    },
+    {
+     "x": 965,
+     "y": -102
+    },
+    {
+     "x": 995,
+     "y": -102
+    },
+    {
+     "x": 995,
+     "y": -72
+    },
+    {
+     "x": 205,
+     "y": -72
+    }
+   ],
+   "segs": [
+    {
+     "id": 14315,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 14316,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 14317,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 14318,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 14319,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 14320,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 14321,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 14322,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    }
+   ],
+   "closed": true,
+   "internals": [],
+   "bases": [],
+   "grain": {
+    "a": {
+     "x": 225,
+     "y": -87
+    },
+    "b": {
+     "x": 945,
+     "y": -87
+    }
+   },
+   "anno": null,
+   "notes": [],
+   "punches": [],
+   "graphics": [],
+   "darts": [],
+   "category": "",
+   "classification": "",
+   "quantity": 1,
+   "lock": false,
+   "layer": 0,
+   "shrink": {
+    "w": 100,
+    "h": 100
+   },
+   "block": {
+    "type": "skirt",
+    "key": "skirt#5",
+    "part": "w",
+    "level": "simple",
+    "given": {}
+   }
+  }
+ ],
+ "seams": [
+  {
+   "id": 1,
+   "a": [
+    {
+     "piece": 5,
+     "shape": 0,
+     "sids": [
+      266,
+      267
+     ],
+     "t0": 0,
+     "t1": 1,
+     "rev": false
+    }
+   ],
+   "b": [
+    {
+     "piece": 3,
+     "shape": 0,
+     "sids": [
+      14311,
+      14312
+     ],
+     "t0": 0,
+     "t1": 1,
+     "rev": false
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "a": [
+    {
+     "piece": 5,
+     "shape": 0,
+     "sids": [
+      14324,
+      14325
+     ],
+     "t0": 0,
+     "t1": 1,
+     "rev": false
+    }
+   ],
+   "b": [
+    {
+     "piece": 6,
+     "shape": 0,
+     "sids": [
+      14311,
+      14312
+     ],
+     "t0": 0,
+     "t1": 1,
+     "rev": true
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "a": [
+    {
+     "piece": 3,
+     "shape": 0,
+     "sids": [
+      14314
+     ],
+     "t0": 0,
+     "t1": 1,
+     "rev": false
+    }
+   ],
+   "b": [
+    {
+     "piece": 6,
+     "shape": 0,
+     "sids": [
+      14314
+     ],
+     "t0": 0,
+     "t1": 1,
+     "rev": false
+    }
+   ]
+  },
+  {
+   "id": 4,
+   "a": [
+    {
+     "piece": 4,
+     "shape": 0,
+     "sids": [
+      14315
+     ],
+     "t0": 0,
+     "t1": 1,
+     "rev": false
+    }
+   ],
+   "b": [
+    {
+     "piece": 6,
+     "shape": 0,
+     "sids": [
+      14310
+     ],
+     "t0": 0,
+     "t1": 1,
+     "rev": false
+    }
+   ]
+  },
+  {
+   "id": 5,
+   "a": [
+    {
+     "piece": 4,
+     "shape": 0,
+     "sids": [
+      14316
+     ],
+     "t0": 0,
+     "t1": 1,
+     "rev": false
+    }
+   ],
+   "b": [
+    {
+     "piece": 5,
+     "shape": 0,
+     "sids": [
+      14326
+     ],
+     "t0": 0,
+     "t1": 1,
+     "rev": false
+    }
+   ]
+  },
+  {
+   "id": 6,
+   "a": [
+    {
+     "piece": 4,
+     "shape": 0,
+     "sids": [
+      14317
+     ],
+     "t0": 0,
+     "t1": 1,
+     "rev": false
+    }
+   ],
+   "b": [
+    {
+     "piece": 5,
+     "shape": 0,
+     "sids": [
+      265
+     ],
+     "t0": 0,
+     "t1": 1,
+     "rev": false
+    }
+   ]
+  },
+  {
+   "id": 7,
+   "a": [
+    {
+     "piece": 4,
+     "shape": 0,
+     "sids": [
+      14318
+     ],
+     "t0": 0,
+     "t1": 1,
+     "rev": false
+    }
+   ],
+   "b": [
+    {
+     "piece": 3,
+     "shape": 0,
+     "sids": [
+      14310
+     ],
+     "t0": 0,
+     "t1": 1,
+     "rev": true
+    }
+   ]
+  }
+ ],
+ "stitches": [],
+ "images": [
+  {
+   "id": 1,
+   "name": "dot.png",
+   "data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+   "w": 1,
+   "h": 1
+  }
+ ],
+ "lib": {
+  "nextId": 5,
+  "fabric": [
+   {
+    "id": 1,
+    "name": "FABRIC 1",
+    "itemNo": "",
+    "cost": 1,
+    "construction": "",
+    "supplier": "",
+    "owner": "",
+    "mapping": "Repeat",
+    "type": "Fabric_Matte",
+    "color": "#ffffff",
+    "back": "#e4e4e4",
+    "opacity": 100,
+    "roughness": 50,
+    "reflection": 15,
+    "metalness": 0,
+    "physical": "Custom",
+    "thickness": 0.5,
+    "weight": 150
+   }
+  ],
+  "button": [
+   {
+    "id": 3,
+    "name": "Default Button",
+    "itemNo": "",
+    "cost": 1,
+    "thread": "Cross",
+    "width": 20,
+    "linkHole": false,
+    "thickness": 3,
+    "weight": 0.4,
+    "type": "Plastic",
+    "color": "#ffffff",
+    "opacity": 100,
+    "roughness": 50,
+    "reflection": 15,
+    "metalness": 0
+   }
+  ],
+  "buttonhole": [
+   {
+    "id": 4,
+    "name": "Default Buttonhole",
+    "itemNo": "",
+    "cost": 1,
+    "shape": "Straight",
+    "width": 23,
+    "type": "Fabric_Matte",
+    "color": "#ffffff",
+    "opacity": 100,
+    "roughness": 50,
+    "reflection": 15,
+    "metalness": 0
+   }
+  ],
+  "topstitch": [
+   {
+    "id": 2,
+    "name": "Default Topstitch",
+    "itemNo": "",
+    "offset": 3,
+    "length": 3,
+    "space": 0.5,
+    "lines": 1,
+    "thread": 0.3,
+    "color": "#444444"
+   }
+  ],
+  "puckering": [],
+  "trim": [],
+  "zipper": []
+ },
+ "layout": {
+  "name": "",
+  "paper": "a4",
+  "orient": "portrait",
+  "customW": 500,
+  "customH": 700,
+  "margin": 10,
+  "overlap": 10,
+  "cols": 3,
+  "grain": "1way",
+  "gap": 5,
+  "outline": "sa",
+  "pairs": true,
+  "labels": "pattern",
+  "lock": false,
+  "place": {}
+ },
+ "history": {
+  "v": 2,
+  "fv": 11,
+  "at": 4,
+  "steps": [
+   {
+    "n": "Rectangle"
+   },
+   {
+    "n": "Curve"
+   },
+   {
+    "n": "Graphic"
+   },
+   {
+    "n": "Annotation"
+   }
+  ],
+  "states": [
+   {
+    "seams": [],
+    "lib": {
+     "nextId": 5,
+     "fabric": [
+      {
+       "id": 1,
+       "name": "FABRIC 1",
+       "itemNo": "",
+       "cost": 1,
+       "construction": "",
+       "supplier": "",
+       "owner": "",
+       "mapping": "Repeat",
+       "type": "Fabric_Matte",
+       "color": "#ffffff",
+       "back": "#e4e4e4",
+       "opacity": 100,
+       "roughness": 50,
+       "reflection": 15,
+       "metalness": 0,
+       "physical": "Custom",
+       "thickness": 0.5,
+       "weight": 150
+      }
+     ],
+     "button": [
+      {
+       "id": 3,
+       "name": "Default Button",
+       "itemNo": "",
+       "cost": 1,
+       "thread": "Cross",
+       "width": 20,
+       "linkHole": false,
+       "thickness": 3,
+       "weight": 0.4,
+       "type": "Plastic",
+       "color": "#ffffff",
+       "opacity": 100,
+       "roughness": 50,
+       "reflection": 15,
+       "metalness": 0
+      }
+     ],
+     "buttonhole": [
+      {
+       "id": 4,
+       "name": "Default Buttonhole",
+       "itemNo": "",
+       "cost": 1,
+       "shape": "Straight",
+       "width": 23,
+       "type": "Fabric_Matte",
+       "color": "#ffffff",
+       "opacity": 100,
+       "roughness": 50,
+       "reflection": 15,
+       "metalness": 0
+      }
+     ],
+     "topstitch": [
+      {
+       "id": 2,
+       "name": "Default Topstitch",
+       "itemNo": "",
+       "offset": 3,
+       "length": 3,
+       "space": 0.5,
+       "lines": 1,
+       "thread": 0.3,
+       "color": "#444444"
+      }
+     ],
+     "puckering": [],
+     "trim": [],
+     "zipper": []
+    },
+    "layout": {
+     "name": "",
+     "paper": "a4",
+     "orient": "portrait",
+     "customW": 500,
+     "customH": 700,
+     "margin": 10,
+     "overlap": 10,
+     "cols": 3,
+     "grain": "1way",
+     "gap": 5,
+     "outline": "sa",
+     "pairs": true,
+     "labels": "pattern",
+     "lock": false,
+     "place": {}
+    },
+    "stitches": [],
+    "guides": [],
+    "measures": [],
+    "grading": {
+     "groups": [
+      {
+       "id": 1,
+       "name": "Sizes (placeholder)",
+       "base": 3,
+       "sizes": [
+        {
+         "id": 1,
+         "name": "XS",
+         "color": "#e03131"
+        },
+        {
+         "id": 2,
+         "name": "S",
+         "color": "#f08c00"
+        },
+        {
+         "id": 3,
+         "name": "M",
+         "color": "#2f9e44"
+        },
+        {
+         "id": 4,
+         "name": "L",
+         "color": "#1971c2"
+        },
+        {
+         "id": 5,
+         "name": "XL",
+         "color": "#9c36b5"
+        }
+       ]
+      }
+     ],
+     "tables": [],
+     "active": null,
+     "nest": false,
+     "nextId": 6
+    },
+    "links": [],
+    "ids": []
+   },
+   {
+    "ids": [
+     1
+    ],
+    "p": [
+     {
+      "id": 1,
+      "all": {
+       "id": 1,
+       "name": "Curved",
+       "on": true,
+       "pts": [
+        {
+         "x": 0,
+         "y": 0
+        },
+        {
+         "x": 300,
+         "y": 0
+        },
+        {
+         "x": 300,
+         "y": 400
+        },
+        {
+         "x": 0,
+         "y": 400
+        }
+       ],
+       "segs": [
+        {
+         "id": 1,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 2,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 3,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 4,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        }
+       ],
+       "closed": true,
+       "internals": [],
+       "bases": [],
+       "grain": null,
+       "anno": null,
+       "notes": [],
+       "punches": [],
+       "graphics": [],
+       "darts": [],
+       "category": "",
+       "classification": "",
+       "quantity": 1,
+       "lock": false,
+       "layer": 0,
+       "shrink": {
+        "w": 100,
+        "h": 100
+       }
+      }
+     }
+    ]
+   },
+   {
+    "ids": [
+     1
+    ],
+    "p": [
+     {
+      "id": 1,
+      "set": {
+       "segs": [
+        {
+         "id": 1,
+         "curved": true,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": [],
+         "cps": [
+          {
+           "x": 100,
+           "y": -30
+          },
+          {
+           "x": 200,
+           "y": -20
+          }
+         ]
+        },
+        {
+         "id": 2,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 3,
+         "curved": true,
+         "c1": {
+          "x": 200,
+          "y": 440
+         },
+         "c2": {
+          "x": 100,
+          "y": 440
+         },
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 4,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        }
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "ids": [
+     1
+    ],
+    "p": [
+     {
+      "id": 1,
+      "set": {
+       "graphics": [
+        {
+         "id": 1,
+         "name": "dot",
+         "img": 1,
+         "x": 60,
+         "y": 19.248498289238427,
+         "w": 60,
+         "h": 60,
+         "angle": 0,
+         "flip": false,
+         "face": "front",
+         "tile": "none",
+         "over": false,
+         "lock": false
+        }
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "seams": [
+     {
+      "id": 1,
+      "a": [
+       {
+        "piece": 5,
+        "shape": 0,
+        "sids": [
+         266,
+         267
+        ],
+        "t0": 0,
+        "t1": 1,
+        "rev": false
+       }
+      ],
+      "b": [
+       {
+        "piece": 3,
+        "shape": 0,
+        "sids": [
+         14311,
+         14312
+        ],
+        "t0": 0,
+        "t1": 1,
+        "rev": false
+       }
+      ]
+     },
+     {
+      "id": 2,
+      "a": [
+       {
+        "piece": 5,
+        "shape": 0,
+        "sids": [
+         14324,
+         14325
+        ],
+        "t0": 0,
+        "t1": 1,
+        "rev": false
+       }
+      ],
+      "b": [
+       {
+        "piece": 6,
+        "shape": 0,
+        "sids": [
+         14311,
+         14312
+        ],
+        "t0": 0,
+        "t1": 1,
+        "rev": true
+       }
+      ]
+     },
+     {
+      "id": 3,
+      "a": [
+       {
+        "piece": 3,
+        "shape": 0,
+        "sids": [
+         14314
+        ],
+        "t0": 0,
+        "t1": 1,
+        "rev": false
+       }
+      ],
+      "b": [
+       {
+        "piece": 6,
+        "shape": 0,
+        "sids": [
+         14314
+        ],
+        "t0": 0,
+        "t1": 1,
+        "rev": false
+       }
+      ]
+     },
+     {
+      "id": 4,
+      "a": [
+       {
+        "piece": 4,
+        "shape": 0,
+        "sids": [
+         14315
+        ],
+        "t0": 0,
+        "t1": 1,
+        "rev": false
+       }
+      ],
+      "b": [
+       {
+        "piece": 6,
+        "shape": 0,
+        "sids": [
+         14310
+        ],
+        "t0": 0,
+        "t1": 1,
+        "rev": false
+       }
+      ]
+     },
+     {
+      "id": 5,
+      "a": [
+       {
+        "piece": 4,
+        "shape": 0,
+        "sids": [
+         14316
+        ],
+        "t0": 0,
+        "t1": 1,
+        "rev": false
+       }
+      ],
+      "b": [
+       {
+        "piece": 5,
+        "shape": 0,
+        "sids": [
+         14326
+        ],
+        "t0": 0,
+        "t1": 1,
+        "rev": false
+       }
+      ]
+     },
+     {
+      "id": 6,
+      "a": [
+       {
+        "piece": 4,
+        "shape": 0,
+        "sids": [
+         14317
+        ],
+        "t0": 0,
+        "t1": 1,
+        "rev": false
+       }
+      ],
+      "b": [
+       {
+        "piece": 5,
+        "shape": 0,
+        "sids": [
+         265
+        ],
+        "t0": 0,
+        "t1": 1,
+        "rev": false
+       }
+      ]
+     },
+     {
+      "id": 7,
+      "a": [
+       {
+        "piece": 4,
+        "shape": 0,
+        "sids": [
+         14318
+        ],
+        "t0": 0,
+        "t1": 1,
+        "rev": false
+       }
+      ],
+      "b": [
+       {
+        "piece": 3,
+        "shape": 0,
+        "sids": [
+         14310
+        ],
+        "t0": 0,
+        "t1": 1,
+        "rev": true
+       }
+      ]
+     }
+    ],
+    "ids": [
+     1,
+     5,
+     3,
+     6,
+     4
+    ],
+    "p": [
+     {
+      "id": 1,
+      "set": {
+       "notes": [
+        {
+         "text": "cut 2",
+         "x": 150,
+         "y": 200
+        }
+       ],
+       "punches": [
+        {
+         "x": 150,
+         "y": 300,
+         "d": 10,
+         "name": ""
+        }
+       ]
+      }
+     },
+     {
+      "id": 5,
+      "all": {
+       "id": 5,
+       "name": "Skirt front",
+       "on": true,
+       "pts": [
+        {
+         "x": 600,
+         "y": 0
+        },
+        {
+         "x": 814.5979245526721,
+         "y": -12
+        },
+        {
+         "x": 839.5,
+         "y": 210
+        },
+        {
+         "x": 839.5,
+         "y": 600
+        },
+        {
+         "x": 600,
+         "y": 600
+        },
+        {
+         "x": 360.5,
+         "y": 600
+        },
+        {
+         "x": 360.5,
+         "y": 210
+        },
+        {
+         "x": 385.4020754473279,
+         "y": -12
+        }
+       ],
+       "segs": [
+        {
+         "id": 265,
+         "curved": true,
+         "c1": {
+          "x": 671.5326415175573,
+          "y": 0
+         },
+         "c2": {
+          "x": 743.0652830351147,
+          "y": -12
+         },
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 266,
+         "curved": true,
+         "c1": {
+          "x": 827.048962276336,
+          "y": 65.69999999999999
+         },
+         "c2": {
+          "x": 839.5,
+          "y": 132.3
+         },
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 267,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 268,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 14323,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 14324,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 14325,
+         "curved": true,
+         "c1": {
+          "x": 360.5,
+          "y": 132.3
+         },
+         "c2": {
+          "x": 372.95103772366394,
+          "y": 65.69999999999999
+         },
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 14326,
+         "curved": true,
+         "c1": {
+          "x": 456.9347169648853,
+          "y": -12
+         },
+         "c2": {
+          "x": 528.4673584824427,
+          "y": 0
+         },
+         "sa": 0,
+         "notches": []
+        }
+       ],
+       "closed": true,
+       "internals": [],
+       "bases": [],
+       "grain": {
+        "a": {
+         "x": 719.75,
+         "y": 210
+        },
+        "b": {
+         "x": 719.75,
+         "y": 540
+        }
+       },
+       "anno": null,
+       "notes": [],
+       "punches": [],
+       "graphics": [],
+       "darts": [
+        {
+         "sid": 265,
+         "t": 0.5,
+         "width": 20,
+         "depth": 90,
+         "folded": true
+        },
+        {
+         "sid": 14326,
+         "t": 0.5,
+         "width": 20,
+         "depth": 90,
+         "folded": true,
+         "cap": 2
+        }
+       ],
+       "category": "",
+       "classification": "",
+       "quantity": 1,
+       "lock": false,
+       "layer": 0,
+       "shrink": {
+        "w": 100,
+        "h": 100
+       },
+       "half": {
+        "s": 265,
+        "m": 14323,
+        "map": {
+         "265": 14326,
+         "266": 14325,
+         "267": 14324,
+         "268": 14323
+        },
+        "kids": {}
+       },
+       "block": {
+        "type": "skirt",
+        "key": "skirt#5",
+        "part": "f",
+        "level": "simple",
+        "given": {}
+       }
+      }
+     },
+     {
+      "id": 3,
+      "all": {
+       "id": 3,
+       "name": "Skirt back",
+       "on": true,
+       "pts": [
+        {
+         "x": 899.5,
+         "y": 0
+        },
+        {
+         "x": 1114.150579835232,
+         "y": -11.187078168660744
+        },
+        {
+         "x": 1144.5,
+         "y": 210
+        },
+        {
+         "x": 1144.5,
+         "y": 600
+        },
+        {
+         "x": 899.5,
+         "y": 600
+        }
+       ],
+       "segs": [
+        {
+         "id": 14310,
+         "curved": true,
+         "c1": {
+          "x": 971.0501932784107,
+          "y": 0
+         },
+         "c2": {
+          "x": 1042.6003865568214,
+          "y": -11.187078168660744
+         },
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 14311,
+         "curved": true,
+         "c1": {
+          "x": 1129.325289917616,
+          "y": 66.22839919037051
+         },
+         "c2": {
+          "x": 1144.5,
+          "y": 132.58452264096874
+         },
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 14312,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 14313,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 14314,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        }
+       ],
+       "closed": true,
+       "internals": [],
+       "bases": [],
+       "grain": {
+        "a": {
+         "x": 1022,
+         "y": 210
+        },
+        "b": {
+         "x": 1022,
+         "y": 540
+        }
+       },
+       "anno": null,
+       "notes": [],
+       "punches": [],
+       "graphics": [],
+       "darts": [
+        {
+         "sid": 14310,
+         "t": 0.5,
+         "width": 30,
+         "depth": 130,
+         "folded": true
+        }
+       ],
+       "category": "",
+       "classification": "",
+       "quantity": 1,
+       "lock": false,
+       "layer": 0,
+       "shrink": {
+        "w": 100,
+        "h": 100
+       },
+       "block": {
+        "type": "skirt",
+        "key": "skirt#5",
+        "part": "b",
+        "level": "simple",
+        "given": {}
+       }
+      }
+     },
+     {
+      "id": 6,
+      "all": {
+       "id": 6,
+       "name": "Skirt back (mirror)",
+       "on": true,
+       "pts": [
+        {
+         "x": -299.5,
+         "y": 0
+        },
+        {
+         "x": -514.1505798352321,
+         "y": -11.187078168660744
+        },
+        {
+         "x": -544.5,
+         "y": 210
+        },
+        {
+         "x": -544.5,
+         "y": 600
+        },
+        {
+         "x": -299.5,
+         "y": 600
+        }
+       ],
+       "segs": [
+        {
+         "id": 14310,
+         "curved": true,
+         "c1": {
+          "x": -371.0501932784107,
+          "y": 0
+         },
+         "c2": {
+          "x": -442.6003865568214,
+          "y": -11.187078168660744
+         },
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 14311,
+         "curved": true,
+         "c1": {
+          "x": -529.3252899176159,
+          "y": 66.22839919037051
+         },
+         "c2": {
+          "x": -544.5,
+          "y": 132.58452264096874
+         },
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 14312,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 14313,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 14314,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        }
+       ],
+       "closed": true,
+       "internals": [],
+       "bases": [],
+       "grain": {
+        "a": {
+         "x": -422,
+         "y": 210
+        },
+        "b": {
+         "x": -422,
+         "y": 540
+        }
+       },
+       "anno": null,
+       "notes": [],
+       "punches": [],
+       "graphics": [],
+       "darts": [
+        {
+         "sid": 14310,
+         "t": 0.5,
+         "width": 30,
+         "depth": 130,
+         "folded": true
+        }
+       ],
+       "category": "",
+       "classification": "",
+       "quantity": 1,
+       "lock": false,
+       "layer": 0,
+       "shrink": {
+        "w": 100,
+        "h": 100
+       },
+       "link": {
+        "of": 3,
+        "kind": "symmetric",
+        "m": [
+         -1,
+         0,
+         0,
+         1,
+         600,
+         0
+        ]
+       },
+       "block": {
+        "type": "skirt",
+        "key": "skirt#5",
+        "part": "bl",
+        "level": "simple",
+        "given": {}
+       }
+      }
+     },
+     {
+      "id": 4,
+      "all": {
+       "id": 4,
+       "name": "Skirt waistband",
+       "on": true,
+       "pts": [
+        {
+         "x": 205,
+         "y": -102
+        },
+        {
+         "x": 390,
+         "y": -102
+        },
+        {
+         "x": 585,
+         "y": -102
+        },
+        {
+         "x": 780,
+         "y": -102
+        },
+        {
+         "x": 965,
+         "y": -102
+        },
+        {
+         "x": 995,
+         "y": -102
+        },
+        {
+         "x": 995,
+         "y": -72
+        },
+        {
+         "x": 205,
+         "y": -72
+        }
+       ],
+       "segs": [
+        {
+         "id": 14315,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 14316,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 14317,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 14318,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 14319,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 14320,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 14321,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 14322,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        }
+       ],
+       "closed": true,
+       "internals": [],
+       "bases": [],
+       "grain": {
+        "a": {
+         "x": 225,
+         "y": -87
+        },
+        "b": {
+         "x": 945,
+         "y": -87
+        }
+       },
+       "anno": null,
+       "notes": [],
+       "punches": [],
+       "graphics": [],
+       "darts": [],
+       "category": "",
+       "classification": "",
+       "quantity": 1,
+       "lock": false,
+       "layer": 0,
+       "shrink": {
+        "w": 100,
+        "h": 100
+       },
+       "block": {
+        "type": "skirt",
+        "key": "skirt#5",
+        "part": "w",
+        "level": "simple",
+        "given": {}
+       }
+      }
+     }
+    ]
+   }
+  ]
+ }
+}

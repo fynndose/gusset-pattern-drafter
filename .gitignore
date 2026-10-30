@@ -1,0 +1,25 @@
+
+
+# Project files of other programs, wherever they lie: never committed
+*.zprj
+*.zpac
+*.pac
+
+# Dependencies and build output
+node_modules/
+desktop/dist/
+dist/
+out/
+*.tgz
+
+# Logs, caches and what an operating system or an editor leaves behind
+*.log
+npm-debug.log*
+.npm/
+.cache/
+*.tmp
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

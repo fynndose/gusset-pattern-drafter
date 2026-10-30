@@ -1,0 +1,1192 @@
+{
+ "v": 11,
+ "cloth": {
+  "res": 16,
+  "substeps": 20,
+  "self": true,
+  "worker": true
+ },
+ "nextId": 4,
+ "nextSegId": 13,
+ "nextShapeId": 1,
+ "notch": {
+  "type": "I",
+  "len": 6,
+  "color": "#00a37a",
+  "width": 2,
+  "dup": true
+ },
+ "grading": {
+  "groups": [
+   {
+    "id": 1,
+    "name": "Sizes (placeholder)",
+    "base": 3,
+    "sizes": [
+     {
+      "id": 1,
+      "name": "XS",
+      "color": "#e03131"
+     },
+     {
+      "id": 2,
+      "name": "S",
+      "color": "#f08c00"
+     },
+     {
+      "id": 3,
+      "name": "M",
+      "color": "#2f9e44"
+     },
+     {
+      "id": 4,
+      "name": "L",
+      "color": "#1971c2"
+     },
+     {
+      "id": 5,
+      "name": "XL",
+      "color": "#9c36b5"
+     }
+    ]
+   }
+  ],
+  "tables": [],
+  "active": null,
+  "nest": false,
+  "nextId": 6
+ },
+ "guides": [
+  {
+   "id": 1,
+   "p": {
+    "x": 10,
+    "y": 20
+   },
+   "a": 1.5707963267948966
+  }
+ ],
+ "measures": [],
+ "links": [],
+ "pieces": [
+  {
+   "id": 1,
+   "name": "Front",
+   "on": true,
+   "pts": [
+    {
+     "x": 0,
+     "y": 0
+    },
+    {
+     "x": 300,
+     "y": 0
+    },
+    {
+     "x": 300,
+     "y": 400
+    },
+    {
+     "x": 0,
+     "y": 400
+    }
+   ],
+   "segs": [
+    {
+     "id": 1,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": [
+      0.25,
+      0.5
+     ]
+    },
+    {
+     "id": 2,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 3,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 4,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    }
+   ],
+   "closed": true,
+   "internals": [],
+   "bases": [],
+   "grain": null,
+   "anno": null,
+   "notes": [],
+   "punches": [],
+   "graphics": [],
+   "darts": [
+    {
+     "sid": 1,
+     "t": 0.5,
+     "width": 30,
+     "depth": 90,
+     "folded": false
+    }
+   ],
+   "category": "",
+   "classification": "",
+   "quantity": 1,
+   "lock": false,
+   "layer": 0,
+   "shrink": {
+    "w": 100,
+    "h": 100
+   },
+   "pins": [
+    {
+     "x": 150,
+     "y": 40
+    },
+    {
+     "x": 150,
+     "y": 80
+    }
+   ],
+   "p3": {
+    "pos": [
+     0,
+     1150,
+     220
+    ],
+    "q": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "r": 180,
+    "pt": "chest_front"
+   }
+  },
+  {
+   "id": 2,
+   "name": "Back",
+   "on": true,
+   "pts": [
+    {
+     "x": 400,
+     "y": 0
+    },
+    {
+     "x": 700,
+     "y": 0
+    },
+    {
+     "x": 700,
+     "y": 400
+    },
+    {
+     "x": 400,
+     "y": 400
+    }
+   ],
+   "segs": [
+    {
+     "id": 5,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 6,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 7,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 15,
+     "notches": []
+    },
+    {
+     "id": 8,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    }
+   ],
+   "closed": true,
+   "internals": [],
+   "bases": [],
+   "grain": null,
+   "anno": null,
+   "notes": [],
+   "punches": [],
+   "graphics": [],
+   "darts": [],
+   "category": "",
+   "classification": "",
+   "quantity": 1,
+   "lock": false,
+   "layer": 1,
+   "shrink": {
+    "w": 100,
+    "h": 100
+   },
+   "p3": {
+    "pos": [
+     0,
+     1150,
+     -200
+    ],
+    "q": [
+     0,
+     1,
+     0,
+     0
+    ],
+    "r": 180
+   }
+  },
+  {
+   "id": 3,
+   "name": "Tab",
+   "on": true,
+   "pts": [
+    {
+     "x": 800,
+     "y": 0
+    },
+    {
+     "x": 830,
+     "y": 0
+    },
+    {
+     "x": 830,
+     "y": 30
+    },
+    {
+     "x": 800,
+     "y": 30
+    }
+   ],
+   "segs": [
+    {
+     "id": 9,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 10,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 11,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    },
+    {
+     "id": 12,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    }
+   ],
+   "closed": true,
+   "internals": [],
+   "bases": [],
+   "grain": null,
+   "anno": null,
+   "notes": [],
+   "punches": [],
+   "graphics": [],
+   "darts": [],
+   "category": "",
+   "classification": "",
+   "quantity": 1,
+   "lock": false,
+   "layer": 0,
+   "shrink": {
+    "w": 100,
+    "h": 100
+   }
+  }
+ ],
+ "seams": [
+  {
+   "id": 1,
+   "a": [
+    {
+     "piece": 1,
+     "shape": 0,
+     "sids": [
+      2
+     ],
+     "t0": 0,
+     "t1": 1,
+     "rev": false
+    }
+   ],
+   "b": [
+    {
+     "piece": 2,
+     "shape": 0,
+     "sids": [
+      8
+     ],
+     "t0": 0,
+     "t1": 1,
+     "rev": true
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "a": [
+    {
+     "piece": 1,
+     "shape": 0,
+     "sids": [
+      4
+     ],
+     "t0": 0,
+     "t1": 1,
+     "rev": false
+    }
+   ],
+   "b": [
+    {
+     "piece": 2,
+     "shape": 0,
+     "sids": [
+      6
+     ],
+     "t0": 0,
+     "t1": 1,
+     "rev": true
+    }
+   ],
+   "zip": {
+    "type": "coil"
+   }
+  }
+ ],
+ "stitches": [],
+ "images": [],
+ "lib": {
+  "nextId": 5,
+  "fabric": [
+   {
+    "id": 1,
+    "name": "FABRIC 1",
+    "itemNo": "",
+    "cost": 1,
+    "construction": "",
+    "supplier": "",
+    "owner": "",
+    "mapping": "Repeat",
+    "type": "Fabric_Matte",
+    "color": "#ffffff",
+    "back": "#e4e4e4",
+    "opacity": 100,
+    "roughness": 50,
+    "reflection": 15,
+    "metalness": 0,
+    "physical": "Custom",
+    "thickness": 0.5,
+    "weight": 150
+   }
+  ],
+  "button": [
+   {
+    "id": 3,
+    "name": "Default Button",
+    "itemNo": "",
+    "cost": 1,
+    "thread": "Cross",
+    "width": 20,
+    "linkHole": false,
+    "thickness": 3,
+    "weight": 0.4,
+    "type": "Plastic",
+    "color": "#ffffff",
+    "opacity": 100,
+    "roughness": 50,
+    "reflection": 15,
+    "metalness": 0
+   }
+  ],
+  "buttonhole": [
+   {
+    "id": 4,
+    "name": "Default Buttonhole",
+    "itemNo": "",
+    "cost": 1,
+    "shape": "Straight",
+    "width": 23,
+    "type": "Fabric_Matte",
+    "color": "#ffffff",
+    "opacity": 100,
+    "roughness": 50,
+    "reflection": 15,
+    "metalness": 0
+   }
+  ],
+  "topstitch": [
+   {
+    "id": 2,
+    "name": "Default Topstitch",
+    "itemNo": "",
+    "offset": 3,
+    "length": 3,
+    "space": 0.5,
+    "lines": 1,
+    "thread": 0.3,
+    "color": "#444444"
+   }
+  ],
+  "puckering": [],
+  "trim": [],
+  "zipper": []
+ },
+ "layout": {
+  "name": "",
+  "paper": "a4",
+  "orient": "portrait",
+  "customW": 500,
+  "customH": 700,
+  "margin": 10,
+  "overlap": 10,
+  "cols": 3,
+  "grain": "1way",
+  "gap": 5,
+  "outline": "sa",
+  "pairs": true,
+  "labels": "pattern",
+  "lock": false,
+  "place": {}
+ },
+ "drape": {
+  "3": {
+   "k": "1fvttpt",
+   "n": 8,
+   "x": "AAAAAOUth0MaJJJDWPs2Qox0csPzm5nDPL2xwjj5U0OdbJ9DXqAFQ+VELcMzxp/DdJcqw07ICEOsDaBDGvdSQ1VVtMIuJpnDfZZuw4tfS0IvA5RDrtWHQ+XamT5BOobD"
+  }
+ },
+ "history": {
+  "v": 2,
+  "fv": 11,
+  "at": 7,
+  "steps": [
+   {
+    "n": "Rectangle"
+   },
+   {
+    "n": "Segment Sewing"
+   },
+   {
+    "n": "Notch"
+   },
+   {
+    "n": "Add Dart"
+   },
+   {
+    "n": "Pin"
+   },
+   {
+    "n": "Arrange"
+   },
+   {
+    "n": "Guide"
+   }
+  ],
+  "states": [
+   {
+    "seams": [],
+    "lib": {
+     "nextId": 5,
+     "fabric": [
+      {
+       "id": 1,
+       "name": "FABRIC 1",
+       "itemNo": "",
+       "cost": 1,
+       "construction": "",
+       "supplier": "",
+       "owner": "",
+       "mapping": "Repeat",
+       "type": "Fabric_Matte",
+       "color": "#ffffff",
+       "back": "#e4e4e4",
+       "opacity": 100,
+       "roughness": 50,
+       "reflection": 15,
+       "metalness": 0,
+       "physical": "Custom",
+       "thickness": 0.5,
+       "weight": 150
+      }
+     ],
+     "button": [
+      {
+       "id": 3,
+       "name": "Default Button",
+       "itemNo": "",
+       "cost": 1,
+       "thread": "Cross",
+       "width": 20,
+       "linkHole": false,
+       "thickness": 3,
+       "weight": 0.4,
+       "type": "Plastic",
+       "color": "#ffffff",
+       "opacity": 100,
+       "roughness": 50,
+       "reflection": 15,
+       "metalness": 0
+      }
+     ],
+     "buttonhole": [
+      {
+       "id": 4,
+       "name": "Default Buttonhole",
+       "itemNo": "",
+       "cost": 1,
+       "shape": "Straight",
+       "width": 23,
+       "type": "Fabric_Matte",
+       "color": "#ffffff",
+       "opacity": 100,
+       "roughness": 50,
+       "reflection": 15,
+       "metalness": 0
+      }
+     ],
+     "topstitch": [
+      {
+       "id": 2,
+       "name": "Default Topstitch",
+       "itemNo": "",
+       "offset": 3,
+       "length": 3,
+       "space": 0.5,
+       "lines": 1,
+       "thread": 0.3,
+       "color": "#444444"
+      }
+     ],
+     "puckering": [],
+     "trim": [],
+     "zipper": []
+    },
+    "layout": {
+     "name": "",
+     "paper": "a4",
+     "orient": "portrait",
+     "customW": 500,
+     "customH": 700,
+     "margin": 10,
+     "overlap": 10,
+     "cols": 3,
+     "grain": "1way",
+     "gap": 5,
+     "outline": "sa",
+     "pairs": true,
+     "labels": "pattern",
+     "lock": false,
+     "place": {}
+    },
+    "stitches": [],
+    "guides": [],
+    "measures": [],
+    "grading": {
+     "groups": [
+      {
+       "id": 1,
+       "name": "Sizes (placeholder)",
+       "base": 3,
+       "sizes": [
+        {
+         "id": 1,
+         "name": "XS",
+         "color": "#e03131"
+        },
+        {
+         "id": 2,
+         "name": "S",
+         "color": "#f08c00"
+        },
+        {
+         "id": 3,
+         "name": "M",
+         "color": "#2f9e44"
+        },
+        {
+         "id": 4,
+         "name": "L",
+         "color": "#1971c2"
+        },
+        {
+         "id": 5,
+         "name": "XL",
+         "color": "#9c36b5"
+        }
+       ]
+      }
+     ],
+     "tables": [],
+     "active": null,
+     "nest": false,
+     "nextId": 6
+    },
+    "links": [],
+    "ids": []
+   },
+   {
+    "ids": [
+     1,
+     2,
+     3
+    ],
+    "p": [
+     {
+      "id": 1,
+      "all": {
+       "id": 1,
+       "name": "Front",
+       "on": true,
+       "pts": [
+        {
+         "x": 0,
+         "y": 0
+        },
+        {
+         "x": 300,
+         "y": 0
+        },
+        {
+         "x": 300,
+         "y": 400
+        },
+        {
+         "x": 0,
+         "y": 400
+        }
+       ],
+       "segs": [
+        {
+         "id": 1,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 2,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 3,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 4,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        }
+       ],
+       "closed": true,
+       "internals": [],
+       "bases": [],
+       "grain": null,
+       "anno": null,
+       "notes": [],
+       "punches": [],
+       "graphics": [],
+       "darts": [],
+       "category": "",
+       "classification": "",
+       "quantity": 1,
+       "lock": false,
+       "layer": 0,
+       "shrink": {
+        "w": 100,
+        "h": 100
+       }
+      }
+     },
+     {
+      "id": 2,
+      "all": {
+       "id": 2,
+       "name": "Back",
+       "on": true,
+       "pts": [
+        {
+         "x": 400,
+         "y": 0
+        },
+        {
+         "x": 700,
+         "y": 0
+        },
+        {
+         "x": 700,
+         "y": 400
+        },
+        {
+         "x": 400,
+         "y": 400
+        }
+       ],
+       "segs": [
+        {
+         "id": 5,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 6,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 7,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 8,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        }
+       ],
+       "closed": true,
+       "internals": [],
+       "bases": [],
+       "grain": null,
+       "anno": null,
+       "notes": [],
+       "punches": [],
+       "graphics": [],
+       "darts": [],
+       "category": "",
+       "classification": "",
+       "quantity": 1,
+       "lock": false,
+       "layer": 0,
+       "shrink": {
+        "w": 100,
+        "h": 100
+       }
+      }
+     },
+     {
+      "id": 3,
+      "all": {
+       "id": 3,
+       "name": "Tab",
+       "on": true,
+       "pts": [
+        {
+         "x": 800,
+         "y": 0
+        },
+        {
+         "x": 830,
+         "y": 0
+        },
+        {
+         "x": 830,
+         "y": 30
+        },
+        {
+         "x": 800,
+         "y": 30
+        }
+       ],
+       "segs": [
+        {
+         "id": 9,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 10,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 11,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 12,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        }
+       ],
+       "closed": true,
+       "internals": [],
+       "bases": [],
+       "grain": null,
+       "anno": null,
+       "notes": [],
+       "punches": [],
+       "graphics": [],
+       "darts": [],
+       "category": "",
+       "classification": "",
+       "quantity": 1,
+       "lock": false,
+       "layer": 0,
+       "shrink": {
+        "w": 100,
+        "h": 100
+       }
+      }
+     }
+    ]
+   },
+   {
+    "seams": [
+     {
+      "id": 1,
+      "a": [
+       {
+        "piece": 1,
+        "shape": 0,
+        "sids": [
+         2
+        ],
+        "t0": 0,
+        "t1": 1,
+        "rev": false
+       }
+      ],
+      "b": [
+       {
+        "piece": 2,
+        "shape": 0,
+        "sids": [
+         8
+        ],
+        "t0": 0,
+        "t1": 1,
+        "rev": true
+       }
+      ]
+     },
+     {
+      "id": 2,
+      "a": [
+       {
+        "piece": 1,
+        "shape": 0,
+        "sids": [
+         4
+        ],
+        "t0": 0,
+        "t1": 1,
+        "rev": false
+       }
+      ],
+      "b": [
+       {
+        "piece": 2,
+        "shape": 0,
+        "sids": [
+         6
+        ],
+        "t0": 0,
+        "t1": 1,
+        "rev": true
+       }
+      ],
+      "zip": {
+       "type": "coil"
+      }
+     }
+    ],
+    "ids": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "ids": [
+     1,
+     2,
+     3
+    ],
+    "p": [
+     {
+      "id": 1,
+      "set": {
+       "segs": [
+        {
+         "id": 1,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": [
+          0.25,
+          0.5
+         ]
+        },
+        {
+         "id": 2,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 3,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 4,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        }
+       ]
+      }
+     },
+     {
+      "id": 2,
+      "set": {
+       "segs": [
+        {
+         "id": 5,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 6,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        },
+        {
+         "id": 7,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 15,
+         "notches": []
+        },
+        {
+         "id": 8,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        }
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "ids": [
+     1,
+     2,
+     3
+    ],
+    "p": [
+     {
+      "id": 1,
+      "set": {
+       "darts": [
+        {
+         "sid": 1,
+         "t": 0.5,
+         "width": 30,
+         "depth": 90,
+         "folded": false
+        }
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "ids": [
+     1,
+     2,
+     3
+    ],
+    "p": [
+     {
+      "id": 1,
+      "set": {
+       "pins": [
+        {
+         "x": 150,
+         "y": 40
+        },
+        {
+         "x": 150,
+         "y": 80
+        }
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "ids": [
+     1,
+     2,
+     3
+    ],
+    "p": [
+     {
+      "id": 1,
+      "set": {
+       "p3": {
+        "pos": [
+         0,
+         1150,
+         220
+        ],
+        "q": [
+         0,
+         0,
+         0,
+         1
+        ],
+        "r": 180,
+        "pt": "chest_front"
+       }
+      }
+     },
+     {
+      "id": 2,
+      "set": {
+       "layer": 1,
+       "p3": {
+        "pos": [
+         0,
+         1150,
+         -200
+        ],
+        "q": [
+         0,
+         1,
+         0,
+         0
+        ],
+        "r": 180
+       }
+      }
+     }
+    ]
+   },
+   {
+    "guides": [
+     {
+      "id": 1,
+      "p": {
+       "x": 10,
+       "y": 20
+      },
+      "a": 1.5707963267948966
+     }
+    ],
+    "ids": [
+     1,
+     2,
+     3
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,1363 @@
+{
+ "v": 11,
+ "cloth": {
+  "res": 20,
+  "substeps": 20,
+  "self": true,
+  "worker": true
+ },
+ "nextId": 3,
+ "nextSegId": 10,
+ "nextShapeId": 2,
+ "notch": {
+  "type": "I",
+  "len": 6,
+  "color": "#00a37a",
+  "width": 2,
+  "dup": true
+ },
+ "grading": {
+  "groups": [
+   {
+    "id": 1,
+    "name": "Sizes (placeholder)",
+    "base": 3,
+    "sizes": [
+     {
+      "id": 1,
+      "name": "XS",
+      "color": "#e03131"
+     },
+     {
+      "id": 2,
+      "name": "S",
+      "color": "#f08c00"
+     },
+     {
+      "id": 3,
+      "name": "M",
+      "color": "#2f9e44"
+     },
+     {
+      "id": 4,
+      "name": "L",
+      "color": "#1971c2"
+     },
+     {
+      "id": 5,
+      "name": "XL",
+      "color": "#9c36b5"
+     }
+    ]
+   }
+  ],
+  "tables": [],
+  "active": null,
+  "nest": false,
+  "nextId": 6
+ },
+ "guides": [],
+ "measures": [],
+ "links": [],
+ "pieces": [
+  {
+   "id": 1,
+   "name": "Front A",
+   "on": true,
+   "pts": [
+    {
+     "x": 0,
+     "y": 0
+    },
+    {
+     "x": 68,
+     "y": 12
+    },
+    {
+     "x": 139.49893421383754,
+     "y": 29.874733553459386
+    },
+    {
+     "x": 210.9978684276751,
+     "y": 47.74946710691877
+    },
+    {
+     "x": 150,
+     "y": 220
+    },
+    {
+     "x": 168,
+     "y": 480
+    },
+    {
+     "x": 0,
+     "y": 495
+    }
+   ],
+   "segs": [
+    {
+     "id": 1,
+     "curved": true,
+     "c1": null,
+     "c2": null,
+     "sa": 10,
+     "notches": [],
+     "cps": [
+      {
+       "x": 14.074074074074076,
+       "y": 19.555555555555554,
+       "u": 0.30217023670453313
+      },
+      {
+       "x": 39.25925925925925,
+       "y": 21.77777777777778,
+       "u": 0.6192583949687296
+      }
+     ]
+    },
+    {
+     "id": 2,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 10,
+     "notches": []
+    },
+    {
+     "id": 9,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 10,
+     "notches": []
+    },
+    {
+     "id": 3,
+     "curved": true,
+     "c1": null,
+     "c2": null,
+     "sa": 10,
+     "notches": [
+      0.55
+     ],
+     "cps": [
+      {
+       "x": 189.7037037037037,
+       "y": 116.14814814814815,
+       "u": 0.3874188446471396
+      },
+      {
+       "x": 177.62962962962962,
+       "y": 177.85185185185185,
+       "u": 0.7274475301969017
+      }
+     ]
+    },
+    {
+     "id": 4,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 10,
+     "notches": [
+      0.45
+     ]
+    },
+    {
+     "id": 5,
+     "curved": true,
+     "c1": null,
+     "c2": null,
+     "sa": 10,
+     "notches": [],
+     "cps": [
+      {
+       "x": 116.44444444444446,
+       "y": 490.3333333333333,
+       "u": 0.31055033367505386
+      },
+      {
+       "x": 59.55555555555556,
+       "y": 496,
+       "u": 0.6482068989155675
+      }
+     ]
+    },
+    {
+     "id": 6,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    }
+   ],
+   "closed": true,
+   "internals": [
+    {
+     "pts": [
+      {
+       "x": 96,
+       "y": 495
+      },
+      {
+       "x": 108,
+       "y": 330
+      },
+      {
+       "x": 120,
+       "y": 495
+      }
+     ],
+     "closed": false,
+     "segs": [
+      {
+       "id": 7,
+       "curved": false,
+       "c1": null,
+       "c2": null,
+       "sa": 0,
+       "notches": []
+      },
+      {
+       "id": 8,
+       "curved": false,
+       "c1": null,
+       "c2": null,
+       "sa": 0,
+       "notches": []
+      }
+     ],
+     "id": 1
+    }
+   ],
+   "bases": [],
+   "grain": {
+    "a": {
+     "x": 60,
+     "y": 120
+    },
+    "b": {
+     "x": 60,
+     "y": 400
+    }
+   },
+   "anno": null,
+   "notes": [],
+   "punches": [],
+   "graphics": [],
+   "darts": [
+    {
+     "sid": 4,
+     "t": 0.35,
+     "width": 22,
+     "depth": 90,
+     "folded": true
+    }
+   ],
+   "category": "",
+   "classification": "",
+   "quantity": 1,
+   "lock": false,
+   "layer": 0,
+   "shrink": {
+    "w": 100,
+    "h": 100
+   }
+  },
+  {
+   "id": 2,
+   "name": "Front A ⇄",
+   "on": true,
+   "pts": [
+    {
+     "x": 350.90959394020535,
+     "y": -75.18533909047636
+    },
+    {
+     "x": 282.90959394020535,
+     "y": -63.18533909047636
+    },
+    {
+     "x": 211.4106597263678,
+     "y": -45.310605537016976
+    },
+    {
+     "x": 139.91172551253027,
+     "y": -27.43587198355759
+    },
+    {
+     "x": 200.90959394020535,
+     "y": 144.81466090952364
+    },
+    {
+     "x": 182.90959394020535,
+     "y": 404.81466090952364
+    },
+    {
+     "x": 350.90959394020535,
+     "y": 419.81466090952364
+    }
+   ],
+   "segs": [
+    {
+     "id": 1,
+     "curved": true,
+     "c1": null,
+     "c2": null,
+     "sa": 10,
+     "notches": [],
+     "cps": [
+      {
+       "x": 336.8355198661313,
+       "y": -55.629783534920804,
+       "u": 0.3021702367045331
+      },
+      {
+       "x": 311.6503346809461,
+       "y": -53.40756131269858,
+       "u": 0.6192583949687293
+      }
+     ]
+    },
+    {
+     "id": 2,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 10,
+     "notches": []
+    },
+    {
+     "id": 9,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 10,
+     "notches": []
+    },
+    {
+     "id": 3,
+     "curved": true,
+     "c1": null,
+     "c2": null,
+     "sa": 10,
+     "notches": [
+      0.55
+     ],
+     "cps": [
+      {
+       "x": 161.20589023650166,
+       "y": 40.96280905767179,
+       "u": 0.3874188446471396
+      },
+      {
+       "x": 173.27996431057574,
+       "y": 102.66651276137549,
+       "u": 0.7274475301969017
+      }
+     ]
+    },
+    {
+     "id": 4,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 10,
+     "notches": [
+      0.45
+     ]
+    },
+    {
+     "id": 5,
+     "curved": true,
+     "c1": null,
+     "c2": null,
+     "sa": 10,
+     "notches": [],
+     "cps": [
+      {
+       "x": 234.4651494957609,
+       "y": 415.14799424285695,
+       "u": 0.31055033367505386
+      },
+      {
+       "x": 291.3540383846498,
+       "y": 420.81466090952364,
+       "u": 0.6482068989155676
+      }
+     ]
+    },
+    {
+     "id": 6,
+     "curved": false,
+     "c1": null,
+     "c2": null,
+     "sa": 0,
+     "notches": []
+    }
+   ],
+   "closed": true,
+   "internals": [
+    {
+     "pts": [
+      {
+       "x": 254.90959394020535,
+       "y": 419.81466090952364
+      },
+      {
+       "x": 242.90959394020535,
+       "y": 254.81466090952364
+      },
+      {
+       "x": 230.90959394020535,
+       "y": 419.81466090952364
+      }
+     ],
+     "closed": false,
+     "segs": [
+      {
+       "id": 7,
+       "curved": false,
+       "c1": null,
+       "c2": null,
+       "sa": 0,
+       "notches": []
+      },
+      {
+       "id": 8,
+       "curved": false,
+       "c1": null,
+       "c2": null,
+       "sa": 0,
+       "notches": []
+      }
+     ],
+     "id": 1
+    }
+   ],
+   "bases": [],
+   "grain": {
+    "a": {
+     "x": 290.90959394020535,
+     "y": 44.81466090952364
+    },
+    "b": {
+     "x": 290.90959394020535,
+     "y": 324.81466090952364
+    }
+   },
+   "anno": null,
+   "notes": [],
+   "punches": [],
+   "graphics": [],
+   "darts": [
+    {
+     "sid": 4,
+     "t": 0.35,
+     "width": 22,
+     "depth": 90,
+     "folded": true
+    }
+   ],
+   "category": "",
+   "classification": "",
+   "quantity": 1,
+   "lock": false,
+   "layer": 0,
+   "shrink": {
+    "w": 100,
+    "h": 100
+   },
+   "link": {
+    "of": 1,
+    "kind": "symmetric",
+    "m": [
+     -1,
+     0,
+     0,
+     1,
+     350.90959394020535,
+     -75.18533909047636
+    ]
+   }
+  }
+ ],
+ "seams": [],
+ "stitches": [],
+ "images": [],
+ "lib": {
+  "nextId": 5,
+  "fabric": [
+   {
+    "id": 1,
+    "name": "FABRIC 1",
+    "itemNo": "",
+    "cost": 1,
+    "construction": "",
+    "supplier": "",
+    "owner": "",
+    "mapping": "Repeat",
+    "type": "Fabric_Matte",
+    "color": "#ffffff",
+    "back": "#e4e4e4",
+    "opacity": 100,
+    "roughness": 50,
+    "reflection": 15,
+    "metalness": 0,
+    "physical": "Custom",
+    "thickness": 0.5,
+    "weight": 150
+   }
+  ],
+  "button": [
+   {
+    "id": 3,
+    "name": "Default Button",
+    "itemNo": "",
+    "cost": 1,
+    "thread": "Cross",
+    "width": 20,
+    "linkHole": false,
+    "thickness": 3,
+    "weight": 0.4,
+    "type": "Plastic",
+    "color": "#ffffff",
+    "opacity": 100,
+    "roughness": 50,
+    "reflection": 15,
+    "metalness": 0
+   }
+  ],
+  "buttonhole": [
+   {
+    "id": 4,
+    "name": "Default Buttonhole",
+    "itemNo": "",
+    "cost": 1,
+    "shape": "Straight",
+    "width": 23,
+    "type": "Fabric_Matte",
+    "color": "#ffffff",
+    "opacity": 100,
+    "roughness": 50,
+    "reflection": 15,
+    "metalness": 0
+   }
+  ],
+  "topstitch": [
+   {
+    "id": 2,
+    "name": "Default Topstitch",
+    "itemNo": "",
+    "offset": 3,
+    "length": 3,
+    "space": 0.5,
+    "lines": 1,
+    "thread": 0.3,
+    "color": "#444444"
+   }
+  ],
+  "puckering": [],
+  "trim": [],
+  "zipper": []
+ },
+ "layout": {
+  "name": "",
+  "paper": "a4",
+  "orient": "portrait",
+  "customW": 500,
+  "customH": 700,
+  "margin": 10,
+  "overlap": 10,
+  "cols": 3,
+  "grain": "1way",
+  "gap": 5,
+  "outline": "sa",
+  "pairs": true,
+  "labels": "pattern",
+  "lock": false,
+  "place": {}
+ },
+ "history": {
+  "v": 2,
+  "fv": 11,
+  "at": 4,
+  "steps": [
+   {
+    "n": "Edit Pattern",
+    "tool": "edit_pattern"
+   },
+   {
+    "n": "Add Point"
+   },
+   {
+    "n": "Rename"
+   },
+   {
+    "n": "Symmetric Pattern"
+   },
+   {
+    "n": "Rename"
+   }
+  ],
+  "states": [
+   {
+    "seams": [],
+    "lib": {
+     "nextId": 5,
+     "fabric": [
+      {
+       "id": 1,
+       "name": "FABRIC 1",
+       "itemNo": "",
+       "cost": 1,
+       "construction": "",
+       "supplier": "",
+       "owner": "",
+       "mapping": "Repeat",
+       "type": "Fabric_Matte",
+       "color": "#ffffff",
+       "back": "#e4e4e4",
+       "opacity": 100,
+       "roughness": 50,
+       "reflection": 15,
+       "metalness": 0,
+       "physical": "Custom",
+       "thickness": 0.5,
+       "weight": 150
+      }
+     ],
+     "button": [
+      {
+       "id": 3,
+       "name": "Default Button",
+       "itemNo": "",
+       "cost": 1,
+       "thread": "Cross",
+       "width": 20,
+       "linkHole": false,
+       "thickness": 3,
+       "weight": 0.4,
+       "type": "Plastic",
+       "color": "#ffffff",
+       "opacity": 100,
+       "roughness": 50,
+       "reflection": 15,
+       "metalness": 0
+      }
+     ],
+     "buttonhole": [
+      {
+       "id": 4,
+       "name": "Default Buttonhole",
+       "itemNo": "",
+       "cost": 1,
+       "shape": "Straight",
+       "width": 23,
+       "type": "Fabric_Matte",
+       "color": "#ffffff",
+       "opacity": 100,
+       "roughness": 50,
+       "reflection": 15,
+       "metalness": 0
+      }
+     ],
+     "topstitch": [
+      {
+       "id": 2,
+       "name": "Default Topstitch",
+       "itemNo": "",
+       "offset": 3,
+       "length": 3,
+       "space": 0.5,
+       "lines": 1,
+       "thread": 0.3,
+       "color": "#444444"
+      }
+     ],
+     "puckering": [],
+     "trim": [],
+     "zipper": []
+    },
+    "layout": {
+     "name": "",
+     "paper": "a4",
+     "orient": "portrait",
+     "customW": 500,
+     "customH": 700,
+     "margin": 10,
+     "overlap": 10,
+     "cols": 3,
+     "grain": "1way",
+     "gap": 5,
+     "outline": "sa",
+     "pairs": true,
+     "labels": "pattern",
+     "lock": false,
+     "place": {}
+    },
+    "stitches": [],
+    "guides": [],
+    "measures": [],
+    "grading": {
+     "groups": [
+      {
+       "id": 1,
+       "name": "Sizes (placeholder)",
+       "base": 3,
+       "sizes": [
+        {
+         "id": 1,
+         "name": "XS",
+         "color": "#e03131"
+        },
+        {
+         "id": 2,
+         "name": "S",
+         "color": "#f08c00"
+        },
+        {
+         "id": 3,
+         "name": "M",
+         "color": "#2f9e44"
+        },
+        {
+         "id": 4,
+         "name": "L",
+         "color": "#1971c2"
+        },
+        {
+         "id": 5,
+         "name": "XL",
+         "color": "#9c36b5"
+        }
+       ]
+      }
+     ],
+     "tables": [],
+     "active": null,
+     "nest": false,
+     "nextId": 6
+    },
+    "links": [],
+    "ids": [
+     1
+    ],
+    "p": [
+     {
+      "id": 1,
+      "all": {
+       "id": 1,
+       "name": "Front bodice",
+       "on": true,
+       "pts": [
+        {
+         "x": 0,
+         "y": 0
+        },
+        {
+         "x": 68,
+         "y": 12
+        },
+        {
+         "x": 188,
+         "y": 42
+        },
+        {
+         "x": 150,
+         "y": 220
+        },
+        {
+         "x": 168,
+         "y": 480
+        },
+        {
+         "x": 0,
+         "y": 495
+        }
+       ],
+       "segs": [
+        {
+         "id": 1,
+         "curved": true,
+         "c1": null,
+         "c2": null,
+         "sa": 10,
+         "notches": [],
+         "cps": [
+          {
+           "x": 14.074074074074076,
+           "y": 19.555555555555554
+          },
+          {
+           "x": 39.25925925925925,
+           "y": 21.77777777777778
+          }
+         ]
+        },
+        {
+         "id": 2,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 10,
+         "notches": []
+        },
+        {
+         "id": 3,
+         "curved": true,
+         "c1": null,
+         "c2": null,
+         "sa": 10,
+         "notches": [
+          0.55
+         ],
+         "cps": [
+          {
+           "x": 189.7037037037037,
+           "y": 116.14814814814815
+          },
+          {
+           "x": 177.62962962962962,
+           "y": 177.85185185185185
+          }
+         ]
+        },
+        {
+         "id": 4,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 10,
+         "notches": [
+          0.45
+         ]
+        },
+        {
+         "id": 5,
+         "curved": true,
+         "c1": null,
+         "c2": null,
+         "sa": 10,
+         "notches": [],
+         "cps": [
+          {
+           "x": 116.44444444444446,
+           "y": 490.3333333333333
+          },
+          {
+           "x": 59.55555555555556,
+           "y": 496
+          }
+         ]
+        },
+        {
+         "id": 6,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        }
+       ],
+       "closed": true,
+       "internals": [
+        {
+         "pts": [
+          {
+           "x": 96,
+           "y": 495
+          },
+          {
+           "x": 108,
+           "y": 330
+          },
+          {
+           "x": 120,
+           "y": 495
+          }
+         ],
+         "closed": false,
+         "segs": [
+          {
+           "id": 7,
+           "curved": false,
+           "c1": null,
+           "c2": null,
+           "sa": 0,
+           "notches": []
+          },
+          {
+           "id": 8,
+           "curved": false,
+           "c1": null,
+           "c2": null,
+           "sa": 0,
+           "notches": []
+          }
+         ],
+         "id": 1
+        }
+       ],
+       "bases": [],
+       "grain": {
+        "a": {
+         "x": 60,
+         "y": 120
+        },
+        "b": {
+         "x": 60,
+         "y": 400
+        }
+       },
+       "anno": null,
+       "notes": [],
+       "punches": [],
+       "graphics": [],
+       "darts": [
+        {
+         "sid": 4,
+         "t": 0.35,
+         "width": 22,
+         "depth": 90,
+         "folded": true
+        }
+       ],
+       "category": "",
+       "classification": "",
+       "quantity": 1,
+       "lock": false,
+       "layer": 0,
+       "shrink": {
+        "w": 100,
+        "h": 100
+       }
+      }
+     }
+    ]
+   },
+   {
+    "ids": [
+     1
+    ],
+    "p": [
+     {
+      "id": 1,
+      "set": {
+       "pts": [
+        {
+         "x": 0,
+         "y": 0
+        },
+        {
+         "x": 68,
+         "y": 12
+        },
+        {
+         "x": 210.9978684276751,
+         "y": 47.74946710691877
+        },
+        {
+         "x": 150,
+         "y": 220
+        },
+        {
+         "x": 168,
+         "y": 480
+        },
+        {
+         "x": 0,
+         "y": 495
+        }
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "ids": [
+     1
+    ],
+    "p": [
+     {
+      "id": 1,
+      "set": {
+       "pts": [
+        {
+         "x": 0,
+         "y": 0
+        },
+        {
+         "x": 68,
+         "y": 12
+        },
+        {
+         "x": 139.49893421383754,
+         "y": 29.874733553459386
+        },
+        {
+         "x": 210.9978684276751,
+         "y": 47.74946710691877
+        },
+        {
+         "x": 150,
+         "y": 220
+        },
+        {
+         "x": 168,
+         "y": 480
+        },
+        {
+         "x": 0,
+         "y": 495
+        }
+       ],
+       "segs": [
+        {
+         "id": 1,
+         "curved": true,
+         "c1": null,
+         "c2": null,
+         "sa": 10,
+         "notches": [],
+         "cps": [
+          {
+           "x": 14.074074074074076,
+           "y": 19.555555555555554
+          },
+          {
+           "x": 39.25925925925925,
+           "y": 21.77777777777778
+          }
+         ]
+        },
+        {
+         "id": 2,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 10,
+         "notches": []
+        },
+        {
+         "id": 9,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 10,
+         "notches": []
+        },
+        {
+         "id": 3,
+         "curved": true,
+         "c1": null,
+         "c2": null,
+         "sa": 10,
+         "notches": [
+          0.55
+         ],
+         "cps": [
+          {
+           "x": 189.7037037037037,
+           "y": 116.14814814814815
+          },
+          {
+           "x": 177.62962962962962,
+           "y": 177.85185185185185
+          }
+         ]
+        },
+        {
+         "id": 4,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 10,
+         "notches": [
+          0.45
+         ]
+        },
+        {
+         "id": 5,
+         "curved": true,
+         "c1": null,
+         "c2": null,
+         "sa": 10,
+         "notches": [],
+         "cps": [
+          {
+           "x": 116.44444444444446,
+           "y": 490.3333333333333
+          },
+          {
+           "x": 59.55555555555556,
+           "y": 496
+          }
+         ]
+        },
+        {
+         "id": 6,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        }
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "ids": [
+     1
+    ],
+    "p": [
+     {
+      "id": 1,
+      "set": {
+       "name": "Front A"
+      }
+     }
+    ]
+   },
+   {
+    "ids": [
+     1,
+     2
+    ],
+    "p": [
+     {
+      "id": 2,
+      "all": {
+       "id": 2,
+       "name": "Front A ⇄",
+       "on": true,
+       "pts": [
+        {
+         "x": 350.90959394020535,
+         "y": -75.18533909047636
+        },
+        {
+         "x": 282.90959394020535,
+         "y": -63.18533909047636
+        },
+        {
+         "x": 211.4106597263678,
+         "y": -45.310605537016976
+        },
+        {
+         "x": 139.91172551253027,
+         "y": -27.43587198355759
+        },
+        {
+         "x": 200.90959394020535,
+         "y": 144.81466090952364
+        },
+        {
+         "x": 182.90959394020535,
+         "y": 404.81466090952364
+        },
+        {
+         "x": 350.90959394020535,
+         "y": 419.81466090952364
+        }
+       ],
+       "segs": [
+        {
+         "id": 1,
+         "curved": true,
+         "c1": null,
+         "c2": null,
+         "sa": 10,
+         "notches": [],
+         "cps": [
+          {
+           "x": 336.8355198661313,
+           "y": -55.629783534920804
+          },
+          {
+           "x": 311.6503346809461,
+           "y": -53.40756131269858
+          }
+         ]
+        },
+        {
+         "id": 2,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 10,
+         "notches": []
+        },
+        {
+         "id": 9,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 10,
+         "notches": []
+        },
+        {
+         "id": 3,
+         "curved": true,
+         "c1": null,
+         "c2": null,
+         "sa": 10,
+         "notches": [
+          0.55
+         ],
+         "cps": [
+          {
+           "x": 161.20589023650166,
+           "y": 40.96280905767179
+          },
+          {
+           "x": 173.27996431057574,
+           "y": 102.66651276137549
+          }
+         ]
+        },
+        {
+         "id": 4,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 10,
+         "notches": [
+          0.45
+         ]
+        },
+        {
+         "id": 5,
+         "curved": true,
+         "c1": null,
+         "c2": null,
+         "sa": 10,
+         "notches": [],
+         "cps": [
+          {
+           "x": 234.4651494957609,
+           "y": 415.14799424285695
+          },
+          {
+           "x": 291.3540383846498,
+           "y": 420.81466090952364
+          }
+         ]
+        },
+        {
+         "id": 6,
+         "curved": false,
+         "c1": null,
+         "c2": null,
+         "sa": 0,
+         "notches": []
+        }
+       ],
+       "closed": true,
+       "internals": [
+        {
+         "pts": [
+          {
+           "x": 254.90959394020535,
+           "y": 419.81466090952364
+          },
+          {
+           "x": 242.90959394020535,
+           "y": 254.81466090952364
+          },
+          {
+           "x": 230.90959394020535,
+           "y": 419.81466090952364
+          }
+         ],
+         "closed": false,
+         "segs": [
+          {
+           "id": 7,
+           "curved": false,
+           "c1": null,
+           "c2": null,
+           "sa": 0,
+           "notches": []
+          },
+          {
+           "id": 8,
+           "curved": false,
+           "c1": null,
+           "c2": null,
+           "sa": 0,
+           "notches": []
+          }
+         ],
+         "id": 1
+        }
+       ],
+       "bases": [],
+       "grain": {
+        "a": {
+         "x": 290.90959394020535,
+         "y": 44.81466090952364
+        },
+        "b": {
+         "x": 290.90959394020535,
+         "y": 324.81466090952364
+        }
+       },
+       "anno": null,
+       "notes": [],
+       "punches": [],
+       "graphics": [],
+       "darts": [
+        {
+         "sid": 4,
+         "t": 0.35,
+         "width": 22,
+         "depth": 90,
+         "folded": true
+        }
+       ],
+       "category": "",
+       "classification": "",
+       "quantity": 1,
+       "lock": false,
+       "layer": 0,
+       "shrink": {
+        "w": 100,
+        "h": 100
+       },
+       "link": {
+        "of": 1,
+        "kind": "symmetric",
+        "m": [
+         -1,
+         0,
+         0,
+         1,
+         350.90959394020535,
+         -75.18533909047636
+        ]
+       }
+      }
+     }
+    ]
+   },
+   {
+    "ids": [
+     1,
+     2
+    ],
+    "p": [
+     {
+      "id": 1,
+      "set": {
+       "name": "Front B"
+      }
+     }
+    ]
+   }
+  ]
+ }
+}

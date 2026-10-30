@@ -1,0 +1,14 @@
+{
+  "name": "gusset-workspace",
+  "private": true,
+  "license": "GPL-3.0-or-later",
+  "description": "The app is in drafter/, the desktop shell in desktop/. The one development dependency, Playwright, is for the checks only and is never shipped.",
+  "scripts": {
+    "test": "node drafter/tests/run.js",
+    "test:fast": "node drafter/tests/run.js --fast",
+    "smoke:desktop": "node scripts/smoke-desktop.js"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}

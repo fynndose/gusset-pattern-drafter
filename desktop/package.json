@@ -1,0 +1,148 @@
+{
+  "name": "gusset",
+  "productName": "Gusset – Pattern Drafter",
+  "dataFolder": "Gusset",
+  "version": "1.0.0-beta.1",
+  "description": "Gusset – Pattern Drafter: the desktop app",
+  "author": "The Gusset – Pattern Drafter authors",
+  "license": "GPL-3.0-or-later",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "smoke": "electron smoke.js",
+    "dist": "node build.js portable",
+    "dist:installer": "node build.js nsis"
+  },
+  "build": {
+    "appId": "com.gussetdrafter.gusset-pattern-drafter",
+    "copyright": "Copyright © 2026 The Gusset – Pattern Drafter authors",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "migrate.js",
+      "updates.js"
+    ],
+    "extraResources": [
+      {
+        "from": "../drafter",
+        "to": "drafter",
+        "filter": [
+          "pattern-drafter.html",
+          "pattern-drafter.js",
+          "splash.html",
+          "drafter-tools.js",
+          "drafter-sim.js",
+          "zprj-import.js",
+          "config.js",
+          "blocks/blocks.js",
+          "examples/examples.js",
+          "vendor/three.min.js",
+          "vendor/three-loaders.js",
+          "vendor/three-pathtracer.js",
+          "assets/avatar/presets/marty.glb",
+          "assets/avatar/presets/jessica.glb",
+          "assets/brand/gusset-mark.svg",
+          "assets/brand/gusset-mark-sewn.svg",
+          "assets/brand/gusset-icon-transparent.svg",
+          "assets/brand/gusset-wordmark-white.svg",
+          "vendor/README.md",
+          "vendor/three.LICENSE.txt",
+          "vendor/three-pathtracer.LICENSE.txt"
+        ]
+      },
+      {
+        "from": "..",
+        "to": ".",
+        "filter": [
+          "LICENSE",
+          "ATTRIBUTION.md",
+          "TRADEMARKS.md",
+          "THIRD-PARTY-NOTICES.md"
+        ]
+      }
+    ],
+    "fileAssociations": [
+      {
+        "ext": "pdraft",
+        "name": "Gusset pattern",
+        "description": "Gusset pattern file",
+        "role": "Editor",
+        "mimeType": "application/x-pdraft"
+      }
+    ],
+    "compression": "maximum",
+    "electronFuses": {
+      "runAsNode": false
+    },
+    "electronLanguages": [
+      "en-US"
+    ],
+    "win": {
+      "executableName": "Gusset",
+      "icon": "icons/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "portable": {
+      "artifactName": "Gusset-${version}-win-${arch}-portable.${ext}"
+    },
+    "nsis": {
+      "artifactName": "Gusset-${version}-win-${arch}-setup.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Gusset – Pattern Drafter",
+      "uninstallDisplayName": "Gusset – Pattern Drafter",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true
+    },
+    "mac": {
+      "icon": "icons/icon.icns",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "artifactName": "Gusset-${version}-mac-${arch}.${ext}",
+      "category": "public.app-category.graphics-design",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "notarize": false
+    },
+    "dmg": {
+      "artifactName": "Gusset-${version}-mac-${arch}.${ext}"
+    },
+    "linux": {
+      "icon": "icons/png",
+      "target": [
+        "AppImage"
+      ],
+      "artifactName": "Gusset-${version}-linux-${arch}.${ext}",
+      "executableName": "gusset",
+      "category": "Graphics",
+      "synopsis": "Pattern drafting in 2D, with a 3D window"
+    }
+  },
+  "devDependencies": {
+    "electron": "^45.1.0",
+    "electron-builder": "^26.18.0"
+  },
+  "overrides": {
+    "global-agent": "^4.1.3",
+    "@electron/get": {
+      "undici": "7.30.1"
+    }
+  },
+  "dependencies": {
+    "electron-updater": "6.8.11"
+  }
+}

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unsigned app warnings: install help for Gusset</title>
+<meta name="description" content="What to click when Windows or macOS warns you about Gusset, which is not signed yet, and how to start the Linux AppImage.">
+<meta name="theme-color" content="#1F1F1F">
+<link rel="icon" type="image/svg+xml" href="assets/brand/gusset-icon-transparent.svg">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to the content</a>
+<header class="top"><div class="wrap">
+  <a class="brand" href="./"><img src="assets/brand/gusset-mark.svg" alt="" width="35" height="28"><img src="assets/brand/gusset-wordmark-white.svg" alt="Gusset" width="93" height="21"></a>
+  <nav aria-label="Main">
+    <a href="features.html">Features</a>
+    <a href="download.html">Download</a>
+    <a href="try.html">Try in browser</a>
+    <a href="help.html" aria-current="page">Help</a>
+  </nav>
+</div></header>
+
+<main id="main">
+<section class="head"><div class="wrap narrow">
+  <h1>Unsigned app warnings</h1>
+  <p>Gusset is not signed with a paid developer certificate yet, so Windows and macOS warn you the first time you start it. The warning means the system does not know who made the file. It says nothing about what is in it.</p>
+  <p>To be sure your download is complete and unchanged, <a href="#check">compare its checksum</a>. Only follow these steps for a file you downloaded from this site.</p>
+  <p>Jump to <a href="#windows">Windows</a>, <a href="#mac">Mac</a> or <a href="#linux">Linux</a>.</p>
+</div></section>
+
+<section class="block" id="windows"><div class="wrap narrow">
+  <h2>Windows: "Windows protected your PC"</h2>
+  <ol class="steps">
+    <li>Your browser may say the file is not commonly downloaded. In Edge or Chrome, open the download's menu (the three dots) and choose <strong>Keep</strong>.</li>
+    <li>Double-click the file. A blue box says <strong>Windows protected your PC</strong>.</li>
+    <li>Click <strong>More info</strong>. The file's name and "Unknown publisher" appear.</li>
+    <li>Click <strong>Run anyway</strong>.</li>
+  </ol>
+  <p>The installer sets Gusset up for your user only and asks for no administrator password. The portable <code>.exe</code> needs no installation. It unpacks itself at each start, which takes a few seconds.</p>
+</div></section>
+
+<section class="block" id="mac"><div class="wrap narrow">
+  <h2>Mac: "Open Anyway"</h2>
+  <ol class="steps">
+    <li>Open the <code>.dmg</code> and drag <strong>Gusset – Pattern Drafter</strong> to the <strong>Applications</strong> folder.</li>
+    <li>Start it from Applications. macOS blocks it the first time. Click <strong>Done</strong>, not Move to Trash.</li>
+    <li>Open <strong>System Settings</strong>, then <strong>Privacy &amp; Security</strong>, and scroll down to the message about Gusset.</li>
+    <li>Click <strong>Open Anyway</strong> and confirm with your password. From then on it starts normally.</li>
+  </ol>
+  <h3>If macOS says the app "is damaged and can't be opened"</h3>
+  <p>The file is not damaged. macOS says this about some downloaded apps that Apple has not signed. Open <strong>Terminal</strong> (in Applications, Utilities) and run this line, then start the app again:</p>
+  <pre><code>xattr -cr "/Applications/Gusset – Pattern Drafter.app"</code></pre>
+  <p>This removes the mark macOS puts on downloaded files, for this app only.</p>
+</div></section>
+
+<section class="block" id="linux"><div class="wrap narrow">
+  <h2>Linux: the AppImage</h2>
+  <ol class="steps">
+    <li>Allow the file to run: in your file manager's Properties, under Permissions, or in a terminal:
+      <pre><code>chmod +x Gusset-*.AppImage</code></pre></li>
+    <li>Double-click it, or run it from the terminal.</li>
+  </ol>
+  <p>If nothing happens on Ubuntu 22.04 or newer, a helper library is missing: run <code>sudo apt install libfuse2</code> (<code>libfuse2t64</code> on Ubuntu 24.04).</p>
+  <p>If it stops with a message about the "SUID sandbox", start it with this switch, which turns off the sandbox Gusset's browser engine runs in:</p>
+  <pre><code>./Gusset-*.AppImage --no-sandbox</code></pre>
+</div></section>
+
+<section class="block" id="check"><div class="wrap narrow">
+  <h2>Check your download</h2>
+  <p>The <a href="download.html">download page</a> lists each file's SHA-256 checksum. Run the line for your system in the folder with the file, and compare the result with that list:</p>
+  <h3>Windows (PowerShell)</h3>
+  <pre><code>Get-FileHash .\the-file-you-downloaded</code></pre>
+  <h3>Mac</h3>
+  <pre><code>shasum -a 256 the-file-you-downloaded</code></pre>
+  <h3>Linux</h3>
+  <pre><code>sha256sum the-file-you-downloaded</code></pre>
+  <p>Still stuck? Write to <a href="mailto:feedback@gussetdrafter.com">feedback@gussetdrafter.com</a> and say which system you have and what the message says. Or <a href="try.html">use Gusset in your browser</a>, which needs none of this.</p>
+</div></section>
+</main>
+
+<footer class="foot"><div class="wrap">
+  <p class="links"><a href="privacy.html">Privacy</a> <a href="contact.html">Contact</a> <a href="legal.html">Imprint and legal</a> <a id="foot-source" href="https://github.com/fynndose/gusset-pattern-drafter">Source code on GitHub</a></p>
+  <p>Feedback: <a href="mailto:feedback@gussetdrafter.com">feedback@gussetdrafter.com</a>. Everything else: <a href="mailto:contact@gussetdrafter.com">contact@gussetdrafter.com</a>.</p>
+  <p>Gusset – Pattern Drafter is free software under the <a href="app/LICENSE">GNU General Public License, version 3 or later</a>, with no warranty. <a href="app/THIRD-PARTY-NOTICES.md">Third-party notices</a>. The name and the logo are not under that license: <a href="app/TRADEMARKS.md">how you may use them</a>. The typeface is Chakra Petch, under the <a href="assets/fonts/OFL.txt">SIL Open Font License</a>.</p>
+</div></footer>
+</body>
+</html>

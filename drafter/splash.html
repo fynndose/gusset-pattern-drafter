@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Gusset – Pattern Drafter</title>
+<!-- (Round r24) The desktop app's start-up splash: its own small window, shown at once while the program's page loads in a
+     window that stays hidden until it can paint (desktop/main.js: showSplash(), splashEnd()). Nothing but this file and the
+     mark's picture; no script but the click that skips it. Under reduced motion the mark stands still (the still mark itself: a picture's own media queries are not
+     sure to follow the system) and a thin line fills. -->
+<style>
+  html, body { margin: 0; height: 100%; background: #1F1F1F; overflow: hidden; cursor: default; user-select: none; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; font: 13px system-ui, sans-serif; color: #FAFAF7; }
+  img { width: 150px; height: auto; display: block; }
+  @media (prefers-reduced-motion: reduce) { img { width: 116px; margin: 17px; } }
+  .name { letter-spacing: .04em; opacity: .9; }
+  .line { width: 120px; height: 2px; background: #3a3a3a; overflow: hidden; display: none; }
+  .line::after { content: ""; display: block; height: 100%; background: #FAFAF7; transform-origin: 0 50%; animation: fill 1.2s ease-out forwards; }
+  @keyframes fill { from { transform: scaleX(0); } to { transform: scaleX(.9); } }
+  @media (prefers-reduced-motion: reduce) { .line { display: block; } }
+</style>
+</head>
+<body onclick="window.close()">
+<picture><source media="(prefers-reduced-motion: reduce)" srcset="assets/brand/gusset-mark.svg"><img src="assets/brand/gusset-mark-sewn.svg" alt=""></picture>
+<div class="name">Gusset</div>
+<div class="line" role="progressbar" aria-label="Starting"></div>
+</body>
+</html>
