@@ -111,7 +111,7 @@ const ctx = {
   document: { getElementById: el, createElement: () => el("new" + Math.random()), querySelectorAll: () => [], querySelector: () => null, body: el("body") },
   window: { devicePixelRatio: 1, innerWidth: 1200, innerHeight: 900, addEventListener(type, f) { if (type === "keydown") winKeys.push(f); else (winOn[type] = winOn[type] || []).push(f); }, removeEventListener() {}, ...(desktop ? { desktop } : {}) },
   localStorage, ResizeObserver: class { observe() {} }, URL: {}, Blob: class {}, prompt: () => (ctx.__app && ctx.__app.promptAnswer !== undefined ? ctx.__app.promptAnswer : null),
-  setTimeout: (f) => { timers.push(f); return timers.length; }, clearTimeout() {},
+  setTimeout: (f) => { timers.push(f); return timers.length; }, clearTimeout() {}, setInterval: () => 1, clearInterval() {},
   __toast: (m) => toasts.push(m),
   __blank: !!opt.blank,
   __modal: (title, keys, text) => {

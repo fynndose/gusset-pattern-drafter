@@ -146,7 +146,7 @@ async function run(win) {
     assert.ok(!fs.existsSync(autosave), "nothing to recover from a session that did nothing");
     await js("drafterDebug().run('starterDoc', true); 0");
     await until("autosave.json", () => fs.existsSync(autosave));
-    assert.strictEqual(JSON.parse(fs.readFileSync(autosave, "utf8")).v, 26);      // (version 26 since Round r26; 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2)
+    assert.strictEqual(JSON.parse(fs.readFileSync(autosave, "utf8")).v, 27);      // (version 27 since Round r29 (a document's render settings); 26 since Round r26; 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2)
     assert.strictEqual(await js("localStorage.getItem('pdraft:doc')"), null);
     assert.strictEqual(await js("document.getElementById('s-save').title"), "Autosaved to " + autosave + ", for recovery: not saved to a file yet");
   });
@@ -169,7 +169,7 @@ async function run(win) {
     assert.strictEqual(saveDialogs, runs, "no dialog the second time");
     const parts = partsOf(A);
     assert.strictEqual(fs.readFileSync(A).toString("latin1", 0, 2), "PK", "a version 23 file is a ZIP container");
-    assert.deepStrictEqual([docOf(A).v, docOf(A).pieces[0].name], [26, "Front bodice"]);      // (version 26 since Round r26; 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2)
+    assert.deepStrictEqual([docOf(A).v, docOf(A).pieces[0].name], [27, "Front bodice"]);      // (version 27 since Round r29 (a document's render settings); 26 since Round r26; 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2)
     assert.strictEqual(parts["document.json"].method, 8, "packed with the platform's own deflate");
     assert.ok(!fs.existsSync(A + ".tmp"));
     await until("the autosave to go", () => !fs.existsSync(autosave));          // saved: nothing is left to recover
@@ -557,6 +557,20 @@ async function run(win) {
     await until("snap3.png", () => fs.existsSync(out("snap3.png")) && fs.statSync(out("snap3.png")).size > 100, 15000);
     const c = fs.readFileSync(out("snap3.png"));
     assert.deepStrictEqual([c.readUInt32BE(16), c.readUInt32BE(20)], [300, 400]);
+  });
+  await check3d("(Round r29b) Show in Saved Folder: greyed until a render is saved, then it shows the file really written; a cancelled save leaves it as it was", async () => {
+    const shown = [], was = shell.showItemInFolder; shell.showItemInFolder = (f) => shown.push(f);
+    const folder = () => "document.querySelector('#rw-tools [data-act=folder]')";
+    try {
+      await js("(() => { const d = drafterDebug(); d.setLayout('both'); d.renderWindow(); const o = d.loadRender(); Object.assign(o, { mode: 'quick', size: 'custom', w: 160, h: 120 }); d.saveRender(o); d.run('rwinRender'); return 0; })()");
+      assert.strictEqual(await js(folder() + ".disabled"), true, "nothing saved yet");
+      saveTo = out("shown.png"); await js("document.querySelector('#rw-tools [data-act=save]').click(); 0"); await until("shown.png", () => fs.existsSync(out("shown.png")) && fs.statSync(out("shown.png")).size > 100);
+      await until("the button on", () => js(folder() + ".disabled === false"));
+      await js(folder() + ".click(); 0"); await until("the folder shown", () => shown.length === 1);
+      saveTo = null; await js("document.querySelector('#rw-tools [data-act=save]').click(); 0"); await sleep(300);
+      assert.strictEqual(await js("window.desktop.showSaved()"), true);
+      assert.deepStrictEqual(shown, [out("shown.png"), out("shown.png")]);
+    } finally { shell.showItemInFolder = was; await js("drafterDebug().rwinClose(); 0"); }
   });
   await check3d("every app shortcut reaches the app: Ctrl+K / Ctrl+H / Ctrl+J on the selected pattern in 3D, Ctrl+Shift+C (Clone as Pattern, not the inspector of the developer tools), P (Zipper), Ctrl+C / Ctrl+V", async () => {
     await js("drafterDebug().setLayout('both'); 0"); await sleep(250);

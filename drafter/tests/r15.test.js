@@ -141,7 +141,7 @@ test("r15 / 3: the Seam Allowance tool selects a corner point; the Property Edit
   assert.deepStrictEqual(o.env, { t: "env", d: 4 });
   assert.deepStrictEqual(o.steps, Array(6).fill("Seam Allowance Corner"));
   assert.deepStrictEqual(o.line, [true, true, true]);
-  assert.strictEqual(o.v, 26);      // (version 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2: the history saved as changes)
+  assert.strictEqual(o.v, 27);      // (version 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2: the history saved as changes)
   assert.deepStrictEqual(o.saved, [null, { t: "perp", on: "out", d: 10, rev: true },      // (Round r25: Line 2 is the outgoing line now)
     { t: "pocket", st: 1, din: 5, dout: 5 }, { t: "env", d: 4 }]);
   assert.deepStrictEqual(o.old, [null, { t: "turn" }, { t: "env", d: 14.142 }, { t: "perp", on: "out" }], "Mirror is Turnback, Right Angled an Envelope at its place, Perpendicular 2 Perpendicular on the outgoing line");

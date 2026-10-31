@@ -430,7 +430,7 @@ test("build-1 / 5: a pattern's own Particle Distance and Simulation Shrinkage in
   assert.deepStrictEqual(r.particle, [8, 20], "its own, the other the document's");
   assert.deepStrictEqual(r.cleared, [null, null], "back to the document's and to none: nothing kept");
   assert.deepStrictEqual(r.small, [null, true], "under 5 mm is refused and said");
-  assert.strictEqual(r.doc, 12); assert.strictEqual(r.v, 26);      // (version 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up; 22 since Round r18; 21 since Round r17b)
+  assert.strictEqual(r.doc, 12); assert.strictEqual(r.v, 27);      // (version 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up; 22 since Round r18; 21 since Round r17b)
   assert.deepStrictEqual(r.same, ["A"]); assert.deepStrictEqual(r.others, ["B", "C", "D"]);
 });
 

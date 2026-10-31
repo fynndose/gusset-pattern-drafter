@@ -1883,7 +1883,8 @@ function setPrefs(o) { S.prefs = normPrefs({ ...S.prefs, ...o }); savePrefs(); a
    The status bar shows the state: SAVED (nothing unsaved), AUTOSAVED (unsaved work, kept
    for recovery). A failure (storage full, blocked, private mode) turns it red, toasts
    once, and asks before the tab closes. See THE DOCUMENT AND ITS FILE. */
-const AUTOSAVE_KEY = "pdraft:doc", FILE_VERSION = 26;      // 26 (Round r26): Simulation Shrinkage 1 to 1000, a glue's Strength up to 100, a pattern's foldStay (an older build would clamp or drop them, so it refuses the file); 25 (Round r25): a pattern's Grain Orientation (grainWay), a Slant corner's Distance A / B (a, b), a Pocket corner's Style 3, Solidify's Strength (solid3s), a notch's Point (Center) direction (dir: "point"), (r25 follow-up, before any release of 25) a glue switched off (off) (an older build would drop them, so it refuses the file); 24 (Round r20): an annotation's own angle, colour and line (angle, color, link: an older build would drop them, so it refuses the file); 23 (Round r19 follow-up): the document's lights for the render (lights) and each fabric's own roll in Print Layout (layout.rolls; an older build would drop them, so it refuses the file); 22 (Round r18): the document's avatar edits (avedit: the joints turned by hand, …; an older build would drop them, so it refuses the file); 21 (Round r17b): the background image (backdrop), the display settings kept with the file (display); 20 (Round build-1): a pattern's own Particle Distance (res3), Simulation Shrinkage (shrink3), Solidify (solid3), a glue's strength and thick (an older build would drop them, so it refuses the file); 19 (Round perf-2): the history saved as changes, a list's items each on its own (history v3)
+const AUTOSAVE_KEY = "pdraft:doc", FILE_VERSION = 27;      // 27 (Round r29): a document's render settings (render, only once changed; an older build would drop them, so it refuses the file)
+// 26 (Round r26): Simulation Shrinkage 1 to 1000, a glue's Strength up to 100, a pattern's foldStay (an older build would clamp or drop them, so it refuses the file); 25 (Round r25): a pattern's Grain Orientation (grainWay), a Slant corner's Distance A / B (a, b), a Pocket corner's Style 3, Solidify's Strength (solid3s), a notch's Point (Center) direction (dir: "point"), (r25 follow-up, before any release of 25) a glue switched off (off) (an older build would drop them, so it refuses the file); 24 (Round r20): an annotation's own angle, colour and line (angle, color, link: an older build would drop them, so it refuses the file); 23 (Round r19 follow-up): the document's lights for the render (lights) and each fabric's own roll in Print Layout (layout.rolls; an older build would drop them, so it refuses the file); 22 (Round r18): the document's avatar edits (avedit: the joints turned by hand, …; an older build would drop them, so it refuses the file); 21 (Round r17b): the background image (backdrop), the display settings kept with the file (display); 20 (Round build-1): a pattern's own Particle Distance (res3), Simulation Shrinkage (shrink3), Solidify (solid3), a glue's strength and thick (an older build would drop them, so it refuses the file); 19 (Round perf-2): the history saved as changes, a list's items each on its own (history v3)
 //      // 18 (Round r15): the seam allowance corner types are the reference's eight (perp, turn, slant, env, pocket, … with their own values; an older build would not know them, so it refuses the file; older files' corners are renamed as they open: cornerMigrate()); 17 (Round r14): an internal line's fold angle (foldAngle, foldStrength, foldVar), more in later batches of the round (an older build would drop them, so it refuses the file); 16 (Round r13): a notch may also have its own len and flip (an older build would drop them, so it refuses the file); 15 (Round r12): a notch may be { t, type, angle } (files of 14 have plain numbers, which still are); 14 (Round r11): piping, binding, gluing (files of 13 open with none); 13 (Round r9): a fabric's Max Stretch, tacks, a pattern's Fill, buttons; files of 12 open with defaults
 // where the autosave is kept: the browser's localStorage, or in the desktop app
 // (window.desktop, from desktop/preload.js) files in its data folder behind the same calls
@@ -1923,7 +1924,7 @@ function canonJSON(v) {
 // the document as an object: everything but the drape and the history, which a file keeps as parts of their own
 function docObj() {
   return { v: FILE_VERSION, cloth: S.cloth, nextId: S.nextId, nextSegId: S.nextSegId, nextShapeId: S.nextShapeId, notch: S.notch, grading: S.grading, guides: S.guides, measures: S.measures, links: S.lineLinks, tacks: S.tacks, buttons: S.buttons, pipings: S.pipings, bindings: S.bindings, glues: S.glues,
-    pieces: withKnots(S.pieces), seams: S.seams, stitches: S.stitches, images: usedImages(), lib: S.lib, layout: S.layout, ...((S.lights || []).length ? { lights: S.lights } : {}), ...((S.puckers || []).length ? { puckers: S.puckers } : {}), scene: sceneOut(), display: displayOut(), ...(backdrop() ? { backdrop: S.backdrop } : {}), ...(avEditOn() ? { avedit: S.avedit } : {}) };
+    pieces: withKnots(S.pieces), seams: S.seams, stitches: S.stitches, images: usedImages(), lib: S.lib, layout: S.layout, ...((S.lights || []).length ? { lights: S.lights } : {}), ...((S.puckers || []).length ? { puckers: S.puckers } : {}), scene: sceneOut(), display: displayOut(), ...(backdrop() ? { backdrop: S.backdrop } : {}), ...(avEditOn() ? { avedit: S.avedit } : {}), ...(S.render ? { render: S.render } : {}) };
 }
 /* (Round r17b / 2) The display settings kept with the file, as the reference keeps its 2D and 3D display settings in a project
    and offers them on opening (the manual's Open: Display Settings). Saved always (from version 21); put back on opening only with
@@ -2129,6 +2130,7 @@ function loadDoc(d) {
   S.lineLinks = normLinks(d.links); linkRemember();         // (a file from before r16: each line remembers its length now, so the first edit is not a change)
   S.images = normImages(d.images);
   S.backdrop = normBackdrop(d.backdrop, S.images);         // (Round r17b / 1) the background image, from version 21
+  S.render = d.render && typeof d.render === "object" ? normRender(d.render) : null; renderLensApply();         // (Round r29) the render settings, from version 27
   S.avedit = normAvEdit(d.avedit);                         // (Round r18) the avatar edits, from version 22
   S.lib = normLib(d.lib);
   S.layout = normLayout(d.layout);
@@ -8056,7 +8058,7 @@ function normPrint(o) {
   if (PAPERS.some(p => p[0] === o.paper)) d.paper = o.paper;
   if (o.orient === "landscape") d.orient = "landscape";
   if (o.mode === "fit") d.mode = "fit";
-  d.margin = num(o.margin, d.margin, 0, 50); d.overlap = num(o.overlap, d.overlap, 0, 50);
+  d.margin = num(o.margin, d.margin, 0, 30); d.overlap = num(o.overlap, d.overlap, 0, 50);
   d.customW = num(o.customW, d.customW, 20, 5000); d.customH = num(o.customH, d.customH, 20, 20000);
   for (const k of ["shrink", "selected", "skipBlank"]) if (typeof o[k] === "boolean") d[k] = o[k];
   for (const [k] of PRINT_LINES) {
@@ -8108,7 +8110,7 @@ function printPlan(b, st) {
     const ih = ph - 2*m;
     if (!(ih > 0)) return null;
     const scale = Math.min(1, iw/cw, ih/ch);
-    return { pw, ph, m, iw, ih, scale, cols: 1, rows: 1, tiles: [{ col: 0, row: 0, x: b.x0, y: b.y0, w: iw/scale, h: ih/scale }] };
+    return { pw, ph, m, iw, ih, roll, scale, cols: 1, rows: 1, tiles: [{ col: 0, row: 0, x: b.x0, y: b.y0, w: iw/scale, h: ih/scale }] };
   }
   if (roll) ph = ch + 2*m;
   const ih = ph - 2*m, ov = Math.min(st.overlap, iw/2, ih/2);
@@ -8116,7 +8118,7 @@ function printPlan(b, st) {
   const count = (len, page) => len <= page + 1e-9 ? 1 : Math.ceil((len - ov)/(page - ov) - 1e-9);
   const cols = count(cw, iw), rows = count(ch, ih), tiles = [];
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) tiles.push({ col: c, row: r, x: b.x0 + c*(iw - ov), y: b.y0 + r*(ih - ov), w: iw, h: ih });
-  return { pw, ph, m, iw, ih, scale: 1, cols, rows, tiles };
+  return { pw, ph, m, iw, ih, roll, scale: 1, cols, rows, tiles };
 }
 // the tiles of a plan that have any pattern on them (the others are blank sheets)
 function usedTiles(plan, pieces) {
@@ -8191,19 +8193,39 @@ function printInner(pieces, st, unit) {
    its own part of it through a clip, with the sheet's printable area outlined, a
    label (row letter + column number), where the next sheets overlap, and on the first
    sheet a 50 mm line to check the printer's scale against. */
+/* (Round r29) Where sheets meet, on the line each sheet is cut on (or, with an overlap, the line the next sheet's edge lies on): two small
+   triangles on each shared edge, at a quarter and three quarters of it, pointing inwards. Cut and laid together, each pair makes a whole
+   diamond when the sheets line up. They are at the same place of the drawing on both sheets. */
+const ALIGN_MM = 4;
+function alignMarks(plan, t, ov, f) {
+  const m = plan.m, x0 = m, y0 = m, x1 = m + plan.iw - ov, y1 = m + plan.ih - ov, a = ALIGN_MM, tri = (pts) => '<path class="align" d="M ' + pts.map(p => f(p[0]) + ' ' + f(p[1])).join(" L ") + ' Z" fill="#555"/>';
+  const cw = plan.iw - ov, ch = plan.ih - ov, out = [];
+  for (const k of [0.25, 0.75]) {
+    const x = x0 + cw*k, y = y0 + ch*k;
+    if (t.col > 0) out.push(tri([[x0, y - a], [x0 + a, y], [x0, y + a]]));
+    if (t.col < plan.cols - 1) out.push(tri([[x1, y - a], [x1 - a, y], [x1, y + a]]));
+    if (t.row > 0) out.push(tri([[x - a, y0], [x, y0 + a], [x + a, y0]]));
+    if (t.row < plan.rows - 1) out.push(tri([[x - a, y1], [x, y1 - a], [x + a, y1]]));
+  }
+  return out.join("");
+}
 function printHTML(plan, tiles, inner, st, title) {
   const f = (v) => +v.toFixed(3), m = plan.m, pages = [];
   tiles.forEach((t, k) => {
     const lab = String.fromCharCode(65 + t.row) + (t.col + 1), tiled = plan.cols*plan.rows > 1, ov = Math.min(st.overlap, plan.iw/2, plan.ih/2);
     // (Round r19 / H27, the housekeeping video 12:48: "a border … marked with separated lines so you can see where to cut … all around")
     // the printable area's frame is a dashed cut line on every sheet; it was solid
-    let marks = '<rect x="' + f(m) + '" y="' + f(m) + '" width="' + f(plan.iw) + '" height="' + f(plan.ih) + '" fill="none" stroke="#999" stroke-width="0.15" stroke-dasharray="3 2"/>';
+    // (Round r29) a roll is not trimmed: no cut line
+    let marks = plan.roll ? '' : '<rect x="' + f(m) + '" y="' + f(m) + '" width="' + f(plan.iw) + '" height="' + f(plan.ih) + '" fill="none" stroke="#999" stroke-width="0.15" stroke-dasharray="3 2"/>';
     if (tiled) {
       marks += '<text x="' + f(m + 3) + '" y="' + f(m + 7) + '" font-family="sans-serif" font-size="5" fill="#999">' + lab + ' \u00b7 ' + (t.row*plan.cols + t.col + 1) + ' of ' + plan.cols*plan.rows + '</text>';
       if (t.col < plan.cols - 1) marks += '<path d="M ' + f(m + plan.iw - ov) + ' ' + f(m) + ' V ' + f(m + plan.ih) + '" stroke="#999" stroke-width="0.15" stroke-dasharray="2 2"/>';
       if (t.row < plan.rows - 1) marks += '<path d="M ' + f(m) + ' ' + f(m + plan.ih - ov) + ' H ' + f(m + plan.iw) + '" stroke="#999" stroke-width="0.15" stroke-dasharray="2 2"/>';
+      marks += alignMarks(plan, t, ov, f);
     }
+    // (Round r29) the scale test: a square of 50 mm on the first sheet, with the 50 mm line along its foot that it grew from
     if (k === 0 && plan.scale === 1) marks += '<path d="M ' + f(m + 3) + ' ' + f(m + plan.ih - 4) + ' h 50 m 0 -2 v 4 m -50 0 v -4" fill="none" stroke="#999" stroke-width="0.2"/>' +
+      '<rect data-test="square" x="' + f(m + 3) + '" y="' + f(m + plan.ih - 54) + '" width="50" height="50" fill="none" stroke="#777" stroke-width="0.2"/>' +
       '<text x="' + f(m + 28) + '" y="' + f(m + plan.ih - 6) + '" font-family="sans-serif" font-size="3" text-anchor="middle" fill="#999">50 mm \u2014 check with a ruler</text>';
     pages.push('<svg xmlns="http://www.w3.org/2000/svg" class="page" data-tile="' + lab + '" width="' + f(plan.pw) + 'mm" height="' + f(plan.ph) + 'mm" viewBox="0 0 ' + f(plan.pw) + ' ' + f(plan.ph) + '">' +
       (k === 0 ? '<defs><g id="pat">' + inner + '</g></defs>' : '') +
@@ -8639,11 +8661,15 @@ function runPrint(html, plan) {
       .catch((e) => toast("Printing failed: " + deskErr(e), 6000));
     return;
   }
+  /* (Round r29) One print window, once the pages are in the frame. The frame used to go into the page first and be given its pages after:
+     going in, it loads an empty page, which fired onload: a print window of nothing, and after its Cancel the pages' own load opened
+     the right one. Now its pages are there before it goes in, so it loads once, and onload can only print once. */
   const f = document.createElement("iframe");
+  let printed = false;
   f.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
-  f.onload = () => { try { f.contentWindow.focus(); f.contentWindow.print(); } catch (e) { toast("The browser would not open its print window. Use Save Print File instead."); } setTimeout(() => f.remove(), 120000); };
-  document.body.appendChild(f);
+  f.onload = () => { if (printed) return; printed = true; try { f.contentWindow.focus(); f.contentWindow.print(); } catch (e) { toast("The browser would not open its print window. Use Save Print File instead."); } setTimeout(() => f.remove(), 120000); };
   f.srcdoc = html;
+  document.body.appendChild(f);
 }
 const printSummary = () => {
   const job = printJob();
@@ -8663,7 +8689,7 @@ function printDialog(at) {
     '<div class="df"><label>Paper</label><select data-p="paper">' + opt(PAPERS.map(p => [p[0], p[1]]), st.paper) + '</select></div>' +
     '<div class="df"><label>Orientation</label><select data-p="orient">' + opt([["portrait", "Portrait"], ["landscape", "Landscape"]], st.orient) + '</select></div>' +
     '<div class="df"><label>Print type</label><select data-p="mode">' + opt([["actual", "Actual size (tiled)"], ["fit", "Shrink to fit"]], st.mode) + '</select></div>' +
-    num("margin", "Margin", "mm") + num("overlap", "Tile overlap", "mm") + num("customW", "Custom width", "mm") + num("customH", "Custom height", "mm") +
+    num("margin", "Cut-off margin", "mm") + num("overlap", "Tile overlap", "mm") + num("customW", "Custom width", "mm") + num("customH", "Custom height", "mm") +
     chk("shrink", "Apply each pattern's shrinkage") + chk("selected", "Selected patterns only") + chk("skipBlank", "Leave out blank sheets") +
     '<h3>Lines</h3><table>' + PRINT_LINES.map(([k, name]) => '<tr><td><label class="lk" style="margin:0"><input type="checkbox" data-l="' + k + '"' + (st.lines[k].show ? ' checked' : '') + '> ' + name + '</label></td>' +
       '<td><input type="color" data-c="' + k + '" value="' + st.lines[k].color + '"></td><td><select data-d="' + k + '">' + opt([["solid", "Solid"], ["dashed", "Dashed"], ["dotted", "Dotted"]], st.lines[k].dash) + '</select></td></tr>').join("") + '</table>' +
@@ -13875,7 +13901,7 @@ const WELCOME_KEY = "pdraft:welcome", ERR_KEEP = 20, STEPS_KEPT = 10;
 const ERRLOG = [];
 // a message with the user's own folders, e-mail addresses and the like taken out
 function scrubText(s) {
-  return String(s).replace(/[A-Za-z]:[\\/]+(Users|Documents and Settings)[\\/]+[^\\/\s"'<>]+/gi, "<home>").replace(/\/(home|Users)\/[^/\s"'<>]+/g, "<home>")
+  return String(s).replace(/[A-Za-z]:[\\/]+(Users|Documents and Settings)[\\/]+[^\\/\s\x22\x27<>]+/gi, "<home>").replace(/\/(home|Users)\/[^/\s\x22\x27<>]+/g, "<home>")
     .replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, "<e-mail>").slice(0, 400);
 }
 function noteError(msg) {
@@ -14072,7 +14098,7 @@ function bootPieces() { return []; }
 // a new, empty document with every document setting at its default (the view, the preferences and the avatar are not the document's)
 function blankDoc() {
   S.known3 = null; S.home3 = null;
-  S.pieces = []; S.seams = []; S.stitches = []; S.puckers = []; S.lineLinks = []; S.selMore = []; S.guides = []; S.measures = []; S.tacks = []; S.buttons = []; S.pipings = []; S.bindings = []; S.glues = []; S.selTrim = null; S.images = []; S.backdrop = null; S.avedit = normAvEdit(null); S.bgMode = null; S.lights = [];
+  S.render = null; S.pieces = []; S.seams = []; S.stitches = []; S.puckers = []; S.lineLinks = []; S.selMore = []; S.guides = []; S.measures = []; S.tacks = []; S.buttons = []; S.pipings = []; S.bindings = []; S.glues = []; S.selTrim = null; S.images = []; S.backdrop = null; S.avedit = normAvEdit(null); S.bgMode = null; S.lights = [];
   S.notch = normNotch(null); S.grading = defaultGrading(); S.lib = normLib(null); S.layout = normLayout(null); S.cloth = normCloth(null); S.drapeIn = null;
   G3.look = null; S.states3 = [];
   S.docAv = null; S.docAvAsk = false; S.docAvTried = false; S.docAvFile = null; S.avEmbed = null;
@@ -14267,7 +14293,7 @@ function histPack(max) {
 }
 // the file versions whose saved history this build can replay: a step holds whole patterns, and 12 to 15 changed nothing in them
 // that can't be read with its defaults
-const HIST_FV = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26];
+const HIST_FV = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27];
 // a file's timeline as the undo and redo stacks: { undo, un, redo, rn }, or null if it has none or it is not usable
 function histUnpack(h, fv) {
   try {
@@ -17128,6 +17154,7 @@ function ui() {
     L.appendChild(d);
   }
   const pr = document.getElementById("props"), p = primary();
+  if (RWIN) rwinFrontApply();
   // the Object Browser: its Grading tab holds the grading panel, its lists everything else
   const og = document.getElementById("ob-grading");
   if (og) { og.innerHTML = gradingPanel(p); wireGrading(og, p); }
@@ -18137,7 +18164,7 @@ function normLayout(o) {
     if (/^\d+:\d+$/.test(k) && q && Number.isFinite(q.x) && Number.isFinite(q.y)) place[k] = { x: q.x, y: q.y, rot: [0, 90, 180, 270].includes(q.rot) ? q.rot : 0, flip: q.flip === true };
   }
   return { name: typeof o.name === "string" ? o.name : "", paper: PAPERS.some(p => p[0] === o.paper && p[0] !== "full") ? o.paper : "a4", orient: o.orient === "landscape" ? "landscape" : "portrait",
-    customW: num(o.customW, 500, 20, 5000), customH: num(o.customH, 700, 20, 20000), margin: num(o.margin, 10, 0, 50), overlap: num(o.overlap, 10, 0, 50), cols: Math.round(num(o.cols, 3, 1, 20)),
+    customW: num(o.customW, 500, 20, 5000), customH: num(o.customH, 700, 20, 20000), margin: num(o.margin, 10, 0, 50), overlap: num(o.overlap, 0, 0, 50) /* (Round r29: 0, the sheets butt edge to edge; it was 10; a file keeps its own) */, cols: Math.round(num(o.cols, 3, 1, 20)),
     grain: GRAINS.some(g => g[0] === o.grain) ? o.grain : "1way", gap: num(o.gap, 5, 0, 100), outline: o.outline === "seam" ? "seam" : "sa", pairs: o.pairs !== false,
     labels: o.labels === "center" ? "center" : "pattern", lock: o.lock === true, place, buffer: normBuffer(o.buffer), ...normRolls(o.rolls) };
 }
@@ -18459,8 +18486,19 @@ function drawLayout() {
   c.clearRect(0, 0, LW, LH); c.fillStyle = "#c6c6c6"; c.fillRect(0, 0, LW, LH);
   // the sheets: paper white, the part the printer can't reach left grey, a dashed line where the next sheet overlaps; (r19 follow-up,
   // H25) every fabric's marker on its own roll, one below the other in All
+  /* (Round r29) By default as they will be: trimmed. The cut-off margin is gone and the sheets lie edge to edge, one white sheet of paper
+     as after cutting and taping, with thin lines where they meet and each page's label over the patterns (layoutPageLines()). Paper View
+     (S.layPaper, a switch on the bar, for the session) is the whole sheets with their margins. A roll is never tiled or trimmed. */
+  const trimmed = (fk) => !S.layPaper && !layoutSheet(fk).roll;
   for (const fk of groups) {
   const sheet = layoutSheet(fk), st = layoutStats(fk), oy = offs.get(fk) || 0, rows = st.rows, m = rollOf(fk).margin;
+  if (trimmed(fk)) {
+    const a = lS(V(0, oy)), wd = sheet.cols*(sheet.iw - sheet.ov) + sheet.ov, hg = rows*(sheet.ih - sheet.ov) + sheet.ov;
+    c.fillStyle = "#ffffff"; c.fillRect(a.x, a.y, wd*z, hg*z);
+    c.strokeStyle = "#8a8a8a"; c.lineWidth = 1; c.strokeRect(a.x + .5, a.y + .5, wd*z, hg*z);
+    if (fk === groups[0]) layoutScaleSquare(c, sheet.ih, z);
+    continue;
+  }
   for (let r = 0; r < rows; r++) for (let k = 0; k < sheet.cols; k++) {
     const ih = sheet.roll ? Math.max(st.length, 200) : sheet.ih, x = k*(sheet.iw - sheet.ov), y = oy + r*(ih - sheet.ov), a = lS(V(x - m, y - m)), b = lS(V(x, y));
     c.fillStyle = "#e9e9e9"; c.fillRect(a.x, a.y, (sheet.iw + 2*m)*z, (ih + 2*m)*z);
@@ -18470,7 +18508,7 @@ function drawLayout() {
     if (!sheet.roll) { c.fillStyle = "#9a9a9a"; c.font = "10px ui-monospace, monospace"; c.textAlign = "left"; c.fillText(String.fromCharCode(65 + r) + (k + 1), b.x + 4, b.y + 12); }
   }
   // the 50 mm check line of the first sheet
-  if (fk === groups[0]) { const a = lS(V(3, (sheet.roll ? Math.max(st.length, 200) : sheet.ih) - 4)); c.strokeStyle = "#9a9a9a"; c.lineWidth = 1; c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(a.x + 50*z, a.y); c.moveTo(a.x, a.y - 3); c.lineTo(a.x, a.y + 3); c.moveTo(a.x + 50*z, a.y - 3); c.lineTo(a.x + 50*z, a.y + 3); c.stroke(); }
+  if (fk === groups[0]) layoutScaleSquare(c, sheet.roll ? Math.max(st.length, 200) : sheet.ih, z);
   }
   // the patterns: solid up to the cut line, as they are cut
   const path = (pts, close) => { c.beginPath(); pts.forEach((q, i) => { const s = lS(q); i ? c.lineTo(s.x, s.y) : c.moveTo(s.x, s.y); }); if (close) c.closePath(); };
@@ -18503,6 +18541,7 @@ function drawLayout() {
     c.font = "bold 18px Segoe UI, Arial, sans-serif"; c.textAlign = "center"; c.lineWidth = 4; c.strokeStyle = "#ffffff"; c.strokeText("⚠", m.x, m.y - 12); c.fillStyle = "#b01010"; c.fillText("⚠", m.x, m.y - 12);
   }
   layOverStatus(ov.n);
+  for (const fk of groups) if (trimmed(fk)) layoutPageLines(c, fk, offs.get(fk) || 0, z);
   // (Round r13 / 9) the buffer round each pattern: a dashed box, its sides as far out as the buffer says (turned with the pattern)
   const Bf = L.buffer || {};
   if (Bf.l || Bf.r || Bf.t || Bf.b) for (const x of ps) {
@@ -18537,6 +18576,24 @@ function drawLayout() {
   if (st.over) { c.fillStyle = "#b01010"; c.textAlign = "left"; c.fillText("\u26a0 Some patterns reach past the right edge of the layout: move them, or nest again", o.x, o.y - 8); }
   }
   c.textAlign = "center";
+}
+// the scale test of the first sheet, as it prints: a 50 mm square on its 50 mm line, 3 mm in and 4 mm up from the corner
+function layoutScaleSquare(c, ih, z) {
+  const a = lS(V(3, ih - 4)), n = 50*z;
+  c.strokeStyle = "#9a9a9a"; c.lineWidth = 1; c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(a.x + n, a.y); c.moveTo(a.x, a.y - 3); c.lineTo(a.x, a.y + 3); c.moveTo(a.x + n, a.y - 3); c.lineTo(a.x + n, a.y + 3); c.stroke();
+  c.strokeRect(a.x, a.y - n, n, n);
+}
+// (Round r29) over a trimmed marker: thin lines where the pages meet (solid: no state is told by colour alone; an overlap's far edge dashed) and each page's label, as it prints
+function layoutPageLines(c, fk, oy, z) {
+  const sheet = layoutSheet(fk), rows = layoutStats(fk).rows, cw = sheet.iw - sheet.ov, ch = sheet.ih - sheet.ov, wd = sheet.cols*cw + sheet.ov, hg = rows*ch + sheet.ov;
+  c.lineWidth = 1;
+  const line = (x0, y0, x1, y1, dash) => { const a = lS(V(x0, oy + y0)), b = lS(V(x1, oy + y1)); c.setLineDash(dash); c.beginPath(); c.moveTo(Math.round(a.x) + .5, Math.round(a.y) + .5); c.lineTo(Math.round(b.x) + .5, Math.round(b.y) + .5); c.stroke(); };
+  c.strokeStyle = "#6a6a6e";
+  for (let k = 1; k < sheet.cols; k++) { line(k*cw, 0, k*cw, hg, []); if (sheet.ov) line(k*cw + sheet.ov, 0, k*cw + sheet.ov, hg, [3, 3]); }
+  for (let r = 1; r < rows; r++) { line(0, r*ch, wd, r*ch, []); if (sheet.ov) line(0, r*ch + sheet.ov, wd, r*ch + sheet.ov, [3, 3]); }
+  c.setLineDash([]);
+  c.fillStyle = "#55555a"; c.font = "10px ui-monospace, monospace"; c.textAlign = "left";
+  for (let r = 0; r < rows; r++) for (let k = 0; k < sheet.cols; k++) { const b = lS(V(k*cw, oy + r*ch)); c.fillText(String.fromCharCode(65 + r) + (k + 1), b.x + 4, b.y + 12); }
 }
 // the fill of a pattern on the layout: its fabric's colour, kept light so the lines read
 const RENDERFILL = (p) => { const f = fabricOf(p); return f && f.color !== "#ffffff" ? f.color : "#ffffff"; };
@@ -18705,7 +18762,7 @@ function layoutProps(pr) {
       (sheet.roll ? '' : '<div class="row"><label>Orientation</label><select class="w" id="ly-orient">' + opt("portrait", L.orient, "Portrait") + opt("landscape", L.orient, "Landscape") + '</select></div>' +
         '<div class="row"><label title="How many sheets side by side make up the width patterns are nested on">Sheets across</label><input type="text" inputmode="decimal" data-num="1" id="ly-cols" min="1" max="20" step="1" value="' + L.cols + '"></div>' +
         '<div class="row"><label title="How far each sheet overlaps the next, for gluing">Overlap (mm)</label><input type="text" inputmode="decimal" data-num="1" id="ly-ov" min="0" max="50" value="' + L.overlap + '"></div>') +
-      '<div class="row"><label title="The border the printer can\'t print on; nothing is laid there">Printer margin (mm)</label><input type="text" inputmode="decimal" data-num="1" id="ly-margin" min="0" max="50" value="' + L.margin + '"></div>' +
+      '<div class="row"><label title="The border round each sheet that is cut off (0 to 30 mm); the printer needs some, and the printed sheet has a cut line there. Nothing is laid on it">Cut-off margin (mm)</label><input type="text" inputmode="decimal" data-num="1" id="ly-margin" min="0" max="30" value="' + L.margin + '"></div>' +
       ro("Width", metricAnd(st.width)) + ro("Length", metricAnd(st.length, true))) +
     sec("Nesting", '<div class="row"><label title="How a pattern may be turned when nesting: 1-way never, 2-way by half a turn, Any by quarter turns">Grain Direction</label><select class="w" id="ly-grain">' + GRAINS.map(g => opt(g[0], L.grain, g[1])).join("") + '</select></div>' +
       '<div class="row"><label>Pattern spacing (mm)</label><input type="text" inputmode="decimal" data-num="1" id="ly-gap" min="0" max="100" value="' + L.gap + '"></div>' +
@@ -18723,7 +18780,7 @@ function layoutProps(pr) {
   // where a paper field is written: the tab's fabric's own roll (made from what it uses now), or the layout's
   const R = () => { if (fk == null) return L0; L0.rolls = L0.rolls || {}; return L0.rolls[String(fk)] || (L0.rolls[String(fk)] = normRoll(rollOf(fk))); };
   set("ly-name", (el) => { L0.name = el.value; }); set("ly-paper", (el) => { R().paper = el.value; }, true); set("ly-cw", (el) => { R().customW = el.value; }, true); set("ly-ch", (el) => { R().customH = el.value; }, true);
-  set("ly-orient", (el) => { R().orient = el.value; }, true); set("ly-cols", (el) => { R().cols = el.value; }, true); set("ly-ov", (el) => { R().overlap = el.value; }, true); set("ly-margin", (el) => { R().margin = el.value; }, true);
+  set("ly-orient", (el) => { R().orient = el.value; }, true); set("ly-cols", (el) => { R().cols = el.value; }, true); set("ly-ov", (el) => { R().overlap = el.value; }, true); set("ly-margin", (el) => { R().margin = Math.max(0, Math.min(30, numOf(el.value))); }, true);
   if (g("ly-roll-def")) g("ly-roll-def").onclick = () => { push("Default Roll"); delete L0.rolls[String(fk)]; S.layout = normLayout(L0); commit(); layoutFit(); };
   for (const k of ["l", "r", "t", "b"]) set("ly-bf-" + k, (el) => { const v = el.value; if (L0.buffer.link) L0.buffer = { ...L0.buffer, l: v, r: v, t: v, b: v }; else L0.buffer = { ...L0.buffer, [k]: v }; });
   set("ly-bf-link", (el) => { L0.buffer = { ...L0.buffer, link: el.checked }; });
@@ -18803,10 +18860,11 @@ const LAY_TOOLS = [
   ["row", "Reset Default Arrangement", "M4 12a8 8 0 1 0 2.3-5.7M4 4v5h5", true],
   ["snap", "Snapshot", "M4 8h4l2-3h4l2 3h4v11H4zM12 11a3 3 0 1 0 0 6 3 3 0 0 0 0-6z", true],
   ["tape", "Tape Measure (Point-to-Point)", "M3 15l12-12 6 6-12 12zM7 11l2 2M10 8l2 2M13 5l2 2", true],
+  ["paper", "Paper View", "M6 3h12v18H6zM9 6h6v12H9z", true],
   ["plotter", "Plotter\u2026", "M4 17h16M6 17V7h12v10M9 7V4h6v3M9 11h6M9 14h4", true],
   ["print", "Print\u2026", "M6 9V3h12v6M6 18H4v-7h16v7h-2M7 14h10v7H7z", true],
   ["file", "Save Print File", "M5 3h11l3 3v15H5zM8 3v6h8V3M8 21v-7h8v7", true]];
-const LAY_TIPS = { manual: "Drag or nudge (arrow keys) the patterns by hand: they keep clear of each other and inside the roll. Shift + an arrow selects the next pattern", nest: "Arrange every pattern on the width as tightly as it will go, turning them only as the grain direction allows", settings: "The nesting settings, in the Property Editor",
+const LAY_TIPS = { paper: "On: the whole sheets, with the margin that is cut off. Off: the pattern as it looks after cutting and taping the sheets together", manual: "Drag or nudge (arrow keys) the patterns by hand: they keep clear of each other and inside the roll. Shift + an arrow selects the next pattern", nest: "Arrange every pattern on the width as tightly as it will go, turning them only as the grain direction allows", settings: "The nesting settings, in the Property Editor",
   unnest: "Back as the patterns lie in the 2D window", labels: "Names at the middle of each pattern, or where they are in the 2D window", row: "One row, side by side", snap: "The layout as a picture",
   plotter: "The lines and information to print, with a preview, then Plot or Save", tape: "Click two places on the layout for the distance between them; every measurement stays until the tape is switched off or Esc", print: "Print the sheets as they are laid out", file: "The same pages as an HTML file to print later" };
 function layoutToolsBuild() {
@@ -18819,8 +18877,9 @@ function layoutToolsBuild() {
     b.dataset.cmd = k; b.title = n + (built ? (LAY_TIPS[k] ? "\n" + LAY_TIPS[k] : "") : " (not built yet)"); b.innerHTML = svgIcon(icon);
     if (k === "tape") b.id = "lay-tape";
     if (k === "manual") { b.id = "lay-manual"; if (S.layManual && b.classList) b.classList.add("on"); }
+    if (k === "paper") { b.id = "lay-paper"; if (b.setAttribute) b.setAttribute("aria-pressed", S.layPaper ? "true" : "false"); if (S.layPaper && b.classList) b.classList.add("on"); }
     if (!built) b.disabled = true;
-    else b.onclick = (e) => { if (e && e.stopPropagation) e.stopPropagation(); if (k === "tape") return layTape(!(S.layTape && S.layTape.on)); if (k === "manual") return layManual(!S.layManual); if (k === "settings") return layoutNestSettings(); if (k === "plotter") return plotterDialog(); layoutCmd(k); };
+    else b.onclick = (e) => { if (e && e.stopPropagation) e.stopPropagation(); if (k === "paper") { S.layPaper = !S.layPaper; layoutToolsBuild(); return drawLayout(); } if (k === "tape") return layTape(!(S.layTape && S.layTape.on)); if (k === "manual") return layManual(!S.layManual); if (k === "settings") return layoutNestSettings(); if (k === "plotter") return plotterDialog(); layoutCmd(k); };
     bar.appendChild(b);
     if (k === "snap" || k === "tape") { const sp = document.createElement("div"); sp.className = "sep"; bar.appendChild(sp); }
   }
@@ -19068,11 +19127,16 @@ function buildSelectors() {
   if (h2) { h2.innerHTML = ""; for (const [g, name] of VIEW_GROUPS) mk(h2, g, name, SEL_ICON[g], () => selectorItems(g)); }
   if (h3) {
     h3.innerHTML = "";
+    // (Round r29) Quality Render and Schematic Render, first in the column, as the maintainer's frames have them; a state is said by the frame round the button and its name
+    for (const [id, ic, go] of [["quality3d", "M12 3l8 4.500v9L12 21l-8-4.500v-9zM12 12l8-4.500M12 12v9M12 12L4 7.500", () => setQuality3(!S.ui.quality3)], ["schem3d", "M8 4l-5 3 2 4 2-1v10h10V10l2 1 2-4-5-3a4 4 0 0 1-8 0M7 14h10M12 9v11", () => setSchem3(!S.ui.schem3)]]) {
+      const qb = document.createElement("button"); qb.id = id; qb.innerHTML = svgIcon(ic); qb.onclick = (e) => { if (e && e.stopPropagation) e.stopPropagation(); go(); }; h3.appendChild(qb);
+    }
+    selLook3();
     const items = (g, name) => () => [{ hd: name }, ...VIEW3D[g].map(([k, n]) => ({ n, k: keyOf("show3:" + k), on: show3(k), f: () => setShow3(k, !show3(k)), keep: items(g, name) }))];
     mk(h3, "garment3", "Garment Display", SEL_ICON.garment, items("garment", "Garment Display")); mk(h3, "trim3", "Trim Display", SEL_ICON.trim, items("trim", "Trim Display"));
     mk(h3, "avatar3", "Avatar Display", SEL_ICON.avatar, avatarItems); mk(h3, "render3", "Garment Rendering Style", SEL_ICON.render, render3Items);
     // (Round r19 follow-up, H22) Render… from the 3D view itself
-    const rb = document.createElement("button"); rb.id = "render3d"; rb.title = "Render\u2026: a picture of the 3D window at a size of its own, with supersampling, soft shadows and the document's lights"; rb.innerHTML = svgIcon("M4 7h3l2-3h6l2 3h3v12H4zM12 10a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM18 4l1-2M20 6l2-1");
+    const rb = document.createElement("button"); rb.id = "render3d"; rb.title = "Render: the Render workspace, in the 2D window's place"; rb.innerHTML = svgIcon("M4 7h3l2-3h6l2 3h3v12H4zM12 10a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM18 4l1-2M20 6l2-1");
     rb.onclick = (e) => { if (e && e.stopPropagation) e.stopPropagation(); renderDialog(); }; h3.appendChild(rb);
   }
 }
@@ -19511,14 +19575,16 @@ function snap2Dialog(at) {
    LATER (the not-built inventory).
    ================================================================ */
 // the 3D window's working marks a render leaves out (its groups by name): what is kept is the avatar, the garment, buttons, trims, zippers
-const RENDER_HIDE = ["arr", "arrbv", "collision", "gizmo", "joints", "lights3", "lines", "measure", "names3", "ov3", "pins", "sewing", "sizelines", "strain", "suit", "tacks", "unsewn"];
-const LIGHT_TYPES = [["dir", "Directional"], ["spot", "Spot"], ["point", "Point"], ["dome", "Dome"]];
+const RENDER_HIDE = ["arr", "arrbv", "collision", "gizmo", "joints", "lights3", "lines", "measure", "names3", "ov3", "pins", "rwaxis", "sewing", "sizelines", "strain", "suit", "tacks", "unsewn"];
+// (Round r29) the reference's kinds as far as ours has them: its Sphere is our "point" (the data key stays), Rectangle is new; the rows' opening values, kept on a light only when set
+const LIGHT_TYPES = [["rect", "Rectangle"], ["point", "Sphere"], ["dir", "Directional"], ["spot", "Spot"], ["dome", "Dome"]], LIGHT_ROWS = { w: 1000, h: 1000, radius: 60, penumbra: 0, shadowR: 0 };
 function normLight(l, id) {
   l = l && typeof l === "object" ? l : {};
   const num = (v, d, lo, hi) => (v !== null && v !== "" && Number.isFinite(+v)) ? Math.min(hi, Math.max(lo, +v)) : d;
   return { id: Number.isInteger(id) ? id : Number.isInteger(l.id) ? l.id : 1, name: typeof l.name === "string" && l.name.trim() ? l.name.slice(0, 60) : "Light",
     type: LIGHT_TYPES.some(t => t[0] === l.type) ? l.type : "dir", on: l.on !== false, intensity: num(l.intensity, 2, 0, 20),
-    color: /^#[0-9a-fA-F]{6}$/.test(l.color) ? l.color.toLowerCase() : "#ffffff", az: num(l.az, 30, -180, 180), el: num(l.el, 45, -89, 89), spread: num(l.spread, 30, 2, 85) };
+    color: /^#[0-9a-fA-F]{6}$/.test(l.color) ? l.color.toLowerCase() : "#ffffff", az: num(l.az, 30, -180, 180), el: num(l.el, 45, -89, 89), spread: num(l.spread, 30, 2, 85),
+    ...Object.fromEntries(Object.entries(LIGHT_ROWS).filter(([k, d]) => l[k] != null && l[k] !== "" && Number.isFinite(+l[k]) && +l[k] !== d).map(([k]) => [k, num(l[k], LIGHT_ROWS[k], k === "w" || k === "h" || k === "radius" ? 1 : 0, 20000)])) };
 }
 function normLights(list) {
   const out = [], seen = new Set();
@@ -19540,27 +19606,43 @@ function lightDelete(id) { push("Delete Light"); S.lights = (S.lights || []).fil
 // the unit vector a light comes from (az round y from +z, el up)
 function lightDir(l) { const a = l.az*Math.PI/180, e = l.el*Math.PI/180; return { x: Math.sin(a)*Math.cos(e), y: Math.sin(e), z: Math.cos(a)*Math.cos(e) }; }
 // three.js lights for a render: about the box's middle, as far off as the box is large
-function lightObjects(lights, box) {
+function lightObjects(lights, box, pt) {
   const fr = lightFrame(box || garmentBox3()), c = fr.c, R = fr.R, out = [];
   for (const l of lights) {
     if (!l.on) continue;
     const col = new THREE.Color(l.color), d = lightDir(l), at = (k) => [c.x + d.x*R*k, c.y + d.y*R*k, c.z + d.z*R*k];
     if (l.type === "dome") { out.push(new THREE.HemisphereLight(col, 0x3a3a3e, l.intensity)); continue; }
-    const L = l.type === "dir" ? new THREE.DirectionalLight(col, l.intensity) : l.type === "spot" ? new THREE.SpotLight(col, l.intensity, 0, l.spread*Math.PI/180, 0.35, 0) : new THREE.PointLight(col, l.intensity, 0, 0);
-    L.position.set(...at(l.type === "dir" ? 1.5 : 1));      // (Round r23 / 6) a spot or a point light where its mark is in the 3D window
+    // (Round r29) a rectangle: the path tracer's own area light; the quick drawing has no area lights here (three r159's bundle lacks their tables), so it stands in as a directional light from where it stands
+    const asRect = l.type === "rect" && pt, L = asRect ? new THREE.RectAreaLight(col, l.intensity, l.w || LIGHT_ROWS.w, l.h || LIGHT_ROWS.h) : l.type === "dir" || l.type === "rect" ? new THREE.DirectionalLight(col, l.intensity) : l.type === "spot" ? new THREE.SpotLight(col, l.intensity, 0, l.spread*Math.PI/180, l.penumbra != null ? Math.min(1, l.penumbra/l.spread) : 0.35, 0) : new THREE.PointLight(col, l.intensity, 0, 0);
+    L.position.set(...at(l.type === "dir" ? 1.5 : 1));
+    if (asRect) { L.lookAt(c.x, c.y, c.z); L.updateMatrixWorld(true); }
+    if (l.shadowR) { L.userData.shadowR = l.shadowR; L.radius = l.shadowR; }      // (Round r23 / 6) a spot or a point light where its mark is in the 3D window
     if (L.target) { L.target.position.set(c.x, c.y, c.z); L.target.updateMatrixWorld(); }
     L.userData.box = { c, R };
     out.push(L);
   }
   return out;
 }
-const RENDER_KEY = "pdraft:render", RENDER_SIZES = [["1280x720", "1280 × 720 (HD)", 1280, 720], ["1920x1080", "1920 × 1080 (Full HD)", 1920, 1080], ["2560x1440", "2560 × 1440", 2560, 1440], ["3840x2160", "3840 × 2160 (4K)", 3840, 2160], ["custom", "Custom", 0, 0]];
+// (Round r29: frame 142) what of a light shows in the picture where it stands in view: a rectangle and a sphere, plain white shapes, not the cone or the directional's disc
+function lightShapes(lights, box) {
+  const fr = lightFrame(box || garmentBox3()), out = [];
+  for (const l of lights) {
+    if (!l.on || (l.type !== "rect" && l.type !== "point")) continue;
+    const m = new THREE.Mesh(l.type === "rect" ? new THREE.PlaneGeometry(l.w || LIGHT_ROWS.w, l.h || LIGHT_ROWS.h) : new THREE.SphereGeometry(l.radius || LIGHT_ROWS.radius, 24, 16), new THREE.MeshBasicMaterial({ color: l.color, side: THREE.DoubleSide, toneMapped: false }));
+    m.position.copy(lightPlace(l, fr)); m.lookAt(fr.c.x, fr.c.y, fr.c.z); m.name = "render:lightshape"; m.updateMatrixWorld(true); out.push(m);
+  }
+  return out;
+}
+// (Round r29) 640 × 480 is the reference's list's first (frame 100); ours stays at Full HD by default
+const RENDER_KEY = "pdraft:render", RENDER_SIZES = [["640x480", "640 × 480", 640, 480], ["800x600", "800 × 600", 800, 600], ["1024x768", "1024 × 768", 1024, 768], ["1280x720", "1280 × 720 (HD)", 1280, 720], ["1920x1080", "1920 × 1080 (Full HD)", 1920, 1080], ["2560x1440", "2560 × 1440", 2560, 1440], ["3840x2160", "3840 × 2160 (4K)", 3840, 2160], ["custom", "Custom", 0, 0]];
 const RENDER_BG = [["window", "The 3D window's gray"], ["white", "White"], ["color", "A color"], ["transparent", "Transparent"]];
 // (Round r23 / 6) mode: "quick" (the 3D window's own drawing, at a size of its own); fmt: the file Save writes
-const RENDER_MODES = [["quick", "Quick"], ["quality", "Quality (path traced, slow)"], ["schematic", "Schematic (technical flat)"]];
+// (Round r29) the Render pane's Engine: Final Render path traces unless told otherwise
+const RENDER_MODES = [["quality", "Path Traced (GPU, slow)"], ["quick", "Quick (as the 3D window)"], ["schematic", "Schematic (lines)"]];
 // (Round r23 / 8) the schematic render's views, fills and line weights (pixels of the picture)
 const SCH_VIEWS = [["frontback", "Front and back"], ["front", "Front"], ["back", "Back"], ["now", "As the 3D window shows it"]];
-const SCH_FILLS = [["white", "White"], ["fabric", "The fabric's color"]];
+// (Round r29) Garment: Texture (the cloth as the 3D window draws it, lit) or Color (one color, lit), the reference's two (frames 154, 155); White and a fabric's color flat, r23's, for a technical sheet
+const SCH_FILLS = [["texture", "Texture"], ["color", "Color"], ["white", "White (flat)"], ["fabric", "The fabric's color (flat)"]];
 const SCH_LINES = [["schSil", "Silhouette", 3], ["schSeam", "Seamline", 2], ["schInt", "Internal line", 2], ["schStitch", "Topstitch (dashed)", 2]];
 // (Round r23 / 7) a quality render's samples a pixel: from a rough look to a clean picture
 const PT_SAMPLES = { min: 16, max: 4096, def: 256 };
@@ -19572,243 +19654,638 @@ const RENDER_FMTS = [["png", "PNG"], ["jpeg", "JPEG"]];
    (ptNoise(); guess r25/10: the reference's measure is not known). Colour mapping: Reinhard (the reference's) or ACES (r23's). */
 const PT_NOISE = { def: 0.05, max: 1 }, PT_MAXMIN = { def: 20, max: 600 }, PT_TONES = [["reinhard", "Reinhard"], ["aces", "ACES Filmic"]];
 const PT_NOISE_EVERY = 16, PT_NOISE_PX = 128;
-const RENDER_DEFAULT = { view: "now", size: "1920x1080", w: 1920, h: 1080, ss: 2, shadows: true, soft: 4, bg: "window", bgColor: "#ffffff", map: true, mode: "quick", fmt: "png" };
+/* (Round r29b) The default picture as bright as the Quick render of the same scene. Their light is the same to within a few percent (the skirt
+   0.56 against 0.55, the background 0.33 in both); it was plain Reinhard, x / (1 + x), that dimmed and flattened it, where Quick has no color
+   mapping at all. So Reinhard with a white point, x (1 + x / W²) / (1 + x), and a gain that leaves the 3D window's gray background where it
+   is: mid tones as Quick's, a highlight rolled off instead of clipped. Burn Value multiplies on top; ACES Filmic stays as r23 had it. */
+const PT_WHITE = 1.5, PT_GAIN = 1.2;
+const ptToneOf = (x, burn) => { const c = x*PT_GAIN*(burn || 1); return Math.min(1, c*(1 + c/(PT_WHITE*PT_WHITE))/(1 + c)); };
+const PT_TONE_FROM = "vec3 CustomToneMapping( vec3 color ) { return color; }";
+const ptToneGLSL = () => "vec3 CustomToneMapping( vec3 color ) { color *= toneMappingExposure; return saturate( color * ( vec3( 1.0 ) + color / " + (PT_WHITE*PT_WHITE).toFixed(4) + " ) / ( vec3( 1.0 ) + color ) ); }";
+const RENDER_DEFAULT = { view: "now", size: "1920x1080", w: 1920, h: 1080, ss: 2, shadows: true, soft: 4, bg: "window", bgColor: "#ffffff", map: true, mode: "quality", fmt: "png" };
+// (Round r29) the document's camera lens: what the 3D window's one camera is; the 3D window's own values when none is set
+const RENDER_LENS = { fov: 40, near: 10, far: 80000 };
 function normRender(o) {
   o = o && typeof o === "object" ? o : {};
   const num = (v, d, lo, hi) => (v !== null && v !== "" && Number.isFinite(+v)) ? Math.round(Math.min(hi, Math.max(lo, +v))) : d;
-  return { view: o.view === "now" || CAM_VIEWS.some(v => v[0] === o.view) ? o.view : "now", size: RENDER_SIZES.some(r => r[0] === o.size) ? o.size : RENDER_DEFAULT.size,
+  const flo = (v, d, lo, hi, k) => (v !== null && v !== "" && Number.isFinite(+v)) ? Math.round(Math.min(hi, Math.max(lo, +v))*k)/k : d;
+  return { view: o.view === "now" || o.view === "custom" || CAM_VIEWS.some(v => v[0] === o.view) ? o.view : "now", size: RENDER_SIZES.some(r => r[0] === o.size) ? o.size : RENDER_DEFAULT.size,
+    // (Round r29) the Image/Video pane
+    kind: o.kind === "turntable" ? "turntable" : "image", orient: o.orient === "portrait" ? "portrait" : "landscape", ratio: o.ratio === true,
+    views: (Array.isArray(o.views) ? o.views : []).filter(v => v && Number.isFinite(+v.az) && Number.isFinite(+v.el) && Number.isFinite(+v.dist)).slice(0, 64).map((v, k) => ({ name: typeof v.name === "string" && v.name ? v.name.slice(0, 60) : "View " + (k + 1), az: +v.az, el: +v.el, dist: +v.dist, tx: +v.tx || 0, ty: +v.ty || 0, tz: +v.tz || 0 })),
+    ttCount: o.ttCount === "custom" || TT_COUNTS.includes(+o.ttCount) ? (o.ttCount === "custom" ? "custom" : +o.ttCount) : 4, ttN: num(o.ttN, 12, 2, 720), ttAngle: flo(o.ttAngle, 360, 1, 3600, 10), ttAxis: ["center", "custom"].includes(o.ttAxis) ? o.ttAxis : "auto", ttX: flo(o.ttX, 0, -20000, 20000, 100), ttZ: flo(o.ttZ, 0, -20000, 20000, 100), ttDir: o.ttDir === "cw" ? "cw" : "ccw", ttVideo: o.ttVideo === true, ttGif: o.ttGif === true,
+    bgTex: o.bgTex === "vignette" ? "vignette" : "", nameKind: o.nameKind === "custom" ? "custom" : "project", customName: typeof o.customName === "string" ? o.customName.slice(0, 80) : "render",
+    // the Camera pane
+    camName: typeof o.camName === "string" && o.camName ? o.camName.slice(0, 60) : "Default Camera", camType: o.camType === "absolute" ? "absolute" : "spherical", fov: flo(o.fov, RENDER_LENS.fov, 2, 120, 10), near: flo(o.near, RENDER_LENS.near, 0.1, 5000, 10), far: flo(o.far, RENDER_LENS.far, 100, 1000000, 1),
+    // the Render pane
+    burn: flo(o.burn, 1, 0.1, 4, 100), lightQ: RW_LQ.some(q => q[0] === o.lightQ) ? o.lightQ : "medium",
     w: num(o.w, 1920, 64, SNAP_MAXPX), h: num(o.h, 1080, 64, SNAP_MAXPX), ss: [1, 2, 4].includes(o.ss) ? o.ss : 2, shadows: o.shadows !== false, soft: num(o.soft, 4, 1, 12),
     bg: RENDER_BG.some(b => b[0] === o.bg) ? o.bg : "window", bgColor: /^#[0-9a-fA-F]{6}$/.test(o.bgColor) ? o.bgColor.toLowerCase() : "#ffffff", map: o.map !== false,
-    mode: RENDER_MODES.some(m => m[0] === o.mode) ? o.mode : "quick", fmt: RENDER_FMTS.some(f => f[0] === o.fmt) ? o.fmt : "png",
+    mode: RENDER_MODES.some(m => m[0] === o.mode) ? o.mode : RENDER_DEFAULT.mode, fmt: RENDER_FMTS.some(f => f[0] === o.fmt) ? o.fmt : "png",
     samples: num(o.samples, PT_SAMPLES.def, PT_SAMPLES.min, PT_SAMPLES.max),
     noise: o.noise !== null && o.noise !== "" && Number.isFinite(+o.noise) ? Math.round(Math.min(PT_NOISE.max, Math.max(0, +o.noise))*1000)/1000 : PT_NOISE.def,
     maxMin: num(o.maxMin, PT_MAXMIN.def, 0, PT_MAXMIN.max), tone: o.tone === "aces" ? "aces" : "reinhard",
-    schViews: SCH_VIEWS.some(v => v[0] === o.schViews) ? o.schViews : "frontback", schFill: o.schFill === "fabric" ? "fabric" : "white", schAvatar: o.schAvatar === true,
-    ...Object.fromEntries(SCH_LINES.map(([k, , d]) => [k, num(o[k], d, 0, 12)])), schColor: /^#[0-9a-fA-F]{6}$/.test(o.schColor) ? o.schColor.toLowerCase() : "#000000" };
+    schViews: SCH_VIEWS.some(v => v[0] === o.schViews) ? o.schViews : "frontback", schFill: SCH_FILLS.some(f => f[0] === o.schFill) ? o.schFill : "texture", schAvatar: o.schAvatar === true,
+    // (Round r29) up to 10 pixels, as the maintainer found; the topstitch's line is kept in pixels and shown as a share (2 = 200 %); an eye hides a kind; Brightness 4 is the lit garment as it is
+    schFillColor: /^#[0-9a-fA-F]{6}$/.test(o.schFillColor) ? o.schFillColor.toLowerCase() : "#ffffff", schBright: flo(o.schBright, 4, 0, 16, 10), schHide: (Array.isArray(o.schHide) ? o.schHide : []).filter(k => SCH_LINES.some(l => l[0] === k)),
+    ...Object.fromEntries(SCH_LINES.map(([k, , d]) => [k, k === "schStitch" ? flo(o[k], d, 0, 10, 100) : num(o[k], d, 0, 10)])), schColor: /^#[0-9a-fA-F]{6}$/.test(o.schColor) ? o.schColor.toLowerCase() : "#000000" };
 }
-function loadRender() { try { return normRender(JSON.parse(localStorage.getItem(RENDER_KEY) || "{}")); } catch (e) { return normRender(null); } }
-function saveRender(o) { try { localStorage.setItem(RENDER_KEY, JSON.stringify(normRender(o))); } catch (e) {} }
-function renderSize(o) { const r = RENDER_SIZES.find(x => x[0] === o.size); return r && r[2] ? { w: r[2], h: r[3] } : { w: o.w, h: o.h }; }
+/* (Round r29) A document's render settings go with the file (S.render, from version 27, not in undo), as the reference's Open box lists
+   Custom View and Render Properties with a project; a document with none set takes this machine's last choices, but not the camera's lens
+   or custom views, which belong to a document (every start looks the same). */
+function loadRender() {
+  let n;
+  if (S.render) n = normRender(S.render);
+  else { let o = null; try { o = JSON.parse(localStorage.getItem(RENDER_KEY) || "{}"); } catch (e) {} n = normRender(o ? { ...o, views: [], view: o.view === "custom" ? "now" : o.view, fov: null, near: null, far: null, camName: null } : null); }
+  // (Round r29b) where the path tracer failed to get ready: Quick, until Path Traced is chosen again; (Round r29c) on software WebGL: Quick, until Path Traced is chosen and confirmed
+  if (n.mode === "quality" && (ptFailedHere() || (ptSoftware() && !PT_SOFT_YES))) n.mode = "quick";
+  return n;
+}
+/* (Round r29b) Where the path tracer did not get ready (too slow, its shader refused, the card lost), Final Render uses Quick from then on. A
+   mark per machine (pdraft:ptfail, not view state and not in a document) naming the graphics card it happened on, so a new card tries again.
+   Choosing Path Traced in the Render pane takes the mark away and gives it the longer limit, for a machine that only needed more time. */
+var PT_FAIL, PT_CARD, PT_PARALLEL = false, PT_AGAIN = false, PT_SOFT_YES = false;
+const PT_FAIL_KEY = "pdraft:ptfail", PT_PREP_LIMIT = 120, PT_PREP_AGAIN = 600;
+function ptFailMark() {
+  if (PT_FAIL !== undefined) return PT_FAIL;
+  try { PT_FAIL = JSON.parse(localStorage.getItem(PT_FAIL_KEY) || "null"); } catch (e) { PT_FAIL = null; }
+  return PT_FAIL;
+}
+// the graphics card's name as WebGL gives it, asked once
+function ptCard() {
+  if (PT_CARD !== undefined) return PT_CARD;
+  PT_CARD = "";
+  try { const gl = document.createElement("canvas").getContext("webgl2"), x = gl && gl.getExtension("WEBGL_debug_renderer_info"); if (gl) { PT_CARD = String(gl.getParameter(x ? x.UNMASKED_RENDERER_WEBGL : gl.RENDERER)); PT_PARALLEL = !!gl.getExtension("KHR_parallel_shader_compile"); const lose = gl.getExtension("WEBGL_lose_context"); if (lose) lose.loseContext(); } } catch (e) {}
+  return PT_CARD;
+}
+const ptFailedHere = () => { const m = ptFailMark(); return !!m && m.card === ptCard(); };
+/* (Round r29c) WebGL drawn by the processor, no graphics card (the renderer's name says so): path tracing there is minutes and may hold the page, so Final Render
+   defaults to Quick and choosing Path Traced asks first, naming what it costs (ptSoftAsk()). The answer lasts the session: every start looks the same. */
+const PT_SOFT_NAMES = /swiftshader|llvmpipe|softpipe|basic render|software/i;
+const ptSoftware = () => PT_SOFT_NAMES.test(ptCard());
+const ptSoftAllow = () => { PT_SOFT_YES = true; };
+/* What it costs, measured on one machine's processor with SwiftShader (r29c: 160 × 200, 640 × 800 and 1280 × 1600 at 16 samples took 48, 64 and 129 s): preparing about 48 s whatever the
+   size, in which the page may not answer for up to 45 s where the parallel compile is missing; then about 2.5 µs a pixel and sample. An estimate for another machine's processor. */
+const PT_SOFT_PREP = 48, PT_SOFT_PX = 2.5e-6;
+const ptSoftSecs = (w, h, samples) => PT_SOFT_PREP + w*h*samples*PT_SOFT_PX;
+const ptSoftTime = (s) => (s < 90 ? "about " + Math.max(10, Math.round(s/10)*10) + " seconds" : s < 5400 ? "about " + Math.round(s/60) + " minutes" : "about " + Math.round(s/3600) + " hours");
+function ptSoftAsk() {
+  const o = loadRender(), { w, h } = renderSize(o), all = ptSoftSecs(w, h, o.samples), capped = o.maxMin > 0 && all > o.maxMin*60;
+  const first = PT_PARALLEL ? "Preparing takes about a minute the first time after each start." : "The program may stop answering for up to about a minute while it prepares, once after each start.";
+  askModal("Path Traced without a graphics card", "This computer draws 3D with its processor (" + esc(ptCard()) + "). " + first + "<br><br>This picture, " + w + " \u00d7 " + h + " at " + o.samples + " samples, would take " + ptSoftTime(all) + " in all" + (capped ? "; Max. Render Time stops it at " + o.maxMin + " minutes" : "") + ". Fewer pixels or samples take less.",
+    [{ k: "go", n: "Use Path Traced", f: () => { PT_SOFT_YES = true; rwinSet("mode", { value: "quality", dataset: {} }); } }, { k: "no", n: "Stay on Quick", primary: true, esc: true, f: () => rwinSide() }]);
+}
+function ptFailSet(why) { PT_FAIL = { card: ptCard(), why }; PT_AGAIN = false; try { localStorage.setItem(PT_FAIL_KEY, JSON.stringify(PT_FAIL)); } catch (e) {} }
+function ptFailClear() { PT_FAIL = null; PT_AGAIN = true; try { localStorage.removeItem(PT_FAIL_KEY); } catch (e) {} }
+function saveRender(o) {
+  const n = normRender(o);
+  try { localStorage.setItem(RENDER_KEY, JSON.stringify(n)); } catch (e) {}
+  S.render = n; S.dirty = true; store();
+}
+function renderSize(o) {
+  const r = RENDER_SIZES.find(x => x[0] === o.size);
+  if (!(r && r[2])) return { w: o.w, h: o.h };
+  return o.orient === "portrait" ? { w: r[3], h: r[2] } : { w: r[2], h: r[3] };
+}
+// the document's lens on the 3D window's one camera
+function renderLensApply() { if (typeof view3d === "undefined") return; const c = view3d.camera && view3d.camera(), o = S.render || RENDER_LENS; if (c) { c.fov = o.fov || RENDER_LENS.fov; c.near = o.near || RENDER_LENS.near; c.far = o.far || RENDER_LENS.far; c.updateProjectionMatrix(); view3d.ask(); } }
+// the background texture: a picture drawn behind the render, which then has no background of its own
+const renderCut = (o) => o.bgTex === "vignette" && o.bg !== "transparent";
+function renderPaintBack(g, w, h, o) {
+  const mid = o.bg === "color" ? o.bgColor : "#ffffff", grad = g.createRadialGradient && g.createRadialGradient(w/2, h/2, Math.min(w, h)*0.2, w/2, h/2, Math.hypot(w, h)/2);
+  if (!grad) { g.fillStyle = mid; g.fillRect(0, 0, w, h); return; }
+  grad.addColorStop(0, mid); grad.addColorStop(1, "#8e8e90"); g.fillStyle = grad; g.fillRect(0, 0, w, h);
+}
+// a render's picture on its background texture
+function renderOnBack(c, w, h, o) {
+  if (!c || !renderCut(o)) return c;
+  const out = document.createElement("canvas"); out.width = w; out.height = h;
+  const g = out.getContext && out.getContext("2d"); if (g) { renderPaintBack(g, w, h, o); g.drawImage(c, 0, 0, w, h); }
+  return out;
+}
 // the render as a canvas, or null where the 3D window cannot make one
-function renderShot(o, size) {
+function renderShot(o, size, spec) {
   if (!view3d.ready() || !view3d.shot) return null;
-  const { w, h } = size || renderSize(o), box = S.av ? avatarBox(S.av) : garmentBox3();
-  return view3d.shot(w, h, o.view === "now" ? null : o.view, o.view === "now" ? null : box, o.bg === "transparent",
-    { ss: o.ss, shadows: o.shadows, soft: o.soft, bg: o.bg === "white" ? "#ffffff" : o.bg === "color" ? o.bgColor : null, lights: (S.lights || []).length ? lightObjects(S.lights, box) : null, box, render: true, map: o.map !== false && mapOn3() });
+  const { w, h } = size || renderSize(o), box = S.av ? avatarBox(S.av) : garmentBox3(), named = !spec && o.view !== "now" && o.view !== "custom" ? o.view : null;
+  const c = withCam(spec, () => view3d.shot(w, h, named, named ? box : null, o.bg === "transparent" || renderCut(o),
+    { ss: o.ss, shadows: o.shadows, soft: o.soft, bg: o.bg === "white" ? "#ffffff" : o.bg === "color" ? o.bgColor : null, lights: (S.lights || []).length ? lightObjects(S.lights, box) : null, shapes: lightShapes(S.lights || [], box), box, render: true, map: o.map !== false && mapOn3() }));
+  return renderOnBack(c, w, h, o);
 }
-// (Round r23 / 6) Render… opens the Render window (the box of Round r19 follow-up is gone into it)
+// (Round r23 / 6) Render… opens the Render workspace (the box of Round r19 follow-up is gone into it)
 function renderDialog() { return renderWindow(); }
 /* ================================================================
-   THE RENDER WINDOW (Round r23 / 5, 6; the reference's Render window, W34–W38 of the comparison: a window with the picture, a toolbar
-   of light buttons and the Property Editor's Image, Light and Render panes; ours puts the settings beside the picture)
-   A window of its own inside the page (as a window taken out, Round r19 follow-up): moved by its title, sized at its lower right
-   corner, closed by its ✕; where it was is kept for the session. A second window of the system is LATER. It is not the shared dialog:
-   clicks in the 3D window leave it open, so a light can be picked there while its list is open.
-   The lights (batch 5): Add puts a light of each type into the document (one undo step, as every change here), the list selects one
-   (G3.light, as a click on its mark in the 3D window does), and its properties are below the list. While the window is open the lights'
-   marks are shown in the 3D window (lightsShown()).
+   THE RENDER WORKSPACE (Round r29, as the maintainer explained it in the fourth check session, Number 5:
+   the recording, point by point)
+   Render ▸ Render opens it in the 2D window's place, as the Avatar Editor opens: tabs at the foot of that place (#avtabs: 2D Pattern
+   Window, Render), switching between them; ✕ closes it. Empty, it says "Click here to start the Interactive Render."
+   At its right the render toolbar (rwinTools()); under the picture 1:1, Fit, the images of a series, and the progress bar. The
+   settings are the Property Editor's: while the Render tab is in front #rw-side takes the place of #props, one pane at a time
+   (RWIN.pane: Image/Video, Camera, Light, Render), picked on the toolbar.
+   Its states: empty; Interactive (RWIN.live: a rough picture that follows the camera, and the mouse in the picture drives that one
+   camera); stopped (the picture stays and takes no input); Final (RWIN.busy, RWIN.paused for a while) and done (RWIN.result).
+   Final Render waits for Interactive to be stopped, and neither starts while simulating: a box says so.
    ================================================================ */
 let lightPick = null;
-var RWIN = { open: false, at: null, t: 0 };      // (var: ui() may ask before this line has run)
+var RWIN = { open: false, front: false, pane: "image", live: false, paused: false, t: 0 };      // (var: ui() may ask before this line has run)
 const rwinOpen = () => RWIN.open;
 const rwEl = (id) => document.getElementById(id);
 function renderWindow(o) {
   const w = rwEl("rwin");
   if (!w) return false;
   hideMenu(); closeFlyouts(); if (dlgOpen()) hideDlg();
-  if (!RWIN.hooked) { RWIN.hooked = true; view3d.before(rwinWatch); }       // (Round r23 / 6: the preview's watch, from the first opening on)
-  if (!RWIN.open) {
-    RWIN.open = true; if (w.classList) w.classList.add("open");
-    const at = RWIN.at || { x: Math.max(6, window.innerWidth - 780), y: 64, w: 740, h: Math.min(520, window.innerHeight - 100) };
-    Object.assign(w.style, { left: at.x + "px", top: at.y + "px", width: at.w + "px", height: at.h + "px" });
-    rwinWire();
-  }
-  if (o && o.lights && !(S.lights || []).length) RWIN.hintLights = true;
+  if (!RWIN.hooked) { RWIN.hooked = true; view3d.before(rwinWatch); }       // (the Interactive Render's watch, from the first opening on)
+  if (S.mode === "layout") setMode("sim");
+  if (S.ui.layout === "3d") setLayout("both");
+  if (o && o.lights) RWIN.pane = "light";
+  const opening = !RWIN.open;
+  if (!RWIN.open) { RWIN.open = true; rwinWire(); rwinEmpty(); }
+  stageFront("rw");
   rwinSide();
-  if (typeof rwinPreview === "function") rwinPreview(true);
   view3d.ask();
+  if (opening) setTimeout(ptWarm, 300);      // (a moment later: the workspace is on the screen first)
   return true;
 }
 function rwinClose() {
-  const w = rwEl("rwin");
-  RWIN.open = false; if (w && w.classList) w.classList.remove("open");
-  if (typeof rwinStop === "function") rwinStop();
-  ptHalt();
+  clearTimeout(RWIN.sharp); ptHalt(); ptWarmDrop();
+  Object.assign(RWIN, { open: false, front: false, live: false, paused: false, result: null, seq: null, shown: false, lock: false });
+  rwinFrontApply(); stageTabs(); rwinAxisShow(null);
   view3d.ask();
 }
-// once: the title moves it, the ✕ closes it, its size is kept when the corner is let go, the settings column's clicks and changes
+// the workspace in front or not, and the Property Editor with it (Print Layout keeps its own)
+function rwinFrontApply() {
+  const on = RWIN.open && RWIN.front, w = rwEl("rwin"), pe = rwEl("pe");
+  if (w) w.style.display = on ? "flex" : "none";
+  const bar2 = rwEl("rail"); if (bar2) bar2.style.visibility = on ? "hidden" : "";
+  if (pe && pe.classList) { if (on && S.mode !== "layout") pe.classList.add("rw"); else pe.classList.remove("rw"); }
+}
+// once: the ✕, the toolbar's, the strip's and the pane's clicks and changes, the mouse in the picture
 function rwinWire() {
-  const w = rwEl("rwin"), t = rwEl("rw-t"), x = rwEl("rw-x"), side = rwEl("rw-side");
+  const w = rwEl("rwin"), x = rwEl("rw-x"), side = rwEl("rw-side"), view = rwEl("rw-view");
   if (!w || w.wired) return;
   w.wired = true;
   if (x) x.onclick = (e) => { if (e && e.stopPropagation) e.stopPropagation(); rwinClose(); };
-  if (t && t.addEventListener) t.addEventListener("pointerdown", (e) => {
-    if (e.target && e.target.tagName === "BUTTON") return;
-    const r0 = w.getBoundingClientRect();
-    panelDrag(t, e, (dx, dy) => { const nx = Math.max(0, Math.min(window.innerWidth - 80, r0.left + dx)), ny = Math.max(0, Math.min(window.innerHeight - 24, r0.top + dy)); w.style.left = nx + "px"; w.style.top = ny + "px"; RWIN.at = { ...(RWIN.at || { w: r0.width, h: r0.height }), x: nx, y: ny }; });
-  });
-  if (typeof window.addEventListener === "function") window.addEventListener("pointerup", () => {
-    if (!RWIN.open || !w.getBoundingClientRect) return;
-    const r = w.getBoundingClientRect();
-    if (r.width && r.height) { const was = RWIN.at || {}; RWIN.at = { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) }; if (was.w !== RWIN.at.w || was.h !== RWIN.at.h) { if (typeof rwinPreview === "function") rwinPreview(true); } }
-  });
-  if (side) { side.onclick = rwinClick; side.onchange = rwinChange; }
+  for (const el of [side, rwEl("rw-tools"), rwEl("rw-foot")]) if (el) el.onclick = rwinClick;
+  if (side) side.onchange = rwinChange;
+  if (view && view.addEventListener) {
+    view.addEventListener("pointerdown", rwinViewDown); view.addEventListener("pointermove", rwinViewMove);
+    view.addEventListener("pointerup", () => { RWIN.drag = null; }); view.addEventListener("pointercancel", () => { RWIN.drag = null; });
+    view.addEventListener("wheel", (e) => { if (e.preventDefault) e.preventDefault(); if (RWIN.live) view3d.mouse.wheel(e); }, { passive: false });
+    if (typeof ResizeObserver === "function") new ResizeObserver(() => { if (RWIN.open && RWIN.front) rwinRefit(); }).observe(view);
+  }
 }
-// is a field of the settings column being typed in (then it is not built again under the pointer)
+// the mouse in the picture: while Interactive runs it drives the 3D window's camera as the mouse there does (the left button, which has no tool to go to here, turns it unless the controls give it a job); empty, a click starts Interactive; stopped, nothing
+function rwinViewDown(e) {
+  if (!RWIN.live) { if (e.button === 0 && !RWIN.shown && !RWIN.busy) rwinInteractive(); return; }
+  const v = rwEl("rw-view"); if (v && v.setPointerCapture) v.setPointerCapture(e.pointerId);
+  RWIN.drag = { x: e.clientX, y: e.clientY, mode: viewDrag(macRight(e) ? 2 : e.button, e.shiftKey, viewCtl()) || "turn" };
+}
+function rwinViewMove(e) {
+  const d = RWIN.drag; if (!d) return;
+  view3d.mouse.drive(d.mode, e.clientX - d.x, e.clientY - d.y); d.x = e.clientX; d.y = e.clientY;
+}
+// is a field of the pane being typed in (then it is not built again under the pointer)
 const rwinTyping = () => { const a = document.activeElement, side = rwEl("rw-side"); return !!(a && side && side.contains && side.contains(a) && /^(INPUT|SELECT)$/.test(a.tagName || "")); };
-// the settings column again a moment later (while a light's mark is dragged)
-function rwinLater() { if (RWIN.t) return; RWIN.t = setTimeout(() => { RWIN.t = 0; if (RWIN.open) rwinSide(); }, 120); }
+// the pane again a moment later (while a light's mark is dragged, or the camera turned)
+function rwinLater() { if (RWIN.t) return; RWIN.t = setTimeout(() => { RWIN.t = 0; if (RWIN.open && !rwinTyping()) rwinSide(); }, 120); }
 const rwOpt = (list, cur) => list.map(([v, t]) => '<option value="' + v + '"' + (String(v) === String(cur) ? ' selected' : '') + '>' + t + '</option>').join("");
-// the lights part of the settings column
-function rwinLightsHTML() {
-  const L = S.lights || [], cur = L.find(l => l.id === (G3.light || lightPick)) || null;
-  const num = (k, label, unit) => '<div class="df"><label>' + label + '</label><input type="text" inputmode="decimal" data-num="1" data-l="' + k + '" value="' + cur[k] + '"><span class="u">' + unit + '</span></div>';
-  return '<h3>Lights</h3>' +
-    '<div class="da">' + LIGHT_TYPES.map(([k, n]) => '<button class="btn" data-add="' + k + '" title="Add a ' + n.toLowerCase() + ' light">+ ' + n + '</button>').join("") + '</div>' +
-    '<div class="lt-list">' + (L.length ? L.map(l => '<div class="obi' + (cur && l.id === cur.id ? ' on' : '') + '" data-pick="' + l.id + '"><span class="ck" data-pick="' + l.id + '">' + (l.on ? "●" : "○") + '</span><span class="nm" data-pick="' + l.id + '">' + (cur && l.id === cur.id ? "▶ " : "") + esc(l.name) + '</span><span class="sub" data-pick="' + l.id + '">' + LIGHT_TYPES.find(t => t[0] === l.type)[1] + (l.on ? '' : ', off') + ' · ' + l.intensity + '</span></div>').join("") : '<div class="hint" style="padding:4px">No lights: a render is lit as the 3D window is. Add one to light it your own way.</div>') + '</div>' +
-    (cur ? '<div class="df"><label>Name</label><input type="text" data-l="name" value="' + esc(cur.name) + '"></div>' +
-      '<div class="df"><label>Type</label><select data-l="type">' + rwOpt(LIGHT_TYPES, cur.type) + '</select></div>' +
-      '<label class="lk"><input type="checkbox" data-l="on"' + (cur.on ? ' checked' : '') + '> On</label>' +
-      num("intensity", "Intensity", "") + '<div class="df"><label>Colour</label><input type="color" data-l="color" value="' + cur.color + '"></div>' +
-      (cur.type === "dome" ? '' : num("az", "From (round)", "° 0 front, 90 left") + num("el", "From (above)", "°")) +
-      (cur.type === "spot" ? num("spread", "Spread", "°") : '') +
-      '<div class="da"><button class="btn" data-act="lt-del">Delete Light</button></div>' +
-      '<div class="hint">' + (cur.type === "dome" ? "A dome lights from the whole sky: it has no direction." : "Or click its mark in the 3D window with Select/Move: the gizmo moves it round the garment, and it keeps facing it.") + '</div>' : '');
+// a row for what is named but not built: greyed, while Show Tools That Are Not Built Yet is on, otherwise nothing
+const rwNb = (label) => (S.ui.unbuilt ? '<div class="df nb"><label>' + label + '</label><span class="u">(not built yet)</span></div>' : '');
+const rwNum = (o, k, label, unit, dis) => '<div class="df"><label>' + label + '</label><input type="text" inputmode="decimal" data-num="1" data-r="' + k + '" value="' + o[k] + '"' + (dis ? ' disabled' : '') + '><span class="u">' + (unit || "") + '</span></div>';
+const rwSel = (o, k, label, list) => '<div class="df"><label>' + label + '</label><select data-r="' + k + '">' + rwOpt(list, o[k]) + '</select></div>';
+const rwChk = (o, k, label) => '<label class="lk"><input type="checkbox" data-r="' + k + '"' + (o[k] ? ' checked' : '') + '> ' + label + '</label>';
+/* The render toolbar: this program's own drawings, the reference's names (its tooltips, frames 091–098). Pause is ours (the reference's
+   frames show Interactive, Stop, Final; question 2 of the check list). A state is told by the button pressed (a frame, aria-pressed) and in
+   the title's words, not by colour. Rows: act, name, drawing. */
+const RW_TOOLS = [
+  [["live", "Interactive Render", "M5 4v16l14-8zM3 2h3M3 22h3"], ["stop", "Stop Render", "M6 6h12v12H6z"], ["pause", "Pause Final Render", "M7 5h3v14H7zM14 5h3v14h-3z"], ["render", "Final Render", "M3 9h18v11H3zM3 9l2-5 16-1 1 5zM8 4l1 4M13 4l1 4M10 12v5l5-2.500z"]],
+  [["copy", "Copy Current Image", "M8 8h12v12H8zM4 16V4h12"], ["save", "Save Current Image", "M4 7h3l2-3h6l2 3h3v12H4zM12 10a3.500 3.500 0 1 0 0 7 3.500 3.500 0 0 0 0-7z"], ["folder", "Show in Saved Folder", "M3 6h7l2 3h9v10H3z"]],
+  [["p:image", "Image/Video Properties", "M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5"], ["p:camera", "Camera Properties", "M4 8h11v9H4zM15 11l5-3v9l-5-3M18 3v3M16.500 4.500h3"], ["p:light", "Light Properties", "M12 3a6 6 0 0 0-3 11v3h6v-3a6 6 0 0 0-3-11zM9 20h6"], ["p:render", "Render Properties", "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"]]];
+const RW_LIGHTS = [["rect", "Rectangle Light", "M5 8l14-3v11l-14 3z"], ["point", "Sphere Light", "M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM5 12c3 2.500 11 2.500 14 0"], ["dir", "Directional Light", "M4 4l16 16M4 10l10 10M10 4l10 10"], ["spot", "Spot Light", "M9 3h6l5 15H4zM4 18c4 2 12 2 16 0"], ["dome", "Dome Light", "M3 16a9 9 0 0 1 18 0zM7 12v.01M12 9v.01M17 12v.01"]];
+function rwinTools() {
+  const bar = rwEl("rw-tools"); if (!bar) return;
+  const { live, busy, paused, shown, pane, lock } = RWIN, on = { live, stop: false, pause: paused, "p:image": pane === "image", "p:camera": pane === "camera", "p:light": pane === "light", "p:render": pane === "render" };
+  const can = { live: !busy, stop: live || busy, pause: busy && !!PTRUN && !PTRUN.preview || !!RWIN.seq, render: !live && !busy, copy: !!shown && !busy, save: !!shown && !busy, folder: !!RWIN.saved };
+  const btn = (a, n, ic, dis, pr) => '<button data-act="' + a + '"' + (dis ? ' disabled' : '') + (pr ? ' class="on" aria-pressed="true"' : '') + ' title="' + n + '">' + svgIcon(ic) + '</button>';
+  const name = (a, n) => (a === "pause" && paused ? "Resume Final Render" : a === "render" && live ? "Final Render (stop the Interactive Render first)" : n);
+  bar.innerHTML = '<div class="col">' + RW_TOOLS.map(g => g.filter(t => t[0] !== "folder" || (DESK && DESK.showSaved)).map(([a, n, ic]) => btn(a, name(a, n), ic, a in can && !can[a], on[a])).join("")).join('<div class="sep"></div>') + '</div>' +
+    '<div class="col">' + RW_LIGHTS.map(([k, n, ic]) => '<button data-add="' + k + '" title="Add a ' + n + '">' + svgIcon(ic) + '</button>').join("") + '<div class="sep"></div>' +
+    btn("lock", "Camera Lock", "M6 11h12v9H6zM9 11V8a3 3 0 0 1 6 0v3", false, lock) + '</div>';
 }
-// the settings column, built again from what is now
+/* The Light pane. The reference's rows for each kind (frames 138–145), the kinds it has and ours has not greyed. Presets are this
+   program's own lightings (the reference's are its files); Custom is whatever does not match one. */
+const LIGHT_PRESETS = [["soft", "Studio Low Contrast", [["dome", 0, 40, 1.6], ["dir", 25, 50, 1.2], ["dir", -60, 25, 0.5]]], ["medium", "Studio Medium Contrast", [["dome", 0, 40, 0.9], ["dir", 30, 50, 2], ["dir", -70, 20, 0.6]]],
+  ["high", "Studio High Contrast", [["dome", 0, 40, 0.35], ["spot", 35, 55, 3], ["dir", -110, 30, 0.8]]], ["front", "Even Front", [["dome", 0, 40, 1.2], ["dir", 0, 20, 1.2]]], ["rim", "Rim", [["dome", 0, 40, 0.5], ["dir", 150, 40, 2.4], ["dir", -150, 40, 2.4], ["dir", 20, 30, 0.8]]]];
+function lightPresetOf() {
+  const L = (S.lights || []).filter(l => l.on);
+  for (const [k, , list] of LIGHT_PRESETS) if (L.length === list.length && list.every(([t, az, el, i], n) => L[n].type === t && L[n].az === az && L[n].el === el && L[n].intensity === i)) return k;
+  return "custom";
+}
+function lightPreset(k) {
+  const p = LIGHT_PRESETS.find(x => x[0] === k); if (!p) return;
+  push("Light Preset");
+  S.lights = p[2].map(([type, az, el, intensity], n) => normLight({ type, az, el, intensity, name: LIGHT_TYPES.find(t => t[0] === type)[1] + " Light " + (n + 1) }, n + 1));
+  G3.light = null; lightPick = null; commit();
+}
+function rwinLightsHTML() {
+  const L = S.lights || [], cur = L.find(l => l.id === (G3.light || lightPick)) || null, kind = cur && LIGHT_TYPES.find(t => t[0] === cur.type)[1];
+  const num = (k, label, unit) => '<div class="df"><label>' + label + '</label><input type="text" inputmode="decimal" data-num="1" data-l="' + k + '" value="' + (cur[k] != null ? cur[k] : LIGHT_ROWS[k]) + '"><span class="u">' + unit + '</span></div>';
+  return '<div class="df"><label>Preset</label><select data-preset="1">' + rwOpt([["custom", "Custom"], ...LIGHT_PRESETS.map(p => [p[0], p[1]])], lightPresetOf()) + '</select></div>' +
+    '<h3>Lights</h3>' +
+    '<div class="da">' + LIGHT_TYPES.map(([k, n]) => '<button class="btn" data-add="' + k + '" title="Add a ' + n.toLowerCase() + ' light">+ ' + n + '</button>').join("") + '</div>' + rwNb("IES Light") +
+    '<div class="lt-list">' + (L.length ? L.map(l => '<div class="obi' + (cur && l.id === cur.id ? ' on' : '') + '" data-pick="' + l.id + '"><span class="ck" data-pick="' + l.id + '">' + (l.on ? "●" : "○") + '</span><span class="nm" data-pick="' + l.id + '">' + (cur && l.id === cur.id ? "▶ " : "") + esc(l.name) + '</span><span class="sub" data-pick="' + l.id + '">' + LIGHT_TYPES.find(t => t[0] === l.type)[1] + (l.on ? '' : ', off') + ' · ' + l.intensity + '</span></div>').join("") : '<div class="hint" style="padding:4px">No lights: a render is lit as the 3D window is. Add one to light it your own way.</div>') + '</div>' +
+    (cur ? '<h3>' + kind + ' Light</h3><div class="df"><label>Name</label><input type="text" data-l="name" value="' + esc(cur.name) + '"></div>' +
+      '<div class="df"><label>Type</label><select data-l="type">' + rwOpt(LIGHT_TYPES, cur.type) + '</select></div>' +
+      '<label class="lk"><input type="checkbox" data-l="on"' + (cur.on ? ' checked' : '') + '> Activate</label>' +
+      num("intensity", "Intensity", "") + '<div class="df"><label>Color</label><input type="color" data-l="color" value="' + cur.color + '"></div>' +
+      (cur.type === "rect" ? num("w", "Width", "mm") + num("h", "Height", "mm") : '') + (cur.type === "point" ? num("radius", "Radius", "mm") : '') +
+      (cur.type === "spot" ? num("spread", "Cone Angle", "°") + num("penumbra", "Penumbra Angle", "°") + num("shadowR", "Shadow Radius", "") : '') +
+      (cur.type === "dome" ? rwNb("Environment Map") + rwNb("Light Angle") + rwNb("Lock to Camera") + rwNb("Finite Dome") : num("az", "From (round)", "° 0 front, 90 left") + num("el", "From (above)", "°")) +
+      '<div class="da"><button class="btn" data-act="lt-del">Delete Light</button></div>' +
+      '<div class="hint">' + (cur.type === "dome" ? "A dome lights from the whole sky: it has no direction." : "Or click its mark in the 3D window with Select/Move: the gizmo moves it round the garment, and it keeps facing it." + (cur.type === "rect" || cur.type === "point" ? " It shows in a Quick picture where it stands in view; a path traced picture has its light, not its shape." : "")) + '</div>' : '');
+}
+/* The Image/Video pane (frames 098–117). Viewpoint: the current view, the custom views, or a named one. A turntable goes round the
+   axis, shown dotted in the 3D window while it is chosen (rwinAxisShow()). */
+const RW_KINDS = [["image", "Image"], ["turntable", "Turntable Images"]], TT_COUNTS = [2, 4, 8, 16, 32, 64, 180, 360];
+function rwinImageHTML(o) {
+  const { w, h } = renderSize(o), tt = o.kind === "turntable", views = o.views || [];
+  return rwSel(o, "kind", "Image/Video", RW_KINDS) + rwNb("Animation") +
+    (tt ? '' : '<div class="df"><label>Viewpoint</label><select data-r="view">' + rwOpt([["now", "Current View"], ["custom", "Custom Views"], ...CAM_VIEWS], o.view) + '</select></div>') +
+    (!tt && o.view === "custom" ? '<div class="lt-list">' + (views.length ? views.map((v, k) => '<div class="obi"><span class="nm" data-act="view-go:' + k + '" title="Look from this view">' + esc(v.name) + '</span><button class="btn" data-act="view-del:' + k + '" title="Delete this view">✕</button></div>').join("") : '<div class="hint" style="padding:4px">None yet: place the camera, then Add Current Viewport. A render makes every view here.</div>') + '</div>' +
+      '<div class="da"><button class="btn" data-act="view-add">Add Current Viewport</button></div>' : '') +
+    rwNb("Colorway") + rwNb("Grading Size") +
+    (tt ? rwSel(o, "ttCount", "Image Count", [...TT_COUNTS.map(n => [n, String(n)]), ["custom", "Custom"]]) + (o.ttCount === "custom" ? rwNum(o, "ttN", "Images", "") : '') + rwNum(o, "ttAngle", "Rotation Angle", "°") +
+      rwSel(o, "ttAxis", "Rotation Axis", [["auto", "Auto"], ["center", "Center"], ["custom", "Custom"]]) + (o.ttAxis === "custom" ? rwNum(o, "ttX", "X", "mm") + rwNum(o, "ttZ", "Z", "mm") : '') +
+      rwSel(o, "ttDir", "Direction", [["ccw", "Counterclockwise"], ["cw", "Clockwise"]]) + rwChk(o, "ttVideo", "Save Video") + rwChk(o, "ttGif", "Save GIF") : '') +
+    '<h3>Image Size</h3>' +
+    '<div class="df"><label>Resolution</label><select data-r="size">' + rwOpt(RENDER_SIZES.map(r => [r[0], r[1]]), o.size) + '</select></div>' +
+    rwSel(o, "orient", "Orientation", [["landscape", "Landscape"], ["portrait", "Portrait"]]) +
+    '<div class="df"><label>Width</label><input type="text" inputmode="decimal" data-num="1" data-r="w" value="' + w + '"><span class="u">Pixels</span></div>' +
+    '<div class="df"><label>Height</label><input type="text" inputmode="decimal" data-num="1" data-r="h" value="' + h + '"><span class="u">Pixels</span></div>' + rwChk(o, "ratio", "Maintain Ratio") +
+    '<h3>Background</h3>' +
+    '<div class="df"><label>Color</label><select data-r="bg">' + rwOpt(RENDER_BG, o.bg) + '</select>' + (o.bg === "color" ? '<input type="color" data-r="bgColor" value="' + o.bgColor + '">' : '') + '</div>' +
+    rwSel(o, "bgTex", "Texture", [["", "None"], ["vignette", "Vignette"]]) + rwNb("Crop (Final Render Only)") +
+    (mapOn3() && o.mode === "quick" ? '<label class="lk"><input type="checkbox" data-r="map"' + (o.map ? ' checked' : '') + '> The 3D map shown and its legend</label>' : '') +
+    '<h3>Save</h3>' + rwSel(o, "nameKind", "File Name", [["project", "Project Name"], ["custom", "Custom Name"]]) +
+    (o.nameKind === "custom" ? '<div class="df"><label>Name</label><input type="text" data-r="customName" value="' + esc(o.customName) + '"></div>' : '') + rwNb("File Path") +
+    '<div class="df"><label>Image Format</label><select data-r="fmt">' + rwOpt(rwinFormats(o), o.fmt) + '</select></div>' + rwNb("Save HTML") +
+    '<div class="hint">' + w + ' × ' + h + ' px' + (tt ? ", " + ttCount(o) + " images" : "") + '.</div>';
+}
+/* The Camera pane (frame 118). One camera with the 3D window's (the maintainer: both drive it): Field of View and the clipping planes
+   are the document's (renderLens()), Spherical or Absolute writes where the camera is now, no step (a camera is no history step). */
+function rwinCameraHTML(o) {
+  const c = view3d.cam, cn = (k, label, unit, v) => '<div class="df"><label>' + label + '</label><input type="text" inputmode="decimal" data-num="1" data-cam="' + k + '" value="' + v + '"><span class="u">' + unit + '</span></div>';
+  const p = camPos(c);
+  return '<div class="df"><label>Name</label><input type="text" data-r="camName" value="' + esc(o.camName) + '"></div>' +
+    '<h3>Lens</h3><div class="df"><label>Lens</label><select data-r="lens">' + rwOpt([["default", "Default"]], "default") + '</select></div>' + rwNb("Panorama") + rwNum(o, "fov", "Field of View", "°") +
+    '<h3>View Orientation</h3>' + rwSel(o, "camType", "Type", [["spherical", "Spherical"], ["absolute", "Absolute"]]) +
+    (o.camType === "absolute" ? cn("x", "Position X", "mm", Math.round(p.x)) + cn("y", "Position Y", "mm", Math.round(p.y)) + cn("z", "Position Z", "mm", Math.round(p.z))
+      : cn("dist", "Distance", "mm", Math.round(c.dist)) + cn("az", "Horizontal Angle", "°", Math.round(c.az*180/Math.PI)) + cn("el", "Vertical Angle", "°", Math.round(c.el*180/Math.PI))) +
+    '<h3>Clipping Plane</h3>' + rwNum(o, "near", "Near", "mm") + rwNum(o, "far", "Far", "mm") + rwNb("Physical Camera (Render Only)") +
+    (RWIN.lock ? '<div class="hint">Camera Lock is on: the camera stays where it is.</div>' : '');
+}
+const camPos = (c) => ({ x: c.tx + c.dist*Math.cos(c.el)*Math.sin(c.az), y: c.ty + c.dist*Math.sin(c.el), z: c.tz + c.dist*Math.cos(c.el)*Math.cos(c.az) });
+// a typed value of the Camera pane: the camera moved (absolute: to that place, looking where it looked)
+function rwinCamSet(k, v) {
+  if (!Number.isFinite(v)) return;
+  const c = view3d.cam;
+  if (k === "dist") c.dist = Math.max(150, Math.min(30000, v));
+  else if (k === "az") c.az = v*Math.PI/180;
+  else if (k === "el") c.el = orbitEl(v*Math.PI/180);
+  else {
+    const p = camPos(c); p[k] = v;
+    const dx = p.x - c.tx, dy = p.y - c.ty, dz = p.z - c.tz, d = Math.hypot(dx, dy, dz);
+    if (d < 1) return;
+    c.dist = d; c.el = orbitEl(Math.asin(dy/d)); c.az = Math.atan2(dx, dz);
+  }
+  view3d.ask();
+}
+/* The Render pane (frames 132–135). Engine says what ours has: the path tracer (the reference's engines are its own), the 3D window's
+   quick drawing, the schematic's lines on a sheet or a turntable. */
+const RW_LQ = [["low", "Low", 4], ["medium", "Medium", 10], ["high", "High", 16], ["vhigh", "Very High", 24]];
+function rwinRenderHTML(o) {
+  o = o || loadRender();
+  const quick = o.mode === "quick";
+  return '<div class="df"><label>Engine</label><select data-r="mode">' + rwOpt(RENDER_MODES, o.mode) + '</select></div>' +
+    rwinModeHTML(o) +
+    (quick ? '<div class="df"><label>Anti-aliasing</label><select data-r="ss">' + rwOpt([[1, "Off"], [2, "2× supersampling"], [4, "4× supersampling"]], o.ss) + '</select></div>' +
+      '<label class="lk"><input type="checkbox" data-r="shadows"' + (o.shadows ? ' checked' : '') + '> Soft shadows</label>' +
+      rwNum(o, "soft", "Shadow softness", "1–12", !o.shadows) : '') +
+    (mapOn3() && quick ? '<label class="lk"><input type="checkbox" data-r="map"' + (o.map ? ' checked' : '') + '> The 3D map shown and its legend</label>' : '') +
+    rwNb("Seam Puckering Intensity") + rwNb("Quality: Material") + rwNb("Mesh Optimization") + rwNb("HSV Exponential Color Mapping") + rwNb("Linear Workflow") + rwNb("Image Filter");
+}
+// the formats a picture can be saved in (Round r23 / 8: no SVG, see THE SCHEMATIC RENDER)
+const rwinFormats = () => RENDER_FMTS;
+const RW_PANES = { image: "Image/Video", camera: "Camera", light: "Light", render: "Render" };
+// what each pane's open and save carry (our own JSON; the Light pane, the document's lights)
+const RW_PANE_KEYS = { image: ["kind", "view", "views", "ttCount", "ttN", "ttAngle", "ttAxis", "ttX", "ttZ", "ttDir", "ttVideo", "ttGif", "size", "w", "h", "orient", "ratio", "bg", "bgColor", "bgTex", "nameKind", "customName", "fmt"],
+  camera: ["camName", "fov", "near", "far", "camType"], render: ["mode", "samples", "noise", "maxMin", "tone", "burn", "lightQ", "ss", "shadows", "soft"] };
+// the pane, built again from what is now; with it the toolbar
 function rwinSide() {
   const side = rwEl("rw-side");
   if (!side || !RWIN.open) return;
-  side.innerHTML = (typeof rwinRenderHTML === "function" ? rwinRenderHTML() : '<div class="da"><button class="btn" data-act="render-box">Render…</button></div>') + rwinLightsHTML();
+  rwinTools();
+  const o = loadRender(), p = RWIN.pane;
+  side.innerHTML = '<div class="rw-ph"><span>' + RW_PANES[p] + '</span><button data-act="pane-open" title="Open ' + RW_PANES[p] + ' settings from a file">\u{1F4C2}︎</button><button data-act="pane-save" title="Save ' + RW_PANES[p] + ' settings to a file">\u{1F4BE}︎</button></div>' +
+    (p === "image" ? rwinImageHTML(o) : p === "camera" ? rwinCameraHTML(o) : p === "light" ? rwinLightsHTML() : rwinRenderHTML(o));
+  rwinAxisShow(o);
+}
+function rwinPaneSave() {
+  const p = RWIN.pane, o = loadRender(), body = p === "light" ? { lights: S.lights || [] } : Object.fromEntries(RW_PANE_KEYS[p].map(k => [k, o[k]]));
+  dl(renderBase(o) + "-" + p + ".json", JSON.stringify({ gusset: "render-" + p, ...body }, null, 1), "application/json", (f) => toast("Saved " + f));
+}
+function rwinPaneOpen() {
+  const inp = document.createElement("input"), p = RWIN.pane;
+  inp.type = "file"; inp.accept = ".json,application/json";
+  inp.onchange = () => { const f = inp.files && inp.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => rwinPaneText(p, String(rd.result)); rd.readAsText(f); };
+  inp.click();
+}
+function rwinPaneText(p, text) {
+  let d = null;
+  try { d = JSON.parse(text); } catch (e) {}
+  if (!d || d.gusset !== "render-" + p) return toast("That is not a " + RW_PANES[p] + " settings file", 6000);
+  if (p === "light") { push("Light Preset"); S.lights = normLights(d.lights); G3.light = null; lightPick = null; commit(); }
+  else { const o = loadRender(); for (const k of RW_PANE_KEYS[p]) if (k in d) o[k] = d[k]; saveRender(o); if (p === "camera") renderLensApply(); }
+  rwinSide(); view3d.ask(); rwinPreview(true);
 }
 function rwinClick(e) {
   const t = e.target, el = t && t.closest ? t.closest("[data-add],[data-pick],[data-act]") || t : t, d = (el && el.dataset) || {};
-  if (d.add) { const l = lightAdd(d.add); lightSelect(l.id); return; }
+  if (el && el.disabled) return;
+  if (d.add) { RWIN.pane = "light"; const l = lightAdd(d.add); lightSelect(l.id); return; }
   if (d.pick) return lightSelect(+d.pick);
   if (d.act === "lt-del") { const id = G3.light || lightPick; if (id) { lightDelete(id); lightPick = null; G3.light = null; rwinSide(); view3d.ask(); } return; }
-  if (d.act === "render-box") return renderDialog();
-  if (d.act && typeof rwinAct === "function") rwinAct(d.act);
+  if (d.act) rwinAct(d.act);
 }
 function rwinChange(e) {
   const t = e.target, d = (t && t.dataset) || {};
+  if (d.preset) { if (t.value !== "custom") lightPreset(t.value); rwinSide(); view3d.ask(); rwinPreview(true); return; }
+  if (d.cam) { rwinCamSet(d.cam, numOf(t.value)); rwinSide(); return; }
   if (d.l) {
     const id = G3.light || lightPick;
     if (id) lightSet(id, d.l, t.type === "checkbox" ? t.checked : d.num ? numOf(t.value) : t.value);
-    rwinSide(); view3d.ask(); if (typeof rwinPreview === "function") rwinPreview(true);
+    rwinSide(); view3d.ask(); rwinPreview(true);
     return;
   }
-  if (d.r && typeof rwinSet === "function") rwinSet(d.r, t);
+  if (d.r) rwinSet(d.r, t);
 }
-// (Round r23 / 5) Render ▸ Lights… opens the Render window, where the lights are
+// (Round r23 / 5) Render ▸ Lights… opens the workspace with its Light pane
 function lightsDialog() { return renderWindow({ lights: true }); }
-/* (Round r23 / 6) The picture and its settings. While the window is open the picture is a live preview: whenever the 3D window
-   changes (the view turned, the cloth moving, a light or a setting changed) it is drawn again at once small and coarse (a third of
-   the preview's size, no supersampling, no shadows), and once nothing has changed for a moment at the preview's size with the
-   settings' supersampling and shadows: it sharpens. Render draws it at the full resolution; the result stays in the window (its
-   title says the scale it is shown at) until Live Preview, or a change of a setting, goes back to the preview; Save writes the result
-   (or, with none, a full render) in the format chosen. Nothing of it runs while the window is closed: the 3D window's own frames are
-   as fast as they were (rwinWatch() returns at once). */
-function rwinRenderHTML() {
-  const o = loadRender(), busy = !!RWIN.busy, res = RWIN.result, { w, h } = renderSize(o), quick = o.mode === "quick";
-  const num = (k, label, unit, dis) => '<div class="df"><label>' + label + '</label><input type="text" inputmode="decimal" data-num="1" data-r="' + k + '" value="' + o[k] + '"' + (dis ? ' disabled' : '') + '><span class="u">' + unit + '</span></div>';
-  return '<div class="da"><button class="btn" data-act="render"' + (busy ? ' disabled' : '') + ' title="Draw the picture at its full resolution">Render</button>' +
-    '<button class="btn" data-act="stop"' + (busy ? '' : ' disabled') + ' title="Stop the render that is running">Stop</button>' +
-    '<button class="btn" data-act="save"' + (busy ? ' disabled' : '') + ' title="Save the picture (the last render, or a full render now)">Save\u2026</button>' +
-    '<button class="btn' + (res ? '' : ' on') + '" data-act="live"' + (res ? '' : ' disabled') + ' title="Back to the live preview of the 3D window">Live Preview</button></div>' +
-    '<h3>Render</h3>' +
-    '<div class="df"><label>Mode</label><select data-r="mode">' + rwOpt(RENDER_MODES, o.mode) + '</select></div>' +
-    (typeof rwinModeHTML === "function" ? rwinModeHTML(o) : '') +
-    '<h3>Image</h3>' +
-    '<div class="df"><label>View</label><select data-r="view">' + rwOpt([["now", "As the 3D window shows it"], ...CAM_VIEWS], o.view) + '</select></div>' +
-    '<div class="df"><label>Resolution</label><select data-r="size">' + rwOpt(RENDER_SIZES.map(r => [r[0], r[1]]), o.size) + '</select></div>' +
-    (o.size === "custom" ? num("w", "Width", "px") + num("h", "Height", "px") : '') +
-    (quick ? '<div class="df"><label>Anti-aliasing</label><select data-r="ss">' + rwOpt([[1, "Off"], [2, "2\u00d7 supersampling"], [4, "4\u00d7 supersampling"]], o.ss) + '</select></div>' +
-      '<label class="lk"><input type="checkbox" data-r="shadows"' + (o.shadows ? ' checked' : '') + '> Soft shadows</label>' +
-      num("soft", "Shadow softness", "1\u201312", !o.shadows) : '') +
-    '<div class="df"><label>Background</label><select data-r="bg">' + rwOpt(RENDER_BG, o.bg) + '</select>' + (o.bg === "color" ? '<input type="color" data-r="bgColor" value="' + o.bgColor + '">' : '') + '</div>' +
-    (mapOn3() && quick ? '<label class="lk"><input type="checkbox" data-r="map"' + (o.map ? ' checked' : '') + '> The 3D map shown and its legend</label>' : '') +
-    '<div class="df"><label>Save as</label><select data-r="fmt">' + rwOpt(rwinFormats(o), o.fmt) + '</select></div>' +
-    '<div class="hint">' + w + ' \u00d7 ' + h + ' px. ' + (res ? 'The render is shown: Live Preview follows the 3D window again.' : 'The picture follows the 3D window while this window is open.') + '</div>';
-}
-// the file formats a picture can be saved in (Round r23 / 8: no SVG, see THE SCHEMATIC RENDER)
-const rwinFormats = () => RENDER_FMTS;
+/* A setting changed: kept (the document's, saveRender()), and Interactive shows it at once. A run going on goes on with what it was
+   started with, and a picture stopped or finished stays: the maintainer's stopped window takes no input. */
 function rwinSet(k, t) {
-  const o = loadRender();
-  o[k] = t.type === "checkbox" ? t.checked : t.dataset && t.dataset.num ? numOf(t.value) : k === "ss" ? +t.value : t.value;
+  if (k === "mode" && t.value === "quality" && ptSoftware() && !PT_SOFT_YES) return ptSoftAsk();
+  if (k === "mode" && t.value !== "quality") PT_SOFT_YES = false;
+  const o = loadRender(), was = renderSize(o);
+  let v = t.type === "checkbox" ? t.checked : t.dataset && t.dataset.num ? numOf(t.value) : k === "ss" ? +t.value : t.value;
+  if (k === "w" || k === "h") {
+    // a size typed is a custom size, the other side kept, or (Maintain Ratio) following
+    v = Math.max(64, Math.min(SNAP_MAXPX, Math.round(v) || 64));
+    const other = k === "w" ? "h" : "w", r = was[other]/was[k];
+    o.size = "custom"; o[other] = o.ratio ? Math.max(64, Math.round(v*r)) : was[other];
+  }
+  // a custom size has its own sides: its Orientation turns it
+  if (k === "orient" && o.size === "custom" && v !== o.orient) [o.w, o.h] = [o.h, o.w];
+  if (k === "size" && v === "custom") { o.w = was.w; o.h = was.h; }
+  o[k] = v;
+  if (k === "mode" && v === "quality" && ptFailMark()) ptFailClear();
   const n = normRender(o);
   if (!rwinFormats(n).some(f => f[0] === n.fmt)) n.fmt = "png";
   saveRender(n);
-  if (RWIN.busy && typeof rwinStop === "function") rwinStop();
-  RWIN.result = null;
-  rwinSide(); rwinPreview(true);
+  if (k === "fov" || k === "near" || k === "far") renderLensApply();
+  rwinSide();
+  rwinPreview(true);
+  if (k === "mode" && v === "quality") { PT_WARM_OFF = false; ptWarm(); }
 }
 function rwinAct(act) {
   if (act === "render") return rwinRender();
   if (act === "stop") return rwinStop();
+  if (act === "pause") return rwinPause();
   if (act === "save") return rwinSave();
-  if (act === "live") { RWIN.result = null; rwinSide(); return rwinPreview(true); }
+  if (act === "copy") return rwinCopy();
+  if (act === "folder") return void (DESK && DESK.showSaved && DESK.showSaved());
+  if (act === "live") return rwinInteractive();
+  if (act === "lock") { RWIN.lock = !RWIN.lock; return rwinSide(); }
+  if (act === "pane-save") return rwinPaneSave();
+  if (act === "pane-open") return rwinPaneOpen();
+  if (act === "fit") { RWIN.z100 = false; return rwinRefit(); }
+  if (act === "z100") { RWIN.z100 = true; return rwinRefit(); }
+  if (act === "seq-prev") return rwinSeqShow(-1);
+  if (act === "seq-next") return rwinSeqShow(1);
   if (act === "use-quick") { const o = loadRender(); o.mode = "quick"; saveRender(o); RWIN.noPT = null; rwinSide(); return rwinPreview(true); }
+  if (act.startsWith("p:")) { RWIN.pane = act.slice(2); return rwinSide(); }
+  if (act === "view-add") return rwinViewAdd();
+  if (act.startsWith("view-del:")) { const o = loadRender(); o.views.splice(+act.slice(9), 1); saveRender(o); return rwinSide(); }
+  if (act.startsWith("view-go:")) { const v = loadRender().views[+act.slice(8)]; if (v) { Object.assign(view3d.cam, camOf(v)); view3d.ask(); } return; }
 }
-// the size of the picture in the preview area, keeping the render's shape
+const camOf = (v) => ({ az: v.az, el: v.el, dist: v.dist, tx: v.tx, ty: v.ty, tz: v.tz });
+function rwinViewAdd() {
+  const o = loadRender(), n = o.views.length + 1;
+  o.views.push({ name: "View " + n, ...camOf(view3d.cam) }); o.view = "custom"; saveRender(o); rwinSide();
+}
+// the size of the picture in the workspace, keeping the render's shape; at 1:1 its own size
 function rwinFit(w, h) {
+  if (RWIN.z100) return { w, h, k: 1 };
   const v = rwEl("rw-view"), r = v && v.getBoundingClientRect ? v.getBoundingClientRect() : { width: 400, height: 300 };
   const aw = Math.max(40, (r.width || 400) - 12), ah = Math.max(40, (r.height || 300) - 12), k = Math.min(aw/w, ah/h);
   return { w: Math.max(16, Math.floor(w*k)), h: Math.max(16, Math.floor(h*k)), k };
 }
-// a picture (a canvas) put into the window's own canvas, at the preview's size
-function rwinShow(src, w, h, msg) {
+// a picture (a canvas) put into the window's own canvas, at the size asked for, on the background texture while it has none of its own
+function rwinShow(src, w, h, msg, o) {
   const cv = rwEl("rw-cv");
   if (!cv) return;
   if (cv.width !== w) cv.width = w;
   if (cv.height !== h) cv.height = h;
   const g = cv.getContext && cv.getContext("2d");
-  if (g && src) { g.clearRect(0, 0, w, h); g.imageSmoothingEnabled = true; g.drawImage(src, 0, 0, w, h); }
-  const m = rwEl("rw-msg"); if (m) m.textContent = msg || "";
+  if (g && src) { g.clearRect(0, 0, w, h); if (o && renderCut(o)) renderPaintBack(g, w, h, o); g.imageSmoothingEnabled = true; g.drawImage(src, 0, 0, w, h); }
+  if (src) { RWIN.shown = true; cv.style.display = "block"; }
+  const m = rwEl("rw-msg"); if (m) { m.textContent = msg || ""; m.style.top = RWIN.shown ? "8px" : ""; }
+}
+// empty: no picture, the line that says how to begin
+function rwinEmpty() {
+  const cv = rwEl("rw-cv"), m = rwEl("rw-msg");
+  RWIN.shown = false; if (cv) cv.style.display = "none";
+  if (m) { m.textContent = "Click here to start the Interactive Render."; m.style.top = ""; }
+  rwinTitle("Render");
 }
 function rwinTitle(text) { const t = rwEl("rw-tn"); if (t) t.textContent = text; }
-// what the preview is drawn from: when it changes, the preview is drawn again
+// what the 3D window's camera and scene are: when it changes, Interactive draws again
 function rwinSig() {
   const c = view3d.cam || {}, o = loadRender();
   return JSON.stringify([c.az, c.el, c.dist, c.tx, c.ty, c.tz, G3.moved || 0, S.lights, o, S.av ? [S.av.name, S.av.height] : 0, S.ui.render3, S.ui.show3d, mapOn3(), G3.items ? G3.items.size : 0]);
 }
-// every frame of the 3D window, while the window is open: has anything changed?
+// every frame of the 3D window, while the workspace is open: the Camera pane's numbers follow the camera; has anything changed for Interactive?
 function rwinWatch() {
-  if (!RWIN.open || RWIN.result || RWIN.busy || view3d.shooting()) return;
+  if (!RWIN.open || view3d.shooting()) return;
+  if (RWIN.front && RWIN.pane === "camera") { const c = view3d.cam, k = [c.az, c.el, c.dist].join(); if (k !== RWIN.camKey) { RWIN.camKey = k; rwinLater(); } }
+  if (!RWIN.live || RWIN.busy) return;
   const sig = rwinSig();
   if (sig !== RWIN.sig) { RWIN.sig = sig; rwinPreview(false); }
 }
-// the preview: coarse at once, then (after a still moment) sharp. force: draw it even if nothing changed
+// Interactive Render: on, until Stop. Not while simulating (the maintainer: a box says so)
+function renderRefused() {
+  if (!(typeof SIM !== "undefined" && SIM.on)) return false;
+  askModal("Render", "The simulation is running. Stop the simulation before you start a render.", [{ n: "OK", k: "ok", primary: true, esc: true, f: () => {} }]);      // (Round r29c: with no f its OK threw)
+  return true;
+}
+function rwinInteractive() {
+  if (RWIN.live || RWIN.busy || renderRefused()) return;
+  if (!view3d.ready()) return void toast("The 3D window is not up: show it first (the 3D or 3D|2D button at the bottom)", 6000);
+  Object.assign(RWIN, { live: true, result: null, seq: null, saved: false });
+  rwinSide(); rwinSeqBar();
+  rwinPreview(true);
+}
+// Interactive's picture: coarse at once, then (after a still moment) sharp. force: draw it even if nothing changed
 function rwinPreview(force) {
-  if (!RWIN.open || RWIN.result || RWIN.busy) return;
+  if (!RWIN.open || !RWIN.live || RWIN.busy) return;
   if (force) RWIN.sig = rwinSig();
   const o = loadRender(), { w, h } = renderSize(o), f = rwinFit(w, h);
   if (!view3d.ready()) { rwinShow(null, f.w, f.h, "The 3D window is not up: show it (the 3D or 3D|2D button at the bottom) for the preview"); return; }
-  if (typeof rwinPreviewMode === "function" && rwinPreviewMode(o, f)) return;
+  if (rwinPreviewMode(o, f)) return;
   const coarse = renderShot({ ...o, ss: 1, shadows: false }, { w: Math.max(16, Math.round(f.w/3)), h: Math.max(16, Math.round(f.h/3)) });
-  rwinShow(coarse, f.w, f.h, ""); rwinTitle("Render \u00b7 preview (" + w + " \u00d7 " + h + ")");
+  const note = o.mode === "quality" && RWIN.noPT ? ptNoWords(RWIN.noPT) : "";
+  rwinShow(coarse, f.w, f.h, note); rwinTitle("Render · Interactive (" + w + " × " + h + ")");
   clearTimeout(RWIN.sharp);
   RWIN.sharp = setTimeout(() => {
-    if (!RWIN.open || RWIN.result || RWIN.busy) return;
+    if (!RWIN.open || !RWIN.live || RWIN.busy) return;
     const fine = renderShot(o, { w: f.w, h: f.h });
-    rwinShow(fine, f.w, f.h, "");
+    rwinShow(fine, f.w, f.h, note);
   }, 250);
 }
-// Render: the picture at its full resolution, kept as the window's result
+// Final Render: the picture at its full resolution, or each picture of a series, kept as the window's result
 function rwinRender() {
+  if (RWIN.live) return toast("Stop the Interactive Render first", 5000);
+  if (RWIN.busy || renderRefused()) return;
   if (!view3d.ready()) return toast("The 3D window is not up: show it first (the 3D or 3D|2D button at the bottom)", 6000);
-  const o = loadRender();
-  if (typeof rwinRenderMode === "function" && rwinRenderMode(o)) return;
-  const { w, h } = renderSize(o), c = renderShot(o);
+  const o = loadRender(), shots = rwinShots(o);
+  RWIN.result = null; RWIN.seq = null; RWIN.saved = false; rwinSeqBar();
+  if (shots.length > 1) return rwinSeqStart(o, shots);
+  const spec = shots[0];
+  if (rwinRenderMode(o, spec)) return;
+  const { w, h } = renderSize(o), c = renderShot(o, null, spec);
   if (!c) return toast("The render could not be made here");
   rwinResult(c, w, h, o);
 }
-function rwinResult(c, w, h, o) {
+function rwinResult(c, w, h, o, n) {
   RWIN.result = { c, w, h, fmt: o.fmt, mode: o.mode };
   const f = rwinFit(w, h);
-  rwinShow(c, f.w, f.h, ""); rwinTitle("Render (" + Math.round(f.k*100) + "% of " + w + " \u00d7 " + h + ")");
+  rwinShow(c, f.w, f.h, ""); rwinTitle("Render (" + Math.round(f.k*100) + "% of " + w + " × " + h + ")");
   rwinSide();
 }
-function rwinStop() { clearTimeout(RWIN.sharp); ptStop(); }
+// the picture as it is, at a new size of the workspace or 1:1 and Fit
+function rwinRefit() {
+  if (RWIN.live) return rwinPreview(true);
+  const r = RWIN.result;
+  if (r) { const f = rwinFit(r.w, r.h); rwinShow(r.c, f.w, f.h, ""); }
+}
+// Stop: Interactive ends with its picture left standing; a Final Render ends where it got to
+function rwinStop() {
+  clearTimeout(RWIN.sharp);
+  if (WARM) { PT_WARM_OFF = true; ptWarmDrop(); }      // (Cancel on the preparing the workspace began: not begun again by itself this session)
+  if (RWIN.live) { RWIN.live = false; RWIN.drag = null; if (PTRUN && PTRUN.preview) ptHalt(); rwinProgress(null); const { w, h } = renderSize(loadRender()); rwinTitle("Render (stopped, " + w + " × " + h + ")"); }
+  if (RWIN.seq) RWIN.seq.stop = true;
+  if (RWIN.paused) { RWIN.paused = false; if (RWIN.seq && !PTRUN) return rwinSeqEnd(); }
+  ptStop();
+  if (RWIN.seq && RWIN.busy && !PTRUN) return rwinSeqEnd();      // (Round r29b: stopped while preparing, nothing else would end the series)
+  rwinSide();
+}
+// Pause and Resume of a Final Render: the frames stop being asked for; its time does not run meanwhile
+function rwinPause() {
+  if (!RWIN.busy) return;
+  RWIN.paused = !RWIN.paused;
+  const run = PTRUN;
+  if (RWIN.paused) { if (run) { run.pausedAt = ptNow(); rwinProgress(run); } else rwinProgress(RWIN.seq && RWIN.seq.bar, "Paused"); }
+  else if (run) { run.t0 += ptNow() - (run.pausedAt || ptNow()); run.pausedAt = 0; ptLater(() => ptStep(run)); }
+  else if (RWIN.seq) ptLater(rwinSeqNext);
+  rwinSide();
+}
+/* ---- a series of pictures: Custom Views and Turntable Images ----
+   Each picture a camera of its own (camOf(), through withCam()), rendered one after the other, one a frame so the page goes on
+   answering. Each is kept as its file's bytes (RWIN.seq.files), a GIF's frames as they come. Save writes them all as one .zip (no
+   system box for each of 360 pictures), with the GIF and the video in it when asked for. */
+const withCam = (spec, f) => { if (!spec) return f(); const c = view3d.cam, k = { ...c }; Object.assign(c, spec); try { return f(); } finally { Object.assign(c, k); } };
+const ttCount = (o) => (o.ttCount === "custom" ? o.ttN : +o.ttCount);
+// the turntable's axis: Auto the garment's middle, Center the world's, Custom typed
+function ttAxis(o) {
+  if (o.ttAxis === "center") return { x: 0, z: 0 };
+  if (o.ttAxis === "custom") return { x: o.ttX, z: o.ttZ };
+  const b = garmentBox3();
+  return { x: (b.x0 + b.x1)/2, z: (b.z0 + b.z1)/2 };
+}
+// the cameras of a render: [null] the view as the settings say it; several, a series
+function rwinShots(o) {
+  if (o.kind === "turntable") {
+    // the garment turns the way chosen, seen from above, so the camera goes the other way round the axis, from where it is now
+    const c = view3d.cam, n = ttCount(o), a = ttAxis(o), s = o.ttDir === "cw" ? 1 : -1, out = [];
+    for (let k = 0; k < n; k++) {
+      const th = s*o.ttAngle*k/n*Math.PI/180, cs = Math.cos(th), sn = Math.sin(th), dx = c.tx - a.x, dz = c.tz - a.z;
+      out.push({ az: c.az + th, el: c.el, dist: c.dist, tx: a.x + dx*cs + dz*sn, ty: c.ty, tz: a.z - dx*sn + dz*cs });
+    }
+    return out;
+  }
+  if (o.view === "custom" && o.views.length) return o.views.map(camOf);
+  return [null];
+}
+// the dotted line in the 3D window where a turntable goes round (the maintainer's 08:27), while Turntable Images is chosen
+function rwinAxisShow(o) {
+  const g = view3d.group && view3d.group("rwaxis");
+  if (!g) return;
+  const on = RWIN.open && o && o.kind === "turntable", a = on ? ttAxis(o) : null, sig = a ? a.x + "," + a.z : "";
+  if (g.userData.sig === sig) return;
+  g.userData.sig = sig;
+  for (const c of g.children.slice()) { g.remove(c); c.geometry.dispose(); c.material.dispose(); }
+  if (!a) return view3d.ask();
+  const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(a.x, -200, a.z), new THREE.Vector3(a.x, 3000, a.z)]), line = new THREE.Line(geo, new THREE.LineDashedMaterial({ color: 0x1a1a1a, dashSize: 40, gapSize: 40, depthTest: false }));
+  line.computeLineDistances(); line.renderOrder = 9; g.add(line); view3d.ask();
+}
+function rwinSeqStart(o0, shots) {
+  const o = { ...o0, schViews: "now" }, { w, h } = renderSize(o);
+  RWIN.seq = { o, shots, k: 0, w, h, files: [], base: renderBase(o), gif: o.kind === "turntable" && o.ttGif ? gifStart(w, h) : null, shown: 0 };
+  RWIN.busy = true; rwinSide(); rwinSeqNext();
+}
+function rwinSeqNext() {
+  const q = RWIN.seq;
+  if (!q || RWIN.paused) return;
+  if (q.stop || q.k >= q.shots.length) return rwinSeqEnd();
+  const spec = q.shots[q.k], o = q.o;
+  rwinProgress({ samples: q.k, target: q.shots.length }, "Image " + (q.k + 1) + " of " + q.shots.length);
+  if (o.mode === "quality") return ptStart(o, q.w, q.h, false, spec);
+  const c = o.mode === "schematic" ? withCam(spec, () => schematicShot(o, q.w, q.h)) : renderShot(o, { w: q.w, h: q.h }, spec);
+  if (!c) { q.stop = true; toast("The render could not be made here"); return rwinSeqEnd(); }
+  rwinSeqGot(c);
+}
+// a picture of the series is done: its bytes kept, shown, the next one a frame later
+function rwinSeqGot(c) {
+  const q = RWIN.seq; if (!q) return;
+  const f = rwinFit(q.w, q.h), ext = q.o.fmt === "jpeg" ? "jpg" : "png";
+  rwinShow(c, f.w, f.h, ""); q.last = c;
+  try { q.files.push({ name: q.base + "_" + String(q.k + 1).padStart(String(q.shots.length).length, "0") + "." + ext, data: bytesOfURL(renderURL(c, q.o.fmt, q.w, q.h)), raw: true }); } catch (e) { q.files.push({ name: "", data: new Uint8Array(0), raw: true }); }
+  if (q.gif) gifFrame(q.gif, c);
+  q.k++; q.shown = q.k - 1;
+  ptLater(rwinSeqNext);
+}
+function rwinSeqEnd() {
+  const q = RWIN.seq; if (!q) return;
+  RWIN.busy = false; RWIN.paused = false; rwinProgress(null);
+  if (q.last) {
+    const stopped = q.k < q.shots.length;
+    rwinResult(q.last, q.w, q.h, q.o);
+    rwinTitle("Render (" + q.k + " of " + q.shots.length + " images, " + q.w + " × " + q.h + (stopped ? ", stopped" : "") + ")");
+  } else rwinEmpty();
+  rwinSeqBar(); rwinSide();
+}
+// under the picture: which picture of a finished series is shown, and the way to the others
+function rwinSeqBar() {
+  const b = rwEl("rw-seq"); if (!b) return;
+  const q = RWIN.seq, n = q && !RWIN.busy ? q.files.length : 0;
+  b.innerHTML = n > 1 ? '<button class="btn" data-act="seq-prev" title="The picture before">◀</button><span>' + (q.shown + 1) + ' of ' + n + '</span><button class="btn" data-act="seq-next" title="The picture after">▶</button>' : "";
+}
+function rwinSeqShow(by) {
+  const q = RWIN.seq; if (!q || !q.files.length) return;
+  q.shown = (q.shown + by + q.files.length) % q.files.length;
+  rwinSeqBar();
+  const fl = q.files[q.shown], im = new Image();
+  im.onload = () => { const c = document.createElement("canvas"); c.width = q.w; c.height = q.h; c.getContext("2d").drawImage(im, 0, 0); RWIN.result.c = c; const f = rwinFit(q.w, q.h); rwinShow(c, f.w, f.h, ""); };
+  im.src = URL.createObjectURL(new Blob([fl.data], { type: q.o.fmt === "jpeg" ? "image/jpeg" : "image/png" }));
+}
 /* ================================================================
    THE QUALITY RENDER (Round r23 / 7: "opt-in, slow")
    A path-traced picture: light bounces between the garment, the avatar and the floor, so shadows are soft and folds dark as they
@@ -19826,7 +20303,7 @@ function rwinStop() { clearTimeout(RWIN.sharp); ptStop(); }
    moment it is path traced at the preview's size, refining up to Samples.
    ================================================================ */
 let PTRUN = null;                                            // the run going on: { w, h, o, preview, samples, target, … }
-const PT_SCRIPT = "vendor/three-pathtracer.js", PT_TILE = 256;
+const PT_SCRIPT = "vendor/three-pathtracer.js", PT_TILE = 256, PT_KEEPS_UP = 250;
 // null where the quality render can run here, otherwise why not (in words); asked once
 function ptSupport() {
   if (ptSupport.said !== undefined) return ptSupport.said;
@@ -19842,26 +20319,32 @@ function ptSupport() {
 // the library, loaded the first time it is needed: done(error or null)
 function ptLoad(done) {
   if (typeof THREE_PATHTRACER !== "undefined") return done(null);
+  if (ptLoad.wait) return void ptLoad.wait.push(done);      // (Round r29c: already on its way, for the preparing begun on opening)
+  const wait = ptLoad.wait = [done], end = (e) => { ptLoad.wait = null; for (const f of wait) f(e); };
   const s = document.createElement("script"), host = document.head || document.body;
   s.src = PT_SCRIPT;
-  s.onload = () => done(typeof THREE_PATHTRACER !== "undefined" ? null : new Error(PT_SCRIPT + " did not set up the renderer"));
-  s.onerror = () => done(new Error(PT_SCRIPT + " could not be loaded"));
+  s.onload = () => end(typeof THREE_PATHTRACER !== "undefined" ? null : new Error(PT_SCRIPT + " did not set up the renderer"));
+  s.onerror = () => end(new Error(PT_SCRIPT + " could not be loaded"));
   host.appendChild(s);
 }
+const ptNoWords = (why) => "The path traced render cannot run here: " + why + ". Render Properties ▸ Engine ▸ Quick renders as before.";
 // the window's words where the quality render cannot run, and the way back to Quick
 function rwinNoPT(why) {
   const m = rwEl("rw-msg");
-  if (m) m.textContent = "The quality render cannot run here: " + why + ". Quick renders as before.";
+  if (m) m.textContent = ptNoWords(why);
   RWIN.noPT = why; rwinSide();
 }
 function rwinModeHTML(o) {
   if (o.mode === "schematic") return schHTML(o);
-  if (o.mode !== "quality") return "";
+  if (o.mode !== "quality" && ptSoftware()) return '<div class="hint">This computer draws 3D without a graphics card (' + esc(ptCard()) + '), so Final Render uses Quick. Path Traced asks first.</div>';
+  if (o.mode !== "quality") return ptFailedHere() ? '<div class="hint">Path Traced did not get ready on this graphics card (' + esc(ptFailMark().why) + '), so Final Render uses Quick. Choosing Path Traced tries again, with up to ' + PT_PREP_AGAIN/60 + ' minutes to get ready.</div>' : "";
   const why = ptSupport();
   return '<div class="df"><label>Samples</label><input type="text" inputmode="decimal" data-num="1" data-r="samples" value="' + o.samples + '"><span class="u">' + PT_SAMPLES.min + '\u2013' + PT_SAMPLES.max + '</span></div>' +
     '<div class="df"><label title="Stop once the picture is this clean: the pixels\u2019 relative error, 0 = never">Noise Threshold</label><input type="text" inputmode="decimal" data-num="1" data-r="noise" value="' + o.noise.toFixed(3) + '"><span class="u">0 = off</span></div>' +
     '<div class="df"><label title="Stop after this long, 0 = never">Max. Render Time</label><input type="text" inputmode="decimal" data-num="1" data-r="maxMin" value="' + o.maxMin + '"><span class="u">min</span></div>' +
+    '<div class="df"><label title="How much a pixel\u2019s brightness is carried over: 1 as it is, more brighter">Burn Value</label><input type="text" inputmode="decimal" data-num="1" data-r="burn" value="' + o.burn.toFixed(2) + '"></div>' +
     '<div class="df"><label>Color Mapping</label><select data-r="tone">' + PT_TONES.map(([k, n]) => '<option value="' + k + '"' + (o.tone === k ? ' selected' : '') + '>' + n + '</option>').join("") + '</select></div>' +
+    '<div class="df"><label title="How many times light bounces">Quality: Light</label><select data-r="lightQ">' + rwOpt(RW_LQ.map(q => [q[0], q[1]]), o.lightQ) + '</select></div>' +
     (why ? '<div class="hint">Not here: ' + esc(why) + '.</div><div class="da"><button class="btn" data-act="use-quick">Use Quick</button></div>'
       : '<div class="hint">Light bounces between the garment, the avatar and the floor: soft shadows, the fabric\u2019s color and picture. Slow: more samples, a cleaner picture.</div>');
 }
@@ -19869,11 +20352,17 @@ function rwinModeHTML(o) {
 function rwinProgress(run, text) {
   const p = rwEl("rw-prog"), bar = rwEl("rw-bar"), t = rwEl("rw-pt");
   if (!p) return;
-  if (!run) { if (p.classList) p.classList.remove("on"); return; }
-  if (p.classList) p.classList.add("on");
+  if (!run) { if (p.classList) { p.classList.remove("on"); p.classList.remove("prep"); } return; }
+  if (p.classList) { p.classList.add("on"); if (run.prep) p.classList.add("prep"); else p.classList.remove("prep"); }
   const k = run.target ? Math.min(1, run.samples/run.target) : 0;
   if (bar) bar.style.width = Math.round(k*100) + "%";
-  if (t) t.textContent = text || ((run.preview ? "Preview: " : "Quality render: ") + Math.floor(run.samples) + " of " + run.target + " samples \u00b7 " + Math.round((ptNow() - run.t0)/1000) + " s" + (run.noise != null ? " \u00b7 noise " + run.noise.toFixed(3) : ""));
+  if (t) t.textContent = text || ptWords(run);
+}
+// (Round r29) a run in words: its samples, the time it took and is about to take, its noise; which picture of a series; paused
+function ptWords(run) {
+  const q = RWIN.seq, mmss = (s) => Math.floor(s/60) + ":" + String(Math.floor(s) % 60).padStart(2, "0"), s = Math.floor(run.samples), secs = ((run.pausedAt || ptNow()) - run.t0)/1000;
+  const left = !run.preview && s > 0 ? secs*(run.target - s)/s : 0;
+  return (RWIN.paused ? "Paused \u00b7 " : "") + (q ? "Image " + (q.k + 1) + " of " + q.shots.length + " \u00b7 " : "") + (run.preview ? "Interactive: " : "Final Render: ") + s + " of " + run.target + " samples \u00b7 " + mmss(secs) + (left ? ", about " + mmss(left) + " left" : "") + (run.noise != null ? " \u00b7 noise " + run.noise.toFixed(3) : "");
 }
 const ptNow = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
 const ptLater = (f) => (typeof requestAnimationFrame === "function" ? requestAnimationFrame(f) : setTimeout(f, 16));
@@ -19894,7 +20383,7 @@ const ptBack = (o) => (o.bg === "white" ? "#ffffff" : o.bg === "color" ? o.bgCol
 function ptLights(box) {
   const doc = (S.lights || []).filter(l => l.on), sc = view3d.scene();
   if (doc.length) {
-    const L = lightObjects(doc, box).filter(x => !x.isHemisphereLight), dome = doc.find(l => l.type === "dome");
+    const L = lightObjects(doc, box, true).filter(x => !x.isHemisphereLight), dome = doc.find(l => l.type === "dome");
     for (const x of L) { x.updateMatrixWorld(true); if (x.target) x.target.updateMatrixWorld(true); }
     return { lights: L, dome: dome ? { color: dome.color, k: dome.intensity*0.5 } : { color: "#ffffff", k: 0.15 } };
   }
@@ -19911,9 +20400,11 @@ function ptContext() {
   if (PTCTX) return PTCTX;
   const P = THREE_PATHTRACER, cvs = document.createElement("canvas"), ctx = { cvs };
   // a lost context (the system resetting the graphics card, for one) ends the run with words, not a frozen picture
-  if (cvs.addEventListener) cvs.addEventListener("webglcontextlost", (e) => { if (e.preventDefault) e.preventDefault(); if (PTCTX === ctx) PTCTX = null; const run = PTRUN; if (run) { run.lost = true; ptHalt(); rwinNoPT("the graphics card let the picture go (its context was lost) at " + Math.floor(run.samples) + " samples"); } });
+  if (cvs.addEventListener) cvs.addEventListener("webglcontextlost", (e) => { if (e.preventDefault) e.preventDefault(); if (PTCTX === ctx) PTCTX = null; PT_PREP_T0 = null; const run = PTRUN || WARM; if (run) { run.lost = true; if (run.prep) return ptPrepFail(run, "the graphics card gave up on it"); ptHalt(); rwinNoPT("the graphics card let the picture go (its context was lost) at " + Math.floor(run.samples) + " samples"); } });
   ctx.R2 = new THREE.WebGLRenderer({ canvas: cvs, antialias: false, alpha: true, preserveDrawingBuffer: true });
+  THREE.ShaderChunk.tonemapping_pars_fragment = THREE.ShaderChunk.tonemapping_pars_fragment.replace(PT_TONE_FROM, ptToneGLSL());
   ctx.R2.setPixelRatio(1); ctx.R2.toneMapping = THREE.ACESFilmicToneMapping;
+  if (ctx.R2.debug) ctx.R2.debug.onShaderError = () => { ctx.bad = true; };      // (a shader refused: three.js's first draw says so, ptStep() reads it)
   ctx.mat = new P.PhysicalPathTracingMaterial(); ctx.pt = new P.PathTracingRenderer(ctx.R2); ctx.pt.material = ctx.mat;
   ctx.quad = new P.FullScreenQuad(new THREE.MeshBasicMaterial({ map: ctx.pt.target.texture, blending: THREE.CustomBlending }));
   return (PTCTX = ctx);
@@ -19923,15 +20414,18 @@ function ptBuild(run) {
   const P = THREE_PATHTRACER, o = run.o, w = run.w, h = run.h, box = S.av ? avatarBox(S.av) : garmentBox3(), ctx = ptContext(), { R2, mat, pt } = ctx;
   ctx.cvs.width = w; ctx.cvs.height = h; R2.setSize(w, h, false);
   // (Round r25) the colour mapping chosen (the quad's shader is made again when it changes)
-  const tm = o.tone === "aces" ? THREE.ACESFilmicToneMapping : THREE.ReinhardToneMapping;
+  const tm = o.tone === "aces" ? THREE.ACESFilmicToneMapping : THREE.CustomToneMapping;
   if (R2.toneMapping !== tm) { R2.toneMapping = tm; if (ctx.quad && ctx.quad.material) ctx.quad.material.needsUpdate = true; }
   // in tiles of at most PT_TILE pixels a side, and (ptStep()) one sample's tiles a frame: a pass over a whole large picture, or many
   // passes queued at once, keep the graphics card busy long enough for Windows to take it for hung and reset it (about 2 s)
-  pt.setSize(w, h); pt.alpha = o.bg === "transparent"; pt.tiles.set(Math.ceil(w/PT_TILE), Math.ceil(h/PT_TILE));
-  pt.camera = view3d.camFor(w, h, o.view === "now" ? null : o.view, o.view === "now" ? null : box);
-  const objs = ptMeshes(), lit = ptLights(box);
+  const see = o.bg === "transparent" || renderCut(o), named = !run.spec && o.view !== "now" && o.view !== "custom" ? o.view : null;
+  pt.setSize(w, h); pt.alpha = see; pt.tiles.set(Math.ceil(w/PT_TILE), Math.ceil(h/PT_TILE));
+  pt.camera = withCam(run.spec, () => view3d.camFor(w, h, named, named ? box : null));
+  // (Round r29) Burn Value, Quality: Light
+  R2.toneMappingExposure = (o.burn || 1)*(o.tone === "aces" ? 1 : PT_GAIN); mat.bounces = (RW_LQ.find(q => q[0] === o.lightQ) || RW_LQ[1])[2];
+  const objs = run.warm ? [] : ptMeshes(), lit = ptLights(box);
   let floor = null;
-  if (o.bg !== "transparent") {
+  if (!see || run.warm) {
     floor = new THREE.Mesh(new THREE.PlaneGeometry(40000, 40000), new THREE.MeshStandardMaterial({ color: ptBack(o), roughness: 1, metalness: 0 }));
     floor.rotation.x = -Math.PI/2; floor.updateMatrixWorld(true); objs.push(floor);
   }
@@ -19947,9 +20441,25 @@ function ptBuild(run) {
   mat.envMapInfo.updateFrom(env); mat.environmentIntensity = lit.dome.k;
   const back = new P.GradientEquirectTexture(); back.topColor.set(ptBack(o)); back.bottomColor.set(ptBack(o)); back.update();
   if (ctx.back && ctx.back !== back) { try { ctx.back.dispose(); } catch (e) {} }
-  mat.backgroundMap = ctx.back = back; mat.backgroundAlpha = o.bg === "transparent" ? 0 : 1;
+  mat.backgroundMap = ctx.back = back; mat.backgroundAlpha = see ? 0 : 1;
   Object.assign(run, { R2, pt, mat, quad: ctx.quad, env, floor, geo, cvs: ctx.cvs, tiles: pt.tiles.x*pt.tiles.y });
+  run.shapes = run.warm ? null : ptShapes(run, box, pt.camera);
   pt.reset();
+}
+/* (Round r29b: frame 142) A rectangle or a sphere shows in the picture where it stands in view. As a mesh in the traced scene it would stand
+   in its own light and shade everything, and the tracer's own lights cannot be seen by a camera ray. So they are drawn once, by the
+   rasterizer, against the depth of the very triangles traced (run.geo, in world space), into a picture of their own with smooth edges,
+   and laid over the traced picture at every showing: they light as lights and are seen as shapes, in front of what they are in front of. */
+function ptShapes(run, box, cam) {
+  const list = lightShapes(S.lights || [], box);
+  if (!list.length) return null;
+  const R2 = run.R2, P = THREE_PATHTRACER, sc = new THREE.Scene(), hid = new THREE.MeshBasicMaterial({ colorWrite: false, side: THREE.DoubleSide }), solid = new THREE.Mesh(run.geo, hid);
+  solid.renderOrder = -1; solid.frustumCulled = false; sc.add(solid, ...list);
+  const rt = new THREE.WebGLRenderTarget(run.w, run.h, { samples: 4, type: THREE.HalfFloatType });
+  const was = new THREE.Color(); R2.getClearColor(was); const wasA = R2.getClearAlpha();
+  R2.setClearColor(0x000000, 0); R2.setRenderTarget(rt); R2.render(sc, cam); R2.setRenderTarget(null); R2.setClearColor(was, wasA);
+  hid.dispose(); for (const m of list) { m.geometry.dispose(); m.material.dispose(); }
+  return { rt, quad: new P.FullScreenQuad(new THREE.MeshBasicMaterial({ map: rt.texture, transparent: true, toneMapped: false, depthTest: false, depthWrite: false, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor })) };
 }
 // let a run's own things go (the context stays for the next run)
 function ptFree(run) {
@@ -19958,45 +20468,144 @@ function ptFree(run) {
   if (run.env) safe(() => run.env.dispose());
   if (run.floor) safe(() => { run.floor.geometry.dispose(); run.floor.material.dispose(); });
   if (run.geo) safe(() => run.geo.dispose());
+  if (run.shapes) safe(() => { run.shapes.rt.dispose(); run.shapes.quad.material.dispose(); run.shapes.quad.dispose(); });
   run.R2 = run.pt = run.mat = run.quad = null;
 }
 // a run started: the preview at its size (preview true) or the full render. Any run going on ends first.
-function ptStart(o, w, h, preview) {
+function ptStart(o, w, h, preview, spec) {
   ptHalt();
   const why = ptSupport();
-  if (why) return rwinNoPT(why);
-  const run = { w, h, o, preview, samples: 0, target: o.samples, t0: ptNow() };
+  if (why) { if (RWIN.seq) { RWIN.seq.stop = true; rwinSeqEnd(); } return rwinNoPT(why); }
+  const run = { w, h, o, preview, spec, samples: 0, target: o.samples, t0: ptNow() };
   PTRUN = run;
   if (!preview) { RWIN.busy = true; RWIN.result = null; rwinSide(); }
-  rwinProgress(run, "Loading the quality renderer\u2026");
+  // (Round r29c) the preparing begun on opening goes on, under this run: its clock, its bar, its compile (ptCompile())
+  if (WARM) { const w = WARM; WARM = null; ptPrepStart(run); w.prep = null; ptFree(w); }
+  else rwinProgress(run, "Loading the quality renderer\u2026");
   ptLoad((err) => {
     if (PTRUN !== run) return;
-    if (err) { PTRUN = null; RWIN.busy = false; rwinProgress(null); rwinSide(); toast("The quality render could not be loaded: " + err.message, 8000); return; }
+    if (err) { ptPrepEnd(run); PTRUN = null; RWIN.busy = false; rwinProgress(null); rwinSide(); toast("The quality render could not be loaded: " + err.message, 8000); return; }
     try { ptBuild(run); }
-    catch (e) { console.error(e); ptFree(run); PTRUN = null; RWIN.busy = false; rwinProgress(null); rwinSide(); return rwinNoPT("it could not be set up (" + e.message + ")"); }
+    catch (e) { console.error(e); return ptPrepFail(run, "it could not be set up: " + e.message); }
     run.t0 = ptNow();
-    if (!run.compiled) rwinProgress(run, PTCTX && PTCTX.ready ? undefined : "Preparing the renderer: the first time, on Windows, it can take up to a minute, and the window does not answer meanwhile\u2026");
-    ptLater(() => ptStep(run));
+    if (!(PTCTX && PTCTX.ready)) ptPrepStart(run);
+    ptCompile(run, () => { if (PTRUN !== run) return; run.t0 = ptNow(); ptLater(() => ptStep(run)); });
   });
+}
+/* (Round r29b) While the shader is prepared: words, a moving bar (how long it takes is not known beforehand), the seconds, and Cancel beside them
+   (#rw-cancel, the same as Stop: it leaves at once, the card finishing its work behind it, and a later render finds it done). Past
+   PT_PREP_LIMIT seconds it is given up: Quick instead, with one line, and the machine's mark (ptFailSet()). */
+const PT_PREP_WORDS = "Preparing the quality renderer: once each time the program starts, and you can keep working";
+/* (Round r29c) One preparing at a time, whoever waits on it (PTPREP.run: the WARM run begun on opening, then the render that takes it over), its clock counted from
+   when the card was first asked (PT_PREP_T0: a Cancel or a restart does not stop the card, so neither do they start the time again). */
+var PTPREP = null, PT_PREP_T0 = null, WARM = null, PT_WARM_OFF = false;
+function ptPrepTick() {
+  const p = PTPREP; if (!p) return;
+  const t = ptNow() - PT_PREP_T0, limit = (PT_AGAIN ? PT_PREP_AGAIN : PT_PREP_LIMIT)*1000;
+  if (t >= limit) return ptPrepFail(p.run, "not ready after " + Math.round(limit/1000) + " s");
+  rwinProgress(p.run, PT_PREP_WORDS + " \u00b7 " + Math.floor(t/1000) + " s");
+}
+function ptPrepStart(run) {
+  if (PT_PREP_T0 === null) PT_PREP_T0 = ptNow();
+  if (PTPREP) { PTPREP.run = run; run.prep = PTPREP; }
+  else run.prep = PTPREP = { run, iv: setInterval(ptPrepTick, 500) };
+  ptPrepTick();
+}
+function ptPrepEnd(run) { if (run && run.prep) { if (PTPREP === run.prep) { clearInterval(PTPREP.iv); PTPREP = null; } run.prep = null; } }
+const ptReady = () => { if (PTCTX) PTCTX.ready = true; PT_PREP_T0 = null; };
+/* (Round r29c) The shader prepared in the background from the moment the workspace opens (only with Path Traced the Engine, and never on software WebGL, where it could
+   hold the page): the first render does not wait, or waits only what is left. A small scene of its own: the compiled program does not depend on the scene (its defines:
+   depth of field, the background, fog, the camera's type), and a garment's BVH would hold the page on opening. Ready after one pass: some drivers compile at the first draw. */
+function ptWarm() {
+  if (PT_WARM_OFF || WARM || PTRUN || !RWIN.open || (PTCTX && PTCTX.ready) || !view3d.ready() || loadRender().mode !== "quality" || ptSupport() || ptSoftware()) return;
+  const run = WARM = { warm: true, w: 64, h: 64, o: loadRender(), samples: 0, target: 1, t0: ptNow() };
+  ptPrepStart(run);
+  ptLoad((err) => {
+    if (WARM !== run) return;
+    if (err) return ptWarmDrop();
+    try { ptBuild(run); } catch (e) { console.warn(e); return ptPrepFail(run, "it could not be set up: " + e.message); }
+    ptCompile(run, () => {
+      if (WARM !== run) return;
+      try { run.pt.update(); } catch (e) { console.warn(e); return ptPrepFail(run, "it stopped with an error: " + e.message); }
+      if (PTCTX && PTCTX.bad) { PTCTX.bad = false; return ptPrepFail(run, "its shader was refused"); }
+      ptFence(run.R2, () => { if (WARM !== run) return; ptReady(); ptWarmDrop(); });
+    });
+  });
+}
+function ptWarmDrop() { const w = WARM; if (!w) return; WARM = null; ptPrepEnd(w); rwinProgress(null); ptFree(w); }
+// not ready: this picture, and from now on Final Render here, with Quick; a series goes on with Quick from the picture it was at
+function ptPrepFail(run, why) {
+  ptPrepEnd(run); ptFailSet(why);
+  if (PTRUN === run) PTRUN = null;
+  if (WARM === run) WARM = null;
+  ptFree(run); rwinProgress(null);
+  toast("The path tracer did not get ready here (" + why + "): using Quick. Render Properties \u25b8 Engine \u25b8 Path Traced tries again.", 9000);
+  if (run.warm) return rwinSide();
+  if (RWIN.seq) { RWIN.seq.o = { ...RWIN.seq.o, mode: "quick" }; rwinSide(); return void ptLater(rwinSeqNext); }
+  RWIN.paused = false;
+  if (run.preview) { rwinSide(); return rwinPreview(true); }
+  RWIN.busy = false;
+  const o = { ...run.o, mode: "quick" }, c = renderShot(o, { w: run.w, h: run.h }, run.spec);
+  if (c) rwinResult(c, run.w, run.h, o); else rwinSide();
+}
+/* (Round r29) The path tracer's shader, compiled without holding the page: compiling takes 20 to 45 s through Direct3D, and three.js's
+   first draw would wait for it with the page not answering (open since r23). compileAsync() starts it and asks the card with
+   KHR_parallel_shader_compile whether it is done, so the page goes on answering and Stop works meanwhile. The picture's own
+   settings first (its defines, its render target: they are in the compiled program's key, or the first draw compiles it again).
+   (Round r29b) Where the extension is missing (software WebGL: the page held 46 s) the compile is asked for all the same and a fence says when the
+   card has come through it (ptFence()). */
+function ptCompile(run, go) {
+  const ctx = PTCTX, R2 = run.R2;
+  if (!ctx || ctx.ready || !R2.compileAsync) return go();
+  if (ctx.compiling) return void ctx.compiling.push(go);      // (Round r29c) already asked for: the render goes on from it, no second compile
+  ctx.compiling = [go];
+  const all = () => { const l = ctx.compiling; ctx.compiling = null; for (const f of l) f(); };
+  try {
+    if (run.mat.onBeforeRender) run.mat.onBeforeRender();
+    const sc = new THREE.Scene(), q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), run.mat), cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1); sc.add(q);
+    R2.setRenderTarget(run.pt.target);
+    const done = () => { q.geometry.dispose(); all(); };
+    if (R2.extensions && R2.extensions.has && R2.extensions.has("KHR_parallel_shader_compile")) R2.compileAsync(sc, cam).then(done, (e) => { console.error(e); done(); });
+    else { R2.compile(sc, cam); ptFence(R2, done); }
+    R2.setRenderTarget(null);
+  } catch (e) { console.error(e); all(); }
+}
+// (Round r29b) then(), once the card has done what it was asked so far, without holding the page: reading a picture back would wait for it, however long that takes on a weak card
+function ptFence(R2, then) {
+  const gl = R2.getContext && R2.getContext(), s = gl && gl.fenceSync ? gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0) : null;
+  if (!s) return then();
+  gl.flush();
+  const look = () => { if (gl.isContextLost() || gl.getSyncParameter(s, gl.SYNC_STATUS) === gl.SIGNALED) { gl.deleteSync(s); return then(); } setTimeout(look, 16); };
+  setTimeout(look, 0);
 }
 // one go of the loop: as many passes as fit in a frame's time, the picture shown, the next go asked for
 function ptStep(run) {
-  if (PTRUN !== run || !run.pt) return;
+  if (PTRUN !== run || !run.pt || (RWIN.paused && !run.preview)) return;
   const t0 = ptNow();
-  if (PTCTX) PTCTX.ready = true;
   try {
     // at most one sample's tiles a frame (the work is queued on the graphics card, so the time the page spends says little)
     let k = 0;
     do { run.pt.update(); run.samples = run.pt.samples; } while (run.samples < run.target && ++k < (run.tiles || 1) && ptNow() - t0 < 30);
     run.quad.material.map = run.pt.target.texture; run.quad.render(run.R2);
-  } catch (e) { console.error(e); ptHalt(); return rwinNoPT("it stopped with an error (" + e.message + ")"); }
-  const f = rwinFit(run.w, run.h);
-  rwinShow(run.cvs, f.w, f.h, "");
-  if (!run.preview) ptNoise(run);
-  rwinProgress(run);
-  const why = run.preview ? (run.samples >= run.target ? "samples" : null) : ptStopWhy(run, ptNow());
-  if (why) { run.why = why; return ptDone(run, false); }
-  ptLater(() => ptStep(run));
+    if (run.shapes) { run.R2.autoClear = false; run.shapes.quad.render(run.R2); run.R2.autoClear = true; }
+    if (PTCTX && PTCTX.bad) { PTCTX.bad = false; return ptPrepFail(run, "its shader was refused"); }
+  } catch (e) { if (run.prep) { console.warn(e); return ptPrepFail(run, "it stopped with an error: " + e.message); } console.error(e); ptHalt(); return rwinNoPT("it stopped with an error (" + e.message + ")"); }
+  const shown = () => {
+    if (PTRUN !== run || !run.pt) return;
+    ptReady();
+    ptPrepEnd(run);
+    const f = rwinFit(run.w, run.h);
+    rwinShow(run.cvs, f.w, f.h, "", run.o);
+    if (!run.preview) ptNoise(run);
+    rwinProgress(run);
+    const why = run.preview ? (run.samples >= run.target ? "samples" : null) : ptStopWhy(run, ptNow());
+    if (why) { run.why = why; return ptDone(run, false); }
+    ptLater(() => ptStep(run));
+  };
+  // (Round r29b) waited for without holding the page while preparing and on a slow card; a card that keeps up is not asked again (the waiting cost a GTX 1660 a fifth of its speed)
+  if (run.keepsUp) return shown();
+  const t1 = ptNow();
+  ptFence(run.R2, () => { if (PTCTX && PTCTX.ready && ptNow() - t1 < PT_KEEPS_UP) run.keepsUp = true; shown(); });
 }
 // (Round r25) why a full render ends now: its samples reached, its time up, or its picture as clean as asked; null: go on
 function ptStopWhy(run, now) {
@@ -20030,8 +20639,10 @@ function ptDone(run, stopped) {
   rwinProgress(null);
   if (!run.preview && run.cvs) {
     const c = document.createElement("canvas"); c.width = run.w; c.height = run.h;
-    const g = c.getContext && c.getContext("2d"); if (g) g.drawImage(run.cvs, 0, 0);
-    RWIN.busy = false;
+    const g = c.getContext && c.getContext("2d"); if (g) { if (renderCut(run.o)) renderPaintBack(g, run.w, run.h, run.o); g.drawImage(run.cvs, 0, 0); }
+    // (Round r29) a picture of a series: kept, and the next one
+    if (RWIN.seq) { if (stopped) RWIN.seq.stop = true; RWIN.seq.lastPT = { samples: Math.floor(run.samples) }; ptFree(run); return rwinSeqGot(c); }
+    RWIN.busy = false; RWIN.paused = false;
     rwinResult(c, run.w, run.h, run.o);
     const s = Math.floor(run.samples), secs = Math.round((ptNow() - run.t0)/1000);
     const why = stopped ? ", stopped" : run.why === "noise" ? ", clean to the noise threshold" : run.why === "time" ? ", at the time limit" : "";
@@ -20041,25 +20652,25 @@ function ptDone(run, stopped) {
   ptFree(run);
 }
 // the run going on given up (a preview), or (Stop on a full render) ended where it got to
-function ptHalt() { const run = PTRUN; if (!run) return; PTRUN = null; RWIN.busy = false; rwinProgress(null); ptFree(run); }
+function ptHalt() { const run = PTRUN; if (!run) return; ptPrepEnd(run); PTRUN = null; RWIN.busy = !!RWIN.seq; RWIN.paused = false; rwinProgress(null); ptFree(run); }
 function ptStop() { const run = PTRUN; if (!run) return; if (!run.preview && run.cvs && run.samples > 0) return ptDone(run, true); ptHalt(); rwinSide(); }
 // the Render window's hooks: a quality preview (after a still moment) and a quality render
 function rwinPreviewMode(o, f) {
   if (o.mode === "schematic") { if (PTRUN && PTRUN.preview) ptHalt(); return schPreview(o, f); }
   if (o.mode !== "quality") { if (PTRUN && PTRUN.preview) ptHalt(); return false; }
-  if (ptSupport()) { rwinNoPT(ptSupport()); return true; }
+  if (ptSupport()) { rwinNoPT(ptSupport()); return false; }
   if (PTRUN && PTRUN.preview) ptHalt();
   const coarse = renderShot({ ...o, ss: 1, shadows: false }, { w: Math.max(16, Math.round(f.w/3)), h: Math.max(16, Math.round(f.h/3)) });
-  rwinShow(coarse, f.w, f.h, ""); rwinTitle("Render \u00b7 quality preview");
+  rwinShow(coarse, f.w, f.h, ""); rwinTitle("Render \u00b7 Interactive (path traced when still)");
   clearTimeout(RWIN.sharp);
-  RWIN.sharp = setTimeout(() => { if (RWIN.open && !RWIN.result && !RWIN.busy) ptStart(o, f.w, f.h, true); }, 300);
+  RWIN.sharp = setTimeout(() => { if (RWIN.open && RWIN.live && !RWIN.busy) ptStart(o, f.w, f.h, true); }, 300);
   return true;
 }
-function rwinRenderMode(o) {
-  if (o.mode === "schematic") { const { w, h } = renderSize(o), c = schematicShot(o, w, h); if (!c) toast("The schematic could not be made here"); else rwinResult(c, w, h, o); return true; }
+function rwinRenderMode(o, spec) {
+  if (o.mode === "schematic") { const { w, h } = renderSize(o), c = withCam(spec, () => schematicShot(o, w, h)); if (!c) toast("The schematic could not be made here"); else rwinResult(c, w, h, o); return true; }
   if (o.mode !== "quality") return false;
   const { w, h } = renderSize(o);
-  ptStart(o, w, h, false);
+  ptStart(o, w, h, false, spec);
   return true;
 }
 /* ================================================================
@@ -20081,7 +20692,7 @@ function rwinRenderMode(o) {
 function schHTML(o) {
   const num = (k, label) => '<div class="df"><label>' + label + '</label><input type="text" inputmode="decimal" data-num="1" data-r="' + k + '" value="' + o[k] + '"><span class="u">px</span></div>';
   return '<div class="df"><label>Views</label><select data-r="schViews">' + rwOpt(SCH_VIEWS, o.schViews) + '</select></div>' +
-    '<div class="df"><label>Fill</label><select data-r="schFill">' + rwOpt(SCH_FILLS, o.schFill) + '</select></div>' +
+    '<div class="df"><label>Garment</label><select data-r="schFill">' + rwOpt(SCH_FILLS, o.schFill) + '</select>' + (o.schFill === "color" ? '<input type="color" data-r="schFillColor" value="' + o.schFillColor + '">' : '') + '</div>' +
     '<label class="lk"><input type="checkbox" data-r="schAvatar"' + (o.schAvatar ? ' checked' : '') + '> The avatar shown (flat gray)</label>' +
     SCH_LINES.map(([k, n]) => num(k, n)).join("") +
     '<div class="df"><label>Line color</label><input type="color" data-r="schColor" value="' + o.schColor + '"></div>' +
@@ -20089,9 +20700,9 @@ function schHTML(o) {
 }
 function schPreview(o, f) {
   const coarse = renderShot({ ...o, ss: 1, shadows: false }, { w: Math.max(16, Math.round(f.w/3)), h: Math.max(16, Math.round(f.h/3)) });
-  rwinShow(coarse, f.w, f.h, ""); rwinTitle("Render \u00b7 schematic preview");
+  rwinShow(coarse, f.w, f.h, ""); rwinTitle("Render \u00b7 Interactive (schematic)");
   clearTimeout(RWIN.sharp);
-  RWIN.sharp = setTimeout(() => { if (!RWIN.open || RWIN.result || RWIN.busy) return; const c = schematicShot(o, f.w, f.h); if (c) rwinShow(c, f.w, f.h, ""); }, 250);
+  RWIN.sharp = setTimeout(() => { if (!RWIN.open || !RWIN.live || RWIN.busy) return; const c = schematicShot(o, f.w, f.h); if (c) rwinShow(c, f.w, f.h, ""); }, 250);
   return true;
 }
 // the picture: the views side by side, each w / views × h
@@ -20110,28 +20721,34 @@ const schId = (k) => [40 + (k*97) % 200, 40 + (k*57 + 90) % 200, 40 + (k*151 + 3
 const SCH_AV = [64, 64, 64];
 // one view: its four passes, then the lines found and drawn in its pixels
 function schView(o, w, h, view, box) {
-  const K = 2, W = w*K, H = h*K, items = [...G3.items.values()].filter(it => it.obj && it.obj.visible && byId(it.pid) && !(G3.isolate && !G3.isolate.has(it.pid)));
+  const K = o.schK || 2, W = w*K, H = h*K, lit = o.schFill === "texture" || o.schFill === "color", items = [...G3.items.values()].filter(it => it.obj && it.obj.visible && byId(it.pid) && !(G3.isolate && !G3.isolate.has(it.pid)));
   const avM = [];
   if (o.schAvatar && S.av && S.av.root && S.av.root.visible) S.av.root.traverse((m) => { if (m.isMesh && m.visible) avM.push(m); });
   const made = [], keep = (x) => { made.push(x); return x; };
   let near = 10, far = 10000;
+  // the depth pass's material: the cloth's and (Round r29b, so its lines can tell who is in front) the posed avatar's
+  const depthMat = (side) => keep(new THREE.ShaderMaterial({ side, uniforms: { near: { value: near }, far: { value: far } },
+    vertexShader: "#include <common>\n#include <morphtarget_pars_vertex>\n#include <skinning_pars_vertex>\nvarying float vD;\nvoid main() {\n#include <skinbase_vertex>\n#include <begin_vertex>\n#include <morphtarget_vertex>\n#include <skinning_vertex>\n#include <project_vertex>\nvD = -mvPosition.z;\n}",
+    fragmentShader: "uniform float near; uniform float far; varying float vD; void main() { float d = clamp((vD - near)/(far - near), 0.0, 1.0)*255.0; float hi = floor(d); gl_FragColor = vec4(hi/255.0, floor(fract(d)*255.0)/255.0, 0.0, 1.0); }" }));
   const setup = (kind) => (scene, undo, cam) => {
-    scene.traverse((n) => { if (n !== scene && n.visible) { n.visible = false; undo.push(() => { n.visible = true; }); } });
+    // (Round r29) a lit fill keeps the 3D window's lights, at the panel's Brightness
+    const keepLit = lit && kind === "fill";
+    scene.traverse((n) => { if (n !== scene && n.visible && !(keepLit && n.isLight)) { n.visible = false; undo.push(() => { n.visible = true; }); } else if (keepLit && n.isLight && o.schBright !== 4) { const was = n.intensity; n.intensity = was*o.schBright/4; undo.push(() => { n.intensity = was; }); } });
     const show = (m) => { for (let n = m; n && n !== scene; n = n.parent) if (!n.visible) { n.visible = true; undo.push(() => { n.visible = false; }); } };
     const wear = (m, mat) => { const was = m.material; m.material = mat; undo.push(() => { m.material = was; }); show(m); };
     const c = new THREE.Vector3((box.x0 + box.x1)/2, (box.y0 + box.y1)/2, (box.z0 + box.z1)/2), rad = Math.hypot(box.x1 - box.x0, box.y1 - box.y0, box.z1 - box.z0)/2 + 50;
     const dist = cam.position.distanceTo(c); near = Math.max(1, dist - rad); far = dist + rad;
     items.forEach((it, k) => {
       const was = [].concat(it.obj.material)[0], basic = (col) => keep(new THREE.MeshBasicMaterial({ color: col, side: THREE.DoubleSide, toneMapped: false }));
-      if (kind === "fill") wear(it.obj, basic(o.schFill === "fabric" && was && was.color ? was.color.clone() : new THREE.Color(0xffffff)));
-      else if (kind === "id") { const q = schId(k + 1); wear(it.obj, keep(new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(q[0]/255, q[1]/255, q[2]/255, THREE.SRGBColorSpace), side: THREE.DoubleSide, toneMapped: false }))); }
-      else if (kind === "depth") wear(it.obj, keep(new THREE.ShaderMaterial({ side: THREE.DoubleSide, uniforms: { near: { value: near }, far: { value: far } },
-        vertexShader: "varying float vD; void main() { vec4 mv = modelViewMatrix*vec4(position, 1.0); vD = -mv.z; gl_Position = projectionMatrix*mv; }",
-        fragmentShader: "uniform float near; uniform float far; varying float vD; void main() { float d = clamp((vD - near)/(far - near), 0.0, 1.0)*255.0; float hi = floor(d); gl_FragColor = vec4(hi/255.0, floor(fract(d)*255.0)/255.0, 0.0, 1.0); }" })));
+      if (kind === "fill" && o.schFill === "texture") show(it.obj);
+      else if (kind === "fill" && o.schFill === "color") wear(it.obj, keep(new THREE.MeshStandardMaterial({ color: o.schFillColor, roughness: 0.9, metalness: 0, side: THREE.DoubleSide })));
+      else if (kind === "fill") wear(it.obj, basic(o.schFill === "fabric" && was && was.color ? was.color.clone() : new THREE.Color(0xffffff)));
+      else if (kind === "id") { const q = schId(k + 1); wear(it.obj, keep(new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(q[0]/255, q[1]/255, q[2]/255), side: THREE.DoubleSide, toneMapped: false }))); }
+      else if (kind === "depth") wear(it.obj, depthMat(THREE.DoubleSide));
       else wear(it.obj, keep(new THREE.MeshBasicMaterial({ colorWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 4 })));
     });
-    for (const m of avM) wear(m, keep(kind === "fill" ? new THREE.MeshBasicMaterial({ color: 0xdedede }) : kind === "id" ? new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(SCH_AV[0]/255, SCH_AV[1]/255, SCH_AV[2]/255, THREE.SRGBColorSpace), toneMapped: false })
-      : kind === "depth" ? new THREE.MeshBasicMaterial({ color: 0x000000 }) : new THREE.MeshBasicMaterial({ colorWrite: false, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 4 })));
+    for (const m of avM) wear(m, keep(kind === "fill" ? new THREE.MeshBasicMaterial({ color: 0xdedede }) : kind === "id" ? new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(SCH_AV[0]/255, SCH_AV[1]/255, SCH_AV[2]/255), toneMapped: false })
+      : kind === "depth" ? depthMat(THREE.FrontSide) : new THREE.MeshBasicMaterial({ colorWrite: false, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 4 })));
     if (kind !== "lines") return;
     // the internal lines in red, the topstitches dashed in blue, as they lie on the cloth now
     const grp = new THREE.Group(); grp.name = "render:schematic";
@@ -20150,7 +20767,7 @@ function schView(o, w, h, view, box) {
   // a named view frames the box with a margin, wider for a narrow picture (front and back side by side: the sleeves clear of the edges)
   const a = w/h, gx = Math.max(1.12, 1.12/a), mid = (lo, hi, k) => [(lo + hi)/2 - (hi - lo)/2*k, (lo + hi)/2 + (hi - lo)/2*k];
   const [x0, x1] = mid(box.x0, box.x1, gx), [y0, y1] = mid(box.y0, box.y1, 1.12), [z0, z1] = mid(box.z0, box.z1, gx), fb = { x0, x1, y0, y1, z0, z1 };
-  const pass = (kind) => view3d.shot(W, H, view, view ? fb : null, kind === "fill" && see, { ss: 1, bg: kind === "fill" ? bgCol : "#000000", setup: setup(kind) });
+  const pass = (kind) => view3d.shot(W, H, view, view ? fb : null, kind === "fill" && see, { ss: 1, bg: kind === "fill" ? bgCol : "#000000", raw: kind !== "fill", setup: setup(kind) });
   const fill = pass("fill"), id = pass("id"), dep = pass("depth"), lin = pass("lines");
   for (const x of made) if (x.dispose) x.dispose();
   const px = (c) => { const g = c && c.getContext && c.getContext("2d"), d = g && g.getImageData ? g.getImageData(0, 0, W, H) : null; return d && d.data && d.data.length === 4*W*H ? d : null; };
@@ -20158,12 +20775,12 @@ function schView(o, w, h, view, box) {
   const out = document.createElement("canvas"); out.width = w; out.height = h;
   const go = out.getContext && out.getContext("2d");
   if (!F || !I || !D || !L || !go) { if (go && fill) go.drawImage(fill, 0, 0, w, h); return out; }
-  const masks = schLines(I.data, D.data, L.data, W, H, (far - near) > 0 ? 25/(far - near)*65535 : 1e9);
+  const masks = schLines(I.data, D.data, L.data, W, H, (far - near) > 0 ? 25/(far - near)*65535 : 1e9, (far - near) > 0 ? SCH_FRONT/(far - near)*65535 : 1e9);
   RWIN.schLast.push({ w, h, counts: Object.fromEntries(Object.entries(masks).map(([k, m]) => [k, m.reduce((s, v) => s + v, 0)])) });
   const col = new THREE.Color(o.schColor), cr = Math.round(col.r*255), cg = Math.round(col.g*255), cb = Math.round(col.b*255), Fd = F.data;
   for (const [k, kind] of [["schSil", "sil"], ["schSeam", "seam"], ["schInt", "int"], ["schStitch", "stitch"]]) {
     const r = o[k]*K/2;
-    if (r <= 0) continue;
+    if (r <= 0 || (o.schHide || []).includes(k)) continue;
     const disc = []; const ri = Math.ceil(r);
     for (let dy = -ri; dy <= ri; dy++) for (let dx = -ri; dx <= ri; dx++) if (dx*dx + dy*dy <= r*r + 0.25) disc.push(dy*W + dx);
     const m = masks[kind];
@@ -20175,16 +20792,24 @@ function schView(o, w, h, view, box) {
   return out;
 }
 /* the lines in a view's pixels: { sil, seam, int, stitch } as masks (1 where a line goes) from the pattern pass I, the depth pass D and
-   the lines pass L (RGBA bytes, W × H); jump: a depth step (in the depth pass's 16-bit units) that is a fold's edge */
-function schLines(I, D, L, W, H, jump) {
+   the lines pass L (RGBA bytes, W × H); jump: a depth step (in the depth pass's 16-bit units) that is a fold's edge; front: how far (the same
+   units) the avatar must be nearer than the cloth to hide it.
+   (Round r29b) Where the avatar lies in front of the cloth (a hand before a skirt in a side view) the edge there is the avatar's, not the
+   garment's, and the avatar has no line: it was outlined all round, which on the tan cloth made the hand look white (its pixels are the same
+   222 gray as the rest of it). The passes read here are drawn with no antialiasing (ro.raw): a blended pixel is no pattern's color and no true
+   depth, and between a hand and the cloth it read as a seam. */
+const SCH_FRONT = 8;
+function schLines(I, D, L, W, H, jump, front) {
   const N = W*H, sil = new Uint8Array(N), seam = new Uint8Array(N), int = new Uint8Array(N), stitch = new Uint8Array(N);
-  const bg = (p) => I[4*p] + I[4*p+1] + I[4*p+2] < 30, av = (p) => Math.abs(I[4*p] - SCH_AV[0]) + Math.abs(I[4*p+1] - SCH_AV[1]) + Math.abs(I[4*p+2] - SCH_AV[2]) < 12;
+  // (Round r29) the avatar's edge, antialiased into the black, is grey too: not cloth, or the avatar gets a silhouette
+  const bg = (p) => I[4*p] + I[4*p+1] + I[4*p+2] < 30, av = (p) => { const r = I[4*p], g = I[4*p+1], b = I[4*p+2]; return Math.abs(r - g) < 6 && Math.abs(g - b) < 6 && r <= SCH_AV[0] + 6; };
   const cloth = (p) => !bg(p) && !av(p), same = (p, q) => Math.abs(I[4*p] - I[4*q]) + Math.abs(I[4*p+1] - I[4*q+1]) + Math.abs(I[4*p+2] - I[4*q+2]) < 30;
   const depth = (p) => D[4*p]*256 + D[4*p+1];
+  const avInFront = (c, a) => front >= 0 && !bg(a) && av(a) && depth(c) - depth(a) > front;
   const edge = (p, q) => {
     const cp = cloth(p), cq = cloth(q);
     if (!cp && !cq) return;
-    if (!same(p, q)) { if (cp && cq) seam[p] = 1; else sil[cp ? p : q] = 1; return; }
+    if (!same(p, q)) { if (cp && cq) seam[p] = 1; else if (!avInFront(cp ? p : q, cp ? q : p)) sil[cp ? p : q] = 1; return; }
     if (cp && Math.abs(depth(p) - depth(q)) > jump) sil[depth(p) < depth(q) ? p : q] = 1;
   };
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -20196,20 +20821,238 @@ function schLines(I, D, L, W, H, jump) {
   }
   return { sil, seam, int, stitch };
 }
-// Save: the result in the format chosen (a full render first when there is none)
+/* ================================================================
+   QUALITY RENDER AND SCHEMATIC RENDER (Round r29: the maintainer's 15:42-17:27; first in the 3D window's display buttons, and rows of the
+   Render menu). Not pictures: ways the 3D window itself is drawn, off at every start, never in a file (S.ui's view state). Only one
+   at a time (guess r29/1).
+   Quality Render: "a little bit nicer, the skin gets more reflective, better shadows, a bit slower": the 3D Shadow's soft shadows, a soft
+   room reflected in everything (scene.environment), the sky light lowered for it, and more pixels. env3Frame() puts it on and takes it off.
+   Schematic Render: the lines of THE SCHEMATIC RENDER over a white window, its panel (#schpanel, the reference's rows) changing them live. It is
+   a picture laid over the 3D window (#sch3d, the mouse passes through to the window under it), drawn again when the camera, the cloth
+   or a setting changes: small at once, sharp a moment later. Snapshot saves it (snap3Save()).
+   ================================================================ */
+function setQuality3(on) {
+  S.ui.quality3 = !!on; if (on && S.ui.schem3) setSchem3(false);
+  saveUI(); selLook3(); view3d.ask();
+}
+function setSchem3(on) {
+  S.ui.schem3 = !!on; if (on && S.ui.quality3) { S.ui.quality3 = false; }
+  G3.schPanel = !!on; G3.schSig = null;
+  saveUI(); selLook3(); schemPanel(); view3d.ask();
+}
+// the two buttons say what is on by a frame round them and in their names
+function selLook3() {
+  for (const [id, on, n] of [["quality3d", S.ui.quality3, "Quality Render (3D Window)"], ["schem3d", S.ui.schem3, "Schematic Render"]]) {
+    const b = document.getElementById(id); if (!b) continue;
+    b.title = n + (on ? ": on" : ": off");
+    if (b.setAttribute) b.setAttribute("aria-pressed", on ? "true" : "false");
+    if (b.classList) { if (on) b.classList.add("on"); else b.classList.remove("on"); }
+  }
+}
+// (a frame hook, from env3Frame()) Quality Render's room and pixels, once each time it changes
+function quality3Frame(sc, R) {
+  const on = !!S.ui.quality3 && !S.ui.schem3;
+  if (on === !!G3.q3) return;
+  G3.q3 = on;
+  const hemi = sc.children.find(c => c.isHemisphereLight);
+  if (hemi) { if (on) { G3.q3Hemi = hemi.intensity; hemi.intensity *= 0.45; } else if (G3.q3Hemi != null) hemi.intensity = G3.q3Hemi; }
+  if (!R || !R.setPixelRatio) return;
+  const base = Math.min(window.devicePixelRatio || 1, 2);
+  R.setPixelRatio(on ? Math.min(base*1.5, 3) : base);
+  if (on && !G3.q3Env && THREE.PMREMGenerator) {
+    try {
+      const room = new THREE.Scene(), box = new THREE.Mesh(new THREE.BoxGeometry(10, 10, 10), new THREE.MeshBasicMaterial({ color: 0x8e9096, side: THREE.BackSide })), top = new THREE.Mesh(new THREE.PlaneGeometry(6, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }));
+      top.rotation.x = Math.PI/2; top.position.y = 4.5; room.add(box, top);
+      const pm = new THREE.PMREMGenerator(R); G3.q3Env = pm.fromScene(room, 0.04).texture; pm.dispose();
+      box.geometry.dispose(); box.material.dispose(); top.geometry.dispose(); top.material.dispose();
+    } catch (e) { G3.q3Env = null; }
+  }
+  sc.environment = on ? G3.q3Env || null : null;
+  sc.traverse((m) => { if (m.isMesh && m.material) for (const x of [].concat(m.material)) x.needsUpdate = true; });
+}
+/* (Round r29b) The schematic's picture lies behind the 3D window's canvas, and while it is on that canvas draws only the working marks (the
+   gizmo, arrangement points, pins, tacks, measures, lights, the hover and selection) on nothing: what the picture shows is drawn with no color,
+   into the depth alone, so a mark goes behind the cloth as it does otherwise. Around the window's own frames only (view3d.marksOnly). */
+const SCH_NO_MARK = ["lines", "strain"];
+function schem3Marks(sc, R) {
+  if (!S.ui.schem3) return null;
+  const undo = [], bg = sc.background;
+  for (const c of sc.children) {
+    if (c.isLight) continue;
+    if (c.isGridHelper || c.type === "AxesHelper" || /^(grid|shadow3):/.test(c.name || "") || SCH_NO_MARK.includes(c.name)) { if (c.visible) { c.visible = false; undo.push(() => { c.visible = true; }); } continue; }
+    if (RENDER_HIDE.includes(c.name)) continue;
+    c.traverse((m) => { if (m.material) for (const x of [].concat(m.material)) if (x.colorWrite) { x.colorWrite = false; undo.push(() => { x.colorWrite = true; }); } });
+  }
+  sc.background = null; R.setClearColor(0x000000, 0);
+  return () => { for (const f of undo) f(); sc.background = bg; R.setClearColor(0x000000, 1); };
+}
+// a settings object for the window's schematic: its own view, on white, the avatar as the window shows it
+function schem3Opts(k) { const o = loadRender(); return { ...o, schViews: "now", bg: "white", schK: k, schAvatar: !!(S.av && show3("avatar")) }; }
+// (a frame hook) the picture over the window, while Schematic Render is on
+function schem3Frame() {
+  const cv = document.getElementById("sch3d");
+  if (!cv) return;
+  if (!S.ui.schem3) { if (cv.style.display !== "none") cv.style.display = "none"; return; }
+  if (view3d.shooting()) return;
+  const host = document.getElementById("stage3d"), w = (host && host.clientWidth) || 0, h = (host && host.clientHeight) || 0;
+  if (!w || !h) return;
+  const c = view3d.cam, sig = JSON.stringify([c.az, c.el, c.dist, c.tx, c.ty, c.tz, G3.moved || 0, G3.items ? G3.items.size : 0, w, h, schem3Opts(2), S.ui.show3d]);
+  if (sig === G3.schSig) return;
+  G3.schSig = sig; cv.style.display = "block";
+  const put = (k, pw, ph) => { const src = schematicShot(schem3Opts(k), pw, ph); if (!src) return; if (cv.width !== w) cv.width = w; if (cv.height !== h) cv.height = h; const g = cv.getContext && cv.getContext("2d"); if (g) { g.imageSmoothingEnabled = true; g.drawImage(src, 0, 0, w, h); } };
+  put(1, Math.ceil(w/2), Math.ceil(h/2));
+  clearTimeout(G3.schT);
+  G3.schT = setTimeout(() => { if (S.ui.schem3 && G3.schSig === sig) put(2, w, h); }, 200);
+}
+// the panel over the 3D window (frames 150-156): the reference's rows; a change shows at once
+function schemPanel() {
+  const el = document.getElementById("schpanel");
+  if (!el) return;
+  if (!S.ui.schem3 || !G3.schPanel) { el.style.display = "none"; return; }
+  el.style.display = "block";
+  const o = loadRender(), eye = (k) => { const off = o.schHide.includes(k); return '<button class="eye' + (off ? ' off' : '') + '" data-eye="' + k + '" aria-pressed="' + !off + '" title="' + (off ? "Hidden: show this line" : "Shown: hide this line") + '">' + (off ? "\u2298" : "\u25c9") + '</button>'; };
+  const line = (k, label) => '<div class="sr"><label>' + label + '</label><input type="text" inputmode="decimal" data-num="1" data-r="' + k + '" value="' + o[k] + '"><span class="u">Pixels</span>' + eye(k) + '</div>';
+  el.innerHTML = '<div class="sph">Schematic Render<button data-x="1" title="Close the panel: the look stays; the button turns it off">\u2715</button></div>' +
+    '<h4>Line Thickness</h4>' + line("schSil", "Silhouette Line") + line("schSeam", "Seamline") + line("schInt", "Internal Line") +
+    '<div class="sr"><label>Topstitch Line</label><input type="text" inputmode="decimal" data-num="1" data-pct="schStitch" value="' + Math.round(o.schStitch*100) + '"><span class="u">%</span>' + eye("schStitch") + '</div>' +
+    '<div class="sr"><label>Line Color</label><input type="color" data-r="schColor" value="' + o.schColor + '"></div>' +
+    '<div class="sr"><label>Garment</label><select data-r="schFill">' + rwOpt(SCH_FILLS.slice(0, o.schFill === "texture" || o.schFill === "color" ? 2 : 4), o.schFill) + '</select>' + (o.schFill === "color" ? '<input type="color" data-r="schFillColor" value="' + o.schFillColor + '">' : '') + '</div>' +
+    (S.ui.unbuilt ? '<div class="sr nb"><label>2D Measurements</label><span class="u">(not built yet)</span></div>' : '') +
+    '<div class="sr"><label>Brightness</label><input type="text" inputmode="decimal" data-num="1" data-r="schBright" value="' + o.schBright + '"></div>';
+  el.onclick = (e) => {
+    const t = e.target, d = (t && t.dataset) || {};
+    if (d.x) { G3.schPanel = false; return schemPanel(); }
+    if (d.eye) { const n = loadRender(); n.schHide = n.schHide.includes(d.eye) ? n.schHide.filter(k => k !== d.eye) : [...n.schHide, d.eye]; saveRender(n); schemPanel(); view3d.ask(); }
+  };
+  el.onchange = (e) => {
+    const t = e.target, d = (t && t.dataset) || {};
+    if (d.pct) { const n = loadRender(); n[d.pct] = numOf(t.value)/100; saveRender(n); }
+    else if (d.r) rwinSet(d.r, t);
+    schemPanel(); rwinSide(); view3d.ask();
+  };
+}
+// the picture to save or copy: the render, or what Interactive left standing
+function rwinCurrent() {
+  if (RWIN.result) return { c: RWIN.result.c, w: RWIN.result.w, h: RWIN.result.h };
+  const cv = rwEl("rw-cv");
+  return RWIN.shown && cv ? { c: cv, w: cv.width, h: cv.height } : null;
+}
+// (Round r29) File Name: the project's, or one typed
+function renderBase(o) {
+  const typed = o.nameKind === "custom" && o.customName.trim(), own = typeof filePath === "string" && filePath ? filePath.replace(/^.*[\\/]/, "").replace(/[.][^.]*$/, "") : "";
+  return (typed || own || "render").replace(/[\\/:*?\x22<>|]/g, "_");
+}
+// a picture as a data URL in the format chosen; a JPEG has no see-through: what is see-through goes white
+function renderURL(c0, fmt, w, h) {
+  let src = c0;
+  if (fmt === "jpeg") {
+    const c = document.createElement("canvas"); c.width = w; c.height = h; const g = c.getContext && c.getContext("2d");
+    if (g) { g.fillStyle = "#ffffff"; g.fillRect(0, 0, w, h); g.drawImage(c0, 0, 0); src = c; }
+  }
+  return fmt === "jpeg" ? src.toDataURL("image/jpeg", 0.92) : src.toDataURL("image/png");
+}
+const rwinSaved = (msg) => (f) => { RWIN.saved = true; rwinTools(); toast("Render saved as " + f + msg, 7000); };
+// Save Current Image: the picture in the format chosen; a series all its pictures as one .zip
 function rwinSave() {
   if (RWIN.busy) return toast("The render is still running: Save when it is done, or Stop it");
-  if (!RWIN.result) { rwinRender(); if (!RWIN.result) return toast(loadRender().mode === "quality" ? "Rendering: Save again when it is done" : "Nothing to save yet"); }
-  const r = RWIN.result, o = loadRender(), fmt = o.fmt;
-  let src = r.c;
-  if (fmt === "jpeg") {
-    // a JPEG has no see-through: what is see-through goes white
-    const c = document.createElement("canvas"); c.width = r.w; c.height = r.h; const g = c.getContext && c.getContext("2d");
-    if (g) { g.fillStyle = "#ffffff"; g.fillRect(0, 0, r.w, r.h); g.drawImage(r.c, 0, 0); src = c; }
+  const q = RWIN.seq, o = loadRender(), base = renderBase(o);
+  if (q && q.files.length > 1) return rwinSaveSeq(q, base);
+  const r = rwinCurrent();
+  if (!r) return toast("Nothing to save yet");
+  let url = ""; try { url = renderURL(r.c, o.fmt, r.w, r.h); } catch (e) { return toast("The render could not be saved"); }
+  dlURL(base + "." + (o.fmt === "jpeg" ? "jpg" : "png"), url, rwinSaved(", " + r.w + " \u00d7 " + r.h + " px"));
+}
+function rwinSaveSeq(q, base) {
+  const files = q.files.filter(f => f.name), go = (more) => zipPack([...files, ...more], (bytes) => dl(base + "-images.zip", bytes, "application/zip", rwinSaved(", " + files.length + " images, " + q.w + " \u00d7 " + q.h + " px" + more.map(m => ", " + m.name.replace(/^.*[.]/, "")).join(""))));
+  const more = q.gif ? [{ name: base + ".gif", data: gifDone(q.gif), raw: true }] : [];
+  if (!(q.o.kind === "turntable" && q.o.ttVideo)) return go(more);
+  rwinProgress({ samples: 0, target: 1 }, "Making the video\u2026");
+  videoOf(q, (v) => { rwinProgress(null); if (v) more.push({ name: base + ".webm", data: v, raw: true }); else toast("A video cannot be made in this browser: the pictures and the GIF are saved", 6000); go(more); });
+}
+/* (Round r29) Save GIF: an animated GIF as the pictures come (our own small encoder: no library). One palette of 6 x 7 x 6 colors with an
+   ordered dither, one index for see-through, at most GIF_MAX pixels a side (a GIF of full size is many times the pictures' size).
+   Twelve pictures a second (question 4 of the check list). */
+const GIF_MAX = 800, GIF_FPS = 12;
+function gifStart(w, h) {
+  const k = Math.min(1, GIF_MAX/Math.max(w, h)), W = Math.max(1, Math.round(w*k)), H = Math.max(1, Math.round(h*k)), pal = [];
+  for (let r = 0; r < 6; r++) for (let g = 0; g < 7; g++) for (let b = 0; b < 6; b++) pal.push(Math.round(r*51), Math.round(g*42.5), Math.round(b*51));
+  while (pal.length < 768) pal.push(255, 255, 255);
+  const ascii = (t) => Array.from(t).map(c => c.charCodeAt(0));
+  return { W, H, out: [...ascii("GIF89a"), W & 255, W >> 8, H & 255, H >> 8, 0xf7, 0, 0, ...pal, 0x21, 0xff, 11, ...ascii("NETSCAPE2.0"), 3, 1, 0, 0, 0] };
+}
+const GIF_BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+// a picture's 8-bit indexes (252: see-through)
+function gifIndex(d, W, H) {
+  const ix = new Uint8Array(W*H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const p = 4*(y*W + x), t = (GIF_BAYER[(y & 3)*4 + (x & 3)] + 0.5)/16 - 0.5;
+    if (d[p + 3] < 128) { ix[y*W + x] = 252; continue; }
+    const q = (v, n) => Math.max(0, Math.min(n, Math.round(v/255*n + t)));
+    ix[y*W + x] = q(d[p], 5)*42 + q(d[p + 1], 6)*6 + q(d[p + 2], 5);
   }
-  let url = ""; try { url = fmt === "jpeg" ? src.toDataURL("image/jpeg", 0.92) : src.toDataURL("image/png"); } catch (e) { return toast("The render could not be saved"); }
-  const ext = fmt === "jpeg" ? "jpg" : "png";
-  dlURL("render." + ext, url, (f) => toast("Render saved as " + f + ", " + r.w + " \u00d7 " + r.h + " px", 7000));
+  return ix;
+}
+// the variable-length LZW of a GIF's image data, into blocks of at most 255 bytes
+function gifLZW(ix) {
+  const out = [8], blk = []; let cur = 0, bits = 0, size = 9, next = 258, dict = new Map(), w = -1;
+  const put = (code) => { cur |= code << bits; bits += size; while (bits >= 8) { blk.push(cur & 255); if (blk.length === 255) { out.push(255, ...blk); blk.length = 0; } cur >>>= 8; bits -= 8; } };
+  put(256);
+  for (const c of ix) {
+    if (w < 0) { w = c; continue; }
+    const key = w*256 + c, hit = dict.get(key);
+    if (hit !== undefined) { w = hit; continue; }
+    put(w);
+    if (next < 4096) { dict.set(key, next); if (next === (1 << size) && size < 12) size++; next++; }
+    else { put(256); dict = new Map(); next = 258; size = 9; }
+    w = c;
+  }
+  if (w >= 0) put(w);
+  put(257);
+  if (bits > 0) blk.push(cur & 255);
+  if (blk.length) out.push(blk.length, ...blk);
+  out.push(0);
+  return out;
+}
+function gifFrame(st, c) {
+  const t = document.createElement("canvas"); t.width = st.W; t.height = st.H;
+  const g = t.getContext && t.getContext("2d"); if (!g || !g.getImageData) return;
+  g.drawImage(c, 0, 0, st.W, st.H);
+  const d = g.getImageData(0, 0, st.W, st.H); if (!d || !d.data) return;
+  const delay = Math.round(100/GIF_FPS), lzw = gifLZW(gifIndex(d.data, st.W, st.H));
+  for (const v of [0x21, 0xf9, 4, 0x09, delay, 0, 252, 0, 0x2c, 0, 0, 0, 0, st.W & 255, st.W >> 8, st.H & 255, st.H >> 8, 0]) st.out.push(v);
+  for (let k = 0; k < lzw.length; k++) st.out.push(lzw[k]);
+}
+const gifDone = (st) => Uint8Array.from([...st.out, 0x3b]);
+/* Save Video: the pictures played once into the browser's own video writer (WebM), at the GIF's rate. Played in the workspace's own canvas:
+   a stream carries frames only from a canvas the page is really painting (a canvas of its own, off the page or hidden, gave a file of a
+   header and no picture), so the series is seen going round while it is written. done(bytes), or done(null) where there is none */
+function videoOf(q, done) {
+  const cv = rwEl("rw-cv"), list = q.files.filter(f => f.name), type = q.o.fmt === "jpeg" ? "image/jpeg" : "image/png", chunks = [];
+  if (!cv || !list.length || typeof MediaRecorder === "undefined" || !cv.captureStream || typeof createImageBitmap !== "function") return done(null);
+  const f = rwinFit(q.w, q.h), keep = [cv.style.width, cv.style.height];
+  cv.width = q.w; cv.height = q.h; cv.style.width = f.w + "px"; cv.style.height = f.h + "px";
+  const g = cv.getContext("2d"), end = (b) => { cv.style.width = keep[0]; cv.style.height = keep[1]; rwinRefit(); done(b && b.length > 1000 ? b : null); };
+  let rec = null;
+  const load = (k, then) => createImageBitmap(new Blob([list[k].data], { type })).then((im) => { g.clearRect(0, 0, q.w, q.h); g.drawImage(im, 0, 0); if (im.close) im.close(); then(); }, then);
+  const step = (k) => {
+    if (k >= list.length) return setTimeout(() => rec.stop(), 2000/GIF_FPS);
+    load(k, () => setTimeout(() => step(k + 1), 1000/GIF_FPS));
+  };
+  load(0, () => {
+    try { rec = new MediaRecorder(cv.captureStream(GIF_FPS*2), { mimeType: "video/webm" }); } catch (e) { return end(null); }
+    rec.ondataavailable = (ev) => { if (ev.data && ev.data.size) chunks.push(ev.data); };
+    rec.onstop = () => new Blob(chunks, { type: "video/webm" }).arrayBuffer().then((b) => end(new Uint8Array(b)), () => end(null));
+    rec.start(250);
+    setTimeout(() => step(1), 1000/GIF_FPS);
+  });
+}
+// Copy Current Image: onto the system's clipboard, where the page may reach it
+function rwinCopy() {
+  const r = rwinCurrent();
+  if (!r) return toast("Nothing to copy yet");
+  const no = () => toast("The picture could not be copied here: use Save Current Image", 6000);
+  if (!(navigator.clipboard && navigator.clipboard.write) || typeof ClipboardItem === "undefined" || !r.c.toBlob) return no();
+  r.c.toBlob((b) => { if (!b) return no(); navigator.clipboard.write([new ClipboardItem({ "image/png": b })]).then(() => toast("Picture copied"), no); }, "image/png");
 }
 /* 3D Window: the size in pixels a choice gives (a paper preset at the Resolution; Landscape swaps width and height) */
 function snap3Size(o) {
@@ -20227,10 +21070,26 @@ function snap3Plan(o) {
   const cols = o.mode !== "multi" ? 1 : o.layout === "vertical" ? 1 : o.layout === "box" ? Math.ceil(Math.sqrt(n)) : n, rows = Math.ceil(n/cols);
   return { w, h, views: views.map((v, k) => ({ view: v, x: (k % cols)*w, y: Math.floor(k/cols)*h })), W: cols*w, H: rows*h, separate: o.mode === "multi" && !!o.separate };
 }
+// (Round r29) a picture of one view: with Schematic Render on, the schematic (the maintainer: that is how it is saved, 17:34)
+function snap3Shot(w, h, view, box, o, small) {
+  if (S.ui.schem3) return schematicShot({ ...schem3Opts(2), schViews: view || "now", bg: o.transparent ? "transparent" : "white" }, w, h);
+  return view3d.shot(w, h, view, view ? box : null, o.transparent, mapOn3() && !small ? { map: o.map !== false } : undefined);      // (small: the box's preview, the map without its legend)
+}
+// (Round r29: frames 158-165) the Snapshot box's preview: every view side by side, small; the view itself is changed in the 3D window (locked here)
+function snap3Preview(o) {
+  const cv = dlg.querySelector && dlg.querySelector("#s3-prev");
+  if (!cv || !view3d.ready() || !view3d.shot) return;
+  const plan = snap3Plan(o), sw = Math.min(170, 700/Math.max(1, plan.W/plan.w)), k = sw/plan.w, w = Math.max(8, Math.round(plan.w*k)), h = Math.max(8, Math.round(plan.h*k)), box = S.av ? avatarBox(S.av) : garmentBox3();
+  cv.width = Math.round(plan.W*k); cv.height = Math.round(plan.H*k);
+  const g = cv.getContext && cv.getContext("2d"); if (!g) return;
+  g.fillStyle = "#ffffff"; g.fillRect(0, 0, cv.width, cv.height);
+  for (const v of plan.views) { const c = snap3Shot(w, h, v.view, box, o, true); if (c) g.drawImage(c, Math.round(v.x*k), Math.round(v.y*k)); }
+  g.strokeStyle = "#1a1a1a"; g.lineWidth = 1; for (const v of plan.views) g.strokeRect(Math.round(v.x*k) + 0.5, Math.round(v.y*k) + 0.5, w - 1, h - 1);
+}
 function snap3Save(o) {
   if (!view3d.ready() || !view3d.shot) return toast("The 3D window is not up: show it first (the 2D / 3D buttons at the bottom)", 6000);
   const plan = snap3Plan(o), box = S.av ? avatarBox(S.av) : garmentBox3(), shots = [];
-  for (const v of plan.views) { const c = view3d.shot(plan.w, plan.h, v.view, v.view ? box : null, o.transparent, mapOn3() ? { map: o.map !== false } : undefined); if (!c) return toast("The 3D picture could not be made here"); shots.push(c); }
+  for (const v of plan.views) { const c = snap3Shot(plan.w, plan.h, v.view, box, o); if (!c) return toast("The 3D picture could not be made here"); shots.push(c); }
   const urlOf = (c) => { try { return c.toDataURL("image/png"); } catch (e) { return ""; } };
   if (plan.separate) { shots.forEach((c, k) => dlURL("snapshot-3d-" + (k + 1) + "-" + plan.views[k].view + ".png", urlOf(c), () => {})); return toast(shots.length + " pictures saved, " + plan.w + " \u00d7 " + plan.h + " px each"); }
   let out = shots[0];
@@ -20257,7 +21116,8 @@ function snap3Dialog(at) {
   dlg.className = "snap3 wide";
   dlg.innerHTML = '<div class="dt">Snapshot</div><div class="db">' +
     '<div class="tabs"><button class="tb' + (multi ? '' : ' on') + '" data-m="single" aria-pressed="' + !multi + '">' + (multi ? '' : '\u2713 ') + 'Single</button><button class="tb' + (multi ? ' on' : '') + '" data-m="multi" aria-pressed="' + multi + '">' + (multi ? '\u2713 ' : '') + 'Multiview</button></div>' +
-    (multi ? '<h3>Preview</h3><div class="views">' + o.views.slice(0, n).map((v, k) => '<label class="df"><span>' + (k + 1) + '</span><select data-v="' + k + '">' + opt(CAM_VIEWS, v) + '</select></label>').join("") + '</div>' : '') +
+    '<h3>Preview</h3><div class="s3-pv"><canvas id="s3-prev"></canvas></div>' +
+    (multi ? '<div class="views">' + o.views.slice(0, n).map((v, k) => '<label class="df"><span>' + (k + 1) + '</span><select data-v="' + k + '">' + opt(CAM_VIEWS, v) + '</select></label>').join("") + '</div>' : '') +
     '<div class="cols"><div><h3>' + (multi ? 'Single Image Size' : 'Image Size') + '</h3>' +
     '<div class="df"><label>Preset</label><select data-s="preset">' + opt(SNAP3_PRESETS.map(r => [r[0], r[1]]), o.preset) + '</select></div>' +
     '<div class="df"><label>Orientation</label><select data-s="orient"' + (custom ? ' disabled' : '') + '>' + opt([["portrait", "Portrait"], ["landscape", "Landscape"]], o.orient) + '</select></div>' +
@@ -20286,14 +21146,14 @@ function snap3Dialog(at) {
     else if (d.x) o[d.x] = t.checked;
     else if (d.v !== undefined) o.views[+d.v] = t.value;
     if (d.s === "preset" || d.s === "count" || d.s === "unit" || d.s === "orient") return again();
-    Object.assign(o, normSnap({ d3: o }).d3); saveSnap({ ...all, d3: o }); sum();
+    Object.assign(o, normSnap({ d3: o }).d3); saveSnap({ ...all, d3: o }); sum(); snap3Preview(o);
   };
   dlg.querySelector("#s3-go").onclick = () => { hideDlg(); snap3Save(o); };
   dlg.querySelector("#s3-reset").onclick = () => { saveSnap({ ...all, d3: snap3Default() }); snap3Dialog(at); };
   dlg.querySelector("#dlg-x").onclick = hideDlg;
   dlgEsc = (e) => { if (e.key === "Escape") { e.stopPropagation(); hideDlg(); } };
   window.addEventListener("keydown", dlgEsc, true);
-  sum();
+  sum(); snap3Preview(o);
   return true;
 }
 // a picture of the 2D window as it is now
@@ -20688,7 +21548,7 @@ const MENUS = {
   production: () => menuProduction(),
   // (Round r19 follow-up, H22) the reference's Render menu (frame 021 of the housekeeping video: Render, Render via its online service
   // (left out), Quality Render (3D Window), Schematic Render, an AI enhancer (left out)); Lights is ours
-  render: () => [{ n: "Render\u2026", f: () => renderDialog() }, { n: "Lights\u2026", f: () => lightsDialog() }, { sep: 1 }, nbRow("Quality Render (3D Window)"), nbRow("Schematic Render")],
+  render: () => [{ n: "Render", f: () => renderDialog() }, { n: "Lights\u2026", f: () => lightsDialog() }, { sep: 1 }, { n: "Quality Render (3D Window)", on: !!S.ui.quality3, f: () => setQuality3(!S.ui.quality3) }, { n: "Schematic Render", on: !!S.ui.schem3, f: () => setSchem3(!S.ui.schem3) }],
   avatar: () => avatarMenu(),
   // Settings as W31 has it (Language, User Settings, Log Out, Display, Preferences), then ours
   settings: () => [
@@ -20731,7 +21591,7 @@ function normUI(o) {
   if (o.show3d && typeof o.show3d === "object") for (const k of Object.keys(o.show3d)) if (o.show3d[k] === false) show3d[k] = false;
   return { layout: ["2d", "3d", "both"].includes(o.layout) ? o.layout : "both", arrPts: o.arrPts === true, timeline: o.timeline === true, unbuilt: o.unbuilt !== false, render: RENDER.some(r => r[0] === o.render) ? o.render : "front", mesh2: o.mesh2 === true,
     render3: RENDER3.some(r => r[0] === o.render3) ? o.render3 : "front", wire3: o.wire3 === true, joints3: o.joints3 === true, jointSize: Number.isFinite(o.jointSize) && o.jointSize >= 2 && o.jointSize <= 30 ? Math.round(o.jointSize) : 8, jointMode: o.jointMode === "ik" ? "ik" : "fk", jointLimits: o.jointLimits !== false, ...(Number.isFinite(o.grid3b) && o.grid3b !== 1 ? { grid3b: Math.max(0.2, Math.min(2, o.grid3b)) } : {}), ...(normGrid3(o.grid3s) ? { grid3s: normGrid3(o.grid3s) } : {}), ikEdit: o.ikEdit === "full" ? "full" : "part",
-    ikSym: o.ikSym !== false, bv3: o.bv3 === true, meas3: o.meas3 !== false, suit3: o.suit3 === true, blendFav: Array.isArray(o.blendFav) ? o.blendFav.filter(x => typeof x === "string").slice(0, 200) : [], avW: o.avW === "weight" ? "weight" : "chest", avH: ["hps", "inseam"].includes(o.avH) ? o.avH : "total", avUnit: ["cm", "in"].includes(o.avUnit) ? o.avUnit : "mm", avLinkW: o.avLinkW !== false, avLinkH: o.avLinkH !== false, show3d, strain3: o.strain3 === true, fit3: o.fit3 === true && o.strain3 !== true,
+    ikSym: o.ikSym !== false, quality3: o.quality3 === true, schem3: o.schem3 === true && o.quality3 !== true, bv3: o.bv3 === true, meas3: o.meas3 !== false, suit3: o.suit3 === true, blendFav: Array.isArray(o.blendFav) ? o.blendFav.filter(x => typeof x === "string").slice(0, 200) : [], avW: o.avW === "weight" ? "weight" : "chest", avH: ["hps", "inseam"].includes(o.avH) ? o.avH : "total", avUnit: ["cm", "in"].includes(o.avUnit) ? o.avUnit : "mm", avLinkW: o.avLinkW !== false, avLinkH: o.avLinkH !== false, show3d, strain3: o.strain3 === true, fit3: o.fit3 === true && o.strain3 !== true,
     // (Round r20 continued (4)) the Stress and Pressure Maps, their units and scales: kept only when not the default
     ...(o.stress3 === true && o.strain3 !== true && o.fit3 !== true ? { stress3: true } : {}), ...(o.press3 === true && o.strain3 !== true && o.fit3 !== true && o.stress3 !== true ? { press3: true } : {}),
     ...(Object.keys(normMapUnit(o.mapUnit)).length ? { mapUnit: normMapUnit(o.mapUnit) } : {}), ...(Object.keys(normMapRange(o.mapRange)).length ? { mapRange: normMapRange(o.mapRange) } : {}),
@@ -21033,7 +21893,9 @@ const view3d = (() => {
     cam.aspect = w / h; cam.updateProjectionMatrix();
     place();
     for (const f of pre) { try { f(); } catch (e) { console.error(e); } }
+    const back = marksOnly ? marksOnly(scene, R) : null;
     R.render(scene, cam);
+    if (back) back();
     if (loop) ask();
   }
   const ask = () => { if (!raf && typeof requestAnimationFrame === "function") raf = requestAnimationFrame(render); };
@@ -21101,8 +21963,13 @@ const view3d = (() => {
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
     if (Math.abs(dx) + Math.abs(dy) > 2) drag.moved = true;
     drag.x = e.clientX; drag.y = e.clientY;
-    if (drag.mode === "pan") { const k = o.dist / 900; o.tx -= Math.cos(o.az)*dx*k; o.tz += Math.sin(o.az)*dx*k; o.ty += dy*k; }
-    else if (drag.mode === "turn") { o.az -= dx*0.008; o.el = orbitEl(o.el + dy*0.008); }      // (all the way under the floor as over the head: only the two poles are kept off)
+    drive(drag.mode, dx, dy);
+  }
+  // (Round r29) the camera turned or panned: the 3D window's mouse and the Render workspace's picture drive this one camera; Camera Lock holds it
+  function drive(mode, dx, dy) {
+    if (RWIN.lock) return;
+    if (mode === "pan") { const k = o.dist / 900; o.tx -= Math.cos(o.az)*dx*k; o.tz += Math.sin(o.az)*dx*k; o.ty += dy*k; }
+    else if (mode === "turn") { o.az -= dx*0.008; o.el = orbitEl(o.el + dy*0.008); }      // (all the way under the floor as over the head: only the two poles are kept off)
     else return;
     ask();
   }
@@ -21112,7 +21979,7 @@ const view3d = (() => {
     if (d && d.grab) return void simRelease();
     if (d && !d.moved && ["left", "middle", "right"][d.b != null ? d.b : e.button] === viewCtl().menu && tool && tool.menu) tool.menu(e);
   }
-  function wheel(e) { o.dist = Math.max(150, Math.min(30000, o.dist*(wheelOut(e) > 0 ? 1.12 : 0.89))); ask(); }
+  function wheel(e) { if (RWIN.lock) return; o.dist = Math.max(150, Math.min(30000, o.dist*(wheelOut(e) > 0 ? 1.12 : 0.89))); ask(); }
   function start() {
     host = document.getElementById("stage3d");
     const note = document.getElementById("note3d");
@@ -21122,6 +21989,7 @@ const view3d = (() => {
     // (alpha: a snapshot's transparent background, Round r17b / 4; the scene's own background stays)
     try { R = new THREE.WebGLRenderer({ antialias: true, alpha: true }); } catch (e) { R = null; if (note) note.textContent = "The 3D window could not start: no WebGL here."; return; }
     build();
+    if (typeof renderLensApply === "function") renderLensApply();
     R.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     R.domElement.style.cssText = "display:block;width:100%;height:100%";
     host.insertBefore(R.domElement, host.firstChild);
@@ -21155,7 +22023,7 @@ const view3d = (() => {
      (4): true, the map shown and its legend drawn in; false, the map left out) }. All of it is put
      back afterwards: the window's own frame never has shadows or the render's lights. */
   // (Round r23 / 6) a picture is being drawn: the frame hooks then see its camera, not the window's (the Render window's watch keeps out)
-  let shooting = false;
+  let shooting = false, marksOnly = null;
   function shot(w, h, name, box, transparent, ro) {
     if (!R || !scene || typeof R.getSize !== "function") return null;
     shooting = true;
@@ -21174,6 +22042,15 @@ const view3d = (() => {
       if (ro && ro.render) renderSetup(ro, undo);                // (after the frame's own hooks: the grid's fade would show it again)
       if (ro && typeof ro.setup === "function") ro.setup(scene, undo, cam);      // (Round r23 / 8) a schematic pass's own scene, put back in finally
       if (ro && ro.map === false) for (const c of scene.children) if (c.name === "strain" && c.visible) { c.visible = false; undo.push(() => { c.visible = true; }); }
+      // (Round r29b) ro.raw: the exact pixels, no antialiasing and no sRGB on the way out, for a pass that is read as data (the schematic's)
+      if (ro && ro.raw && R.readRenderTargetPixels) {
+        const rt = new THREE.WebGLRenderTarget(w, h), px = new Uint8Array(4*w*h);
+        R.setRenderTarget(rt); R.render(scene, cam); R.readRenderTargetPixels(rt, 0, 0, w, h, px); R.setRenderTarget(null); rt.dispose();
+        out = document.createElement("canvas"); out.width = w; out.height = h;
+        const g = out.getContext("2d"), im = g && g.createImageData && g.createImageData(w, h);
+        if (im) { for (let y = 0; y < h; y++) im.data.set(px.subarray(4*w*(h - 1 - y), 4*w*(h - y)), 4*w*y); g.putImageData(im, 0, 0); }
+        return out;
+      }
       R.render(scene, cam);
       out = document.createElement("canvas"); out.width = w; out.height = h;
       let src = R.domElement, sw = w*ss, sh = h*ss;
@@ -21205,6 +22082,7 @@ const view3d = (() => {
       scene.add(g); undo.push(() => scene.remove(g));
       casters = ro.lights.filter(L => L.isDirectionalLight || L.isSpotLight || L.isPointLight);
     }
+    if (ro.shapes && ro.shapes.length) { const g = new THREE.Group(); g.name = "render:shapes"; for (const m of ro.shapes) g.add(m); scene.add(g); undo.push(() => { scene.remove(g); for (const m of ro.shapes) { m.geometry.dispose(); m.material.dispose(); } }); }
     if (!ro.shadows || !R.shadowMap) return;
     const sm = R.shadowMap, was = { enabled: sm.enabled, type: sm.type };
     sm.enabled = true; sm.type = THREE.PCFSoftShadowMap;
@@ -21213,7 +22091,7 @@ const view3d = (() => {
     for (const L of casters) {
       const had = L.castShadow; L.castShadow = true; undo.push(() => { L.castShadow = had; });
       if (!L.shadow) continue;
-      L.shadow.mapSize.set(2048, 2048); L.shadow.radius = ro.soft || 4; L.shadow.bias = -0.0005;
+      L.shadow.mapSize.set(2048, 2048); L.shadow.radius = (L.userData && L.userData.shadowR) || ro.soft || 4; L.shadow.bias = -0.0005;
       const sc = L.shadow.camera;
       // a spot's or a point's shadow camera reaches from the light past the garment (three.js's own reaches 500 mm)
       if (sc && sc.isPerspectiveCamera) { const k = [sc.near, sc.far]; sc.near = 10; sc.far = half*10; sc.updateProjectionMatrix(); undo.push(() => { sc.near = k[0]; sc.far = k[1]; sc.updateProjectionMatrix(); }); }
@@ -21222,6 +22100,7 @@ const view3d = (() => {
     }
     scene.traverse((m) => {
       if (!m.isMesh || !m.visible || m.isSkinnedMesh === undefined && !m.geometry) return;
+      if (m.name === "render:lightshape") return;                // (Round r29) a light's own shape shades nothing, or it would put the floor and the garment in its shadow
       const c0 = m.castShadow, r0 = m.receiveShadow; m.castShadow = true; m.receiveShadow = true;
       undo.push(() => { m.castShadow = c0; m.receiveShadow = r0; });
     });
@@ -21245,7 +22124,7 @@ const view3d = (() => {
     Object.assign(o, keep);
     return c;
   }
-  return { start, cam: o, home: HOME, ready: () => !!R, renderer: () => R, render, ask, group, shot, camFor, shooting: () => shooting, mouse: { press, move, release, wheel }, scene: () => build(), ray, project, projector, wpp, before: (f) => { pre.push(f); }, view, camera: () => cam,
+  return { start, cam: o, home: HOME, ready: () => !!R, renderer: () => R, render, ask, group, shot, camFor, shooting: () => shooting, mouse: { press, move, release, wheel, drive }, scene: () => build(), ray, project, projector, wpp, before: (f) => { pre.push(f); }, marksOnly: (f) => { marksOnly = f; }, view, camera: () => cam,
     tool: (t) => { if (tool && tool.off) tool.off(); tool = t || null; if (R) R.domElement.style.cursor = (t && t.cursor) || ""; ask(); }, toolNow: () => tool,
     loop: (f) => { loop = f || null; ask(); }, looping: () => !!loop, canvas: () => R && R.domElement };
 })();
@@ -22570,23 +23449,39 @@ const AVED_TABS = [["size", "Avatar Size"], ["measure", "Measure"], ["arrange", 
 function avEditor(open, tab) {
   hideMenu(); closeFlyouts();
   const was = S.aved || {};
-  if (open === false) { S.aved = null; avEditorRender(); avEditorShow3(); return; }
+  if (open === false) { S.aved = null; if (RWIN.open) RWIN.front = true; rwinFrontApply(); avEditorRender(); avEditorShow3(); return; }
   S.aved = { open: true, front: "ed", tab: tab || was.tab || "size" };
   if (S.ui.layout === "3d") setLayout("both");
-  avEditorRender(); avEditorShow3();
+  stageFront("ed");
 }
-function avEditorFront(which) { if (!S.aved) return; S.aved.front = which; avEditorRender(); avEditorShow3(); if (which === "2d") draw(); }
+function avEditorFront(which) { if (S.aved) stageFront(which); }
+/* (Round r29) The strip of tabs at the foot of the 2D window's place, while the Avatar Editor or the Render workspace is open: one of
+   them or the 2D window in front. */
+function stageFront(which) {
+  if (S.aved) S.aved.front = which === "ed" ? "ed" : "2d";
+  RWIN.front = which === "rw" && RWIN.open;
+  rwinFrontApply(); stageTabs(); avEditorRender(); avEditorShow3();
+  if (which === "2d") draw();
+  if (which === "rw") rwinSide();
+}
+function stageTabs() {
+  const stage = document.getElementById("stage");
+  let bar = document.getElementById("avtabs");
+  if (!S.aved && !RWIN.open) { if (bar && bar.remove) bar.remove(); return; }
+  if (!bar) { bar = document.createElement("div"); bar.id = "avtabs"; if (stage && stage.appendChild) stage.appendChild(bar); }
+  const f = RWIN.open && RWIN.front ? "rw" : S.aved && S.aved.front === "ed" ? "ed" : "2d", tab = (k, n) => '<button data-f="' + k + '"' + (k === f ? ' class="on" aria-pressed="true"' : '') + '>' + n + '</button>';
+  bar.innerHTML = tab("2d", "2D Pattern Window") + (S.aved ? tab("ed", "Avatar Editor") : "") + (RWIN.open ? tab("rw", "Render") : "");
+  for (const b of bar.querySelectorAll ? bar.querySelectorAll("[data-f]") : []) b.onclick = () => stageFront(b.dataset.f);
+}
 // what the editor's tab in front draws on the avatar: the size's lines, the volumes and points, the fitting suit's lines
 function avEditorShow3() { sizeLinesShow(); showArrPoints(); if (typeof suitShow === "function") suitShow(); }
 function avEditorRender() {
   const stage = document.getElementById("stage");
-  let el = document.getElementById("aved"), bar = document.getElementById("avtabs");
-  if (!S.aved) { if (el) el.remove(); if (bar) bar.remove(); return; }
+  let el = document.getElementById("aved");
+  stageTabs();
+  if (!S.aved) { if (el && el.remove) el.remove(); return; }
   if (!el) { el = document.createElement("div"); el.id = "aved"; if (stage && stage.appendChild) stage.appendChild(el); }
-  if (!bar) { bar = document.createElement("div"); bar.id = "avtabs"; if (stage && stage.appendChild) stage.appendChild(bar); }
   const ed = S.aved.front === "ed";
-  bar.innerHTML = '<button data-f="2d"' + (ed ? '' : ' class="on" aria-pressed="true"') + '>2D Pattern Window</button><button data-f="ed"' + (ed ? ' class="on" aria-pressed="true"' : '') + '>Avatar Editor</button>';
-  for (const b of bar.querySelectorAll ? bar.querySelectorAll("[data-f]") : []) b.onclick = () => avEditorFront(b.dataset.f);
   el.style.display = ed ? "flex" : "none";
   if (!ed) return;
   const tab = S.aved.tab, body = S.av ? (AVED_BODY[tab] || (() => '<div class="hint">Not built yet.</div>'))() : '<div class="hint">There is no avatar. <button class="btn" id="ae-load">Load Avatar…</button></div>';
@@ -24877,7 +25772,8 @@ function grid3PropsDialog(at) {
 function env3Frame() {
   const sc = view3d.scene(), R = view3d.renderer && view3d.renderer();
   if (!sc) return;
-  const sh = show3On("shadow3"), sun = sc.children.find(c => c.isDirectionalLight);
+  const sh = show3On("shadow3") || (!!S.ui.quality3 && !S.ui.schem3), sun = sc.children.find(c => c.isDirectionalLight);
+  quality3Frame(sc, R);
   if (R && R.shadowMap && sun && sh !== !!G3.shadow3) {
     G3.shadow3 = sh;
     R.shadowMap.enabled = sh; R.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -24891,8 +25787,10 @@ function env3Frame() {
   // what casts: the cloth and the avatar's meshes (made anew as they change), every frame while it is on
   if (sh) for (const name of ["garment", "avatar"]) { const g = sc.getObjectByName(name); if (g) g.traverse((m) => { if (m.isMesh && !m.castShadow) m.castShadow = true; }); }
   lights3Marks(sc);
+  schem3Frame();
 }
 view3d.before(env3Frame);
+view3d.marksOnly(schem3Marks);
 /* (Round r23 / 5: "lights you can see") The document's lights in the 3D window, each a small mark of its own shape, named:
      Directional   a flat disc with three parallel arrows towards the garment (rays from far away)
      Spot          an open cone whose mouth is the light's Spread, pointing at the garment
@@ -24962,8 +25860,12 @@ function lights3Marks(sc) {
       const h = 240, r = h*Math.tan(Math.min(80, l.spread)*Math.PI/180);
       const cone = new THREE.Mesh(new THREE.ConeGeometry(r, h, 20, 1, true), mat());
       cone.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir)); cone.position.copy(dir.clone().multiplyScalar(h/2)); grp.add(cone);
+    } else if (l.type === "rect") {
+      // (Round r29) a rectangle at its own size, facing the garment
+      const pl = new THREE.Mesh(new THREE.PlaneGeometry(l.w || LIGHT_ROWS.w, l.h || LIGHT_ROWS.h), Object.assign(mat(), { side: THREE.DoubleSide, wireframe: !l.on }));
+      pl.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir)); grp.add(pl);
     } else if (l.type === "point") {
-      grp.add(new THREE.Mesh(new THREE.SphereGeometry(45, 14, 10), mat()));
+      grp.add(new THREE.Mesh(new THREE.SphereGeometry(Math.max(45, l.radius || 0), 14, 10), mat()));
       const pts = [];
       for (const v of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) pts.push(v[0]*60, v[1]*60, v[2]*60, v[0]*120, v[1]*120, v[2]*120);
       const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pts), 3));
@@ -25707,6 +26609,7 @@ function simShow() {
 function simStart() {
   look3End();                                                // the simulation runs on the garment as it is
   if (SIM.on) return;
+  if (typeof RWIN !== "undefined" && (RWIN.live || RWIN.busy)) { rwinStop(); toast("The render stopped: it does not run while simulating", 5000); }
   { const gd = gizDrag(); if (gd) gizEnd(gd, true); }
   if (S.ui.layout === "2d") setLayout("both");
   if (!view3d.ready()) return toast("The 3D window is not up, so there is nothing to simulate in");
@@ -28807,7 +29710,7 @@ function perfInstall() {
 }
 perfInstall();
 // for looking inside from the browser console (and for the desktop check): drafterDebug().S is the state
-window.drafterDebug = () => ({ S, G3, SIM, ZW, simStart, simStop, view3d, showMeasures, addGirth, avatarHit, pinPoints, TOOL3, CMD3, byId, commit, push, undo, garmentSync, arrList, arrangeAt, setTool, setTool3, setLayout, setArrPoints, toast,
+window.drafterDebug = () => ({ layoutCmd, setMode, layoutFit, setQuality3, setSchem3, lightAdd, lightPreset, ptRun: () => PTRUN, ptCtx: () => PTCTX, RWIN, renderWindow, rwinClose, loadRender, saveRender, normRender, schematicShot, shippedExamples, openExample, S, G3, SIM, ZW, simStart, simStop, view3d, showMeasures, addGirth, avatarHit, pinPoints, TOOL3, CMD3, byId, commit, push, undo, garmentSync, arrList, arrangeAt, setTool, setTool3, setLayout, setArrPoints, toast,
   run: (name, ...args) => eval(name)(...args) });
 function showDoc() {
   S.sel = S.pieces.length ? [S.pieces[0].id] : []; S.selSeam = null; S.selPt = S.selSeg = S.selInt = -1;

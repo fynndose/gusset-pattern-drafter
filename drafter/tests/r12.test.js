@@ -164,7 +164,7 @@ test("r12 / 2: the Notch tool selects a notch; the Property Editor gives it its 
   assert.deepStrictEqual(o.plain, [0.5]);
   assert.deepStrictEqual(o.split[0], []); assert.strictEqual(o.split[1].length, 1); assert.deepStrictEqual([o.split[1][0].type, o.split[1][0].angle], ["V", 20]);
   near(o.at[0], 100, 1e-6); near(o.at[1], 0, 1e-6);
-  assert.strictEqual(o.inFile[0], 26);      /* (version 26 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1;) */ assert.deepStrictEqual([o.inFile[1][0].type, o.inFile[1][0].angle], ["V", 20]);      // (version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
+  assert.strictEqual(o.inFile[0], 27);      /* (version 27 since Round r29 (a document's render settings); 26 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1;) */ assert.deepStrictEqual([o.inFile[1][0].type, o.inFile[1][0].angle], ["V", 20]);      // (version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
   assert.deepStrictEqual(o.opened, o.inFile[1]);
   assert.strictEqual(o.sel, true); assert.deepStrictEqual(o.deleted, [0, "Delete Notch"]);
 });
@@ -185,7 +185,7 @@ test("r12 / 2: old files open: a version 14 document's plain notches stay number
       return out;
     })();` }).result;
   assert.deepStrictEqual(o.v14, [[0.25, 0.75], [], [0.5], []]);
-  assert.deepStrictEqual(o.v12, [4, true]); assert.strictEqual(o.saved, 26);      // (version 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
+  assert.deepStrictEqual(o.v12, [4, true]); assert.strictEqual(o.saved, 27);      // (version 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
 });
 
 /* ---------- 3: Clone as Pattern, Convert to Hole ---------- */

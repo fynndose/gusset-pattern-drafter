@@ -200,7 +200,7 @@ test("r23 / 5: the document's lights are marks in the 3D window, a shape a type 
       return out;
     });` }).result;
   assert.deepStrictEqual(o.none, [], "off by default");
-  assert.deepStrictEqual(o.shown, ["Light 1 (Directional)", "Light 2 (Spot)", "Light 3 (Point, off)", "Light 4 (Dome)"]);
+  assert.deepStrictEqual(o.shown, ["Light 1 (Directional)", "Light 2 (Spot)", "Light 3 (Sphere, off)", "Light 4 (Dome)"]);      // (Round r29: the reference's name for our point light; its key stays "point")
   assert.strictEqual(o.kinds[0], "BufferGeometry,CylinderGeometry", "directional: a disc and three arrows (lines with a head)");
   assert.ok(/ConeGeometry/.test(o.kinds[1]) && !/Cylinder/.test(o.kinds[1]), "spot: a cone: " + o.kinds[1]);
   assert.ok(/SphereGeometry/.test(o.kinds[2]) && /BufferGeometry/.test(o.kinds[2]), "point: a ball and spikes: " + o.kinds[2]);
@@ -247,7 +247,7 @@ test("r23 / 5: the light list is reached from Render ▸ Lights… and from the 
   const o = boot({ blank: true, three: true, script: LIT + `
     return app.wait(() => v3.ready(), "the 3D window").then(() => {
       const rows = app.MENUS.render().filter(x => x.n).map(x => x.n);
-      out.rows = rows.filter(n => n === "Render\u2026" || n === "Lights\u2026");
+      out.rows = rows.filter(n => n === "Render" || n === "Lights\u2026");
       app.MENUS.render().find(x => x.n === "Lights\\u2026").f(); out.open = [app.ev("RWIN").open, /<h3>Lights<\\/h3>/.test(app.el("rw-side").innerHTML)];
       const side = app.el("rw-side"), steps = S.undo.length;
       side.onclick({ target: { dataset: { add: "point" } } }); out.added = [S.lights.length, S.lights[0].type, G3.light === S.lights[0].id, S.undo.length - steps];
@@ -257,7 +257,7 @@ test("r23 / 5: the light list is reached from Render ▸ Lights… and from the 
       const L = []; v3.scene().traverse((x) => { if (x.isLight && x.visible) L.push(x.type); }); out.frame = L;
       return out;
     });` }).result;
-  assert.deepStrictEqual(o.rows, ["Render…", "Lights…"]);
+  assert.deepStrictEqual(o.rows, ["Render", "Lights…"]);      // (Round r29: the workspace's row, as the reference names it)
   assert.deepStrictEqual(o.open, [true, true]);
   assert.deepStrictEqual(o.added, [1, "point", true, 1]);
   assert.deepStrictEqual(o.changed, [7, 2]);
@@ -272,15 +272,18 @@ const NOW = `
   app.ev("globalThis.setTimeout = (f) => { f(); return 1; }");
   app.ev("(() => { const ce = document.createElement; document.createElement = (t) => { const e = ce(t); e.toDataURL = (m) => 'data:' + (m || 'image/png') + ',x'; return e; }; })()");
 `;
-test("r23 / 6: Render… (the Render menu, Window ▸ Render) opens the Render window, not a dialog: a preview, its settings (mode, view, resolution, anti-aliasing, shadows, background, the file format) and the lights", () => {
+test("r23 / 6, r29: Render (the Render menu, Window ▸ Render) opens the Render workspace, not a dialog: its toolbar, and its settings in panes (Round r29: spread over Image/Video, Render and Light, the engine's rows with the engine that has them)", () => {
   const o = boot({ blank: true, three: true, script: LIT + NOW + `
     return app.wait(() => v3.ready(), "the 3D window").then(() => {
-      app.MENUS.render().find(x => x.n === "Render\\u2026").f();
+      app.ev("saveRender")(app.ev("normRender")({ mode: "quick" }));
+      app.MENUS.render().find(x => x.n === "Render").f();
       out.open = [app.ev("RWIN").open, app.el("dlg").style.display === "block"];
-      const html = app.el("rw-side").innerHTML;
+      const RW = app.ev("RWIN"), pane = (p) => { RW.pane = p; app.ev("rwinSide")(); return app.el("rw-side").innerHTML; };
+      const html = pane("render") + pane("image");
       out.fields = ["mode", "view", "size", "ss", "shadows", "soft", "bg", "fmt"].filter(k => html.includes('data-r="' + k + '"'));
-      out.buttons = ["render", "stop", "save", "live"].filter(k => html.includes('data-act="' + k + '"'));
-      out.lights = /<h3>Lights<\\/h3>/.test(html);
+      const bar = app.el("rw-tools").innerHTML;
+      out.buttons = ["render", "stop", "save", "live"].filter(k => bar.includes('data-act="' + k + '"'));
+      out.lights = /<h3>Lights<\\/h3>/.test(pane("light"));
       app.ev("rwinClose")();
       const rows = []; const walk = (L) => { for (const r of L || []) { if (r && r.n) rows.push(r); if (r && typeof r.menu === "function") walk(r.menu()); } };
       walk(app.ev("menuDisplay")()); rows.find(x => x.n === "Render").f(); out.button = app.ev("RWIN").open;
@@ -292,11 +295,14 @@ test("r23 / 6: Render… (the Render menu, Window ▸ Render) opens the Render w
   assert.strictEqual(o.lights, true); assert.strictEqual(o.button, true);
 });
 
-test("r23 / 6: the preview is drawn at once small and coarse, then sharp at the preview's size; it follows the 3D view turned and a light changed while the window is open, and nothing is drawn for it once it is closed", () => {
+test("r23 / 6, r29: Interactive is drawn at once small and coarse, then sharp at the picture's size; it follows the 3D view turned and a light changed while it runs, and nothing is drawn for it once it is closed; nothing is drawn before it is started (Round r29: the maintainer's window waits for a click)", () => {
   const o = boot({ blank: true, three: true, script: LIT + NOW + `
     return app.wait(() => v3.ready(), "the 3D window").then(() => {
+      app.ev("saveRender")(app.ev("normRender")({ mode: "quick" }));
+      const n00 = app.renders.length;
+      app.ev("renderWindow")(); app.ev("rwinWatch")(); out.opened = app.renders.length - n00;
       const n0 = app.renders.length;
-      app.ev("renderWindow")();
+      app.ev("rwinInteractive")();
       const got = app.renders.slice(n0).map(r => r.w + "x" + r.h + (r.shadows ? "s" : ""));
       out.first = got;
       const n1 = app.renders.length; v3.cam.az += 0.4; app.ev("rwinWatch")(); out.turned = app.renders.length - n1;
@@ -305,6 +311,7 @@ test("r23 / 6: the preview is drawn at once small and coarse, then sharp at the 
       app.ev("rwinClose")(); const n4 = app.renders.length; v3.cam.az += 0.4; app.ev("rwinWatch")(); out.closed = app.renders.length - n4;
       return out;
     });` }).result;
+  assert.strictEqual(o.opened, 0, "opened: nothing drawn until it is started");
   // the preview area is 988 × 788 in the fake page: 1920 × 1080 fits as 987 × 555; coarse a third, no shadows; sharp 2× supersampled with shadows
   assert.deepStrictEqual(o.first, ["329x185", "1974x1110s"]);
   assert.strictEqual(o.turned, 2, "the view turned: coarse and sharp again");
@@ -313,9 +320,10 @@ test("r23 / 6: the preview is drawn at once small and coarse, then sharp at the 
   assert.strictEqual(o.closed, 0, "closed: nothing");
 });
 
-test("r23 / 6: Render draws the full resolution and shows it (the title says the scale); Live Preview goes back; Save writes PNG or JPEG as chosen; the settings are kept per machine", () => {
+test("r23 / 6, r29: Final Render draws the full resolution and shows it (the title says the scale) and it stays, a setting changed or not (Round r29: a stopped window takes no input); Interactive goes back; Save writes PNG or JPEG as chosen; the settings are kept per machine", () => {
   const o = boot({ blank: true, three: true, script: LIT + NOW + `
     return app.wait(() => v3.ready(), "the 3D window").then(() => {
+      app.ev("saveRender")(app.ev("normRender")({ mode: "quick" }));
       app.ev("renderWindow")(); const side = app.el("rw-side");
       const n0 = app.renders.length; side.onclick({ target: { dataset: { act: "render" } } });
       const r = app.renders.slice(n0); out.full = r.map(x => x.w + "x" + x.h); out.title = app.el("rw-tn").textContent; out.result = !!app.ev("RWIN").result;
@@ -332,7 +340,7 @@ test("r23 / 6: Render draws the full resolution and shows it (the title says the
   assert.strictEqual(o.title, "Render (51% of 1920 × 1080)");
   assert.strictEqual(o.result, true); assert.strictEqual(o.frozen, 0, "the render stays shown while the view turns");
   assert.ok(/^Render saved as render[.]png, 1920 × 1080 px/.test(o.png), o.png);
-  assert.strictEqual(o.reset, false, "a setting changed: back to the preview");
+  assert.strictEqual(o.reset, true, "a setting changed: the picture stays (Round r29; it went back to the preview until then)");
   assert.ok(/^Render saved as render[.]jpg, 1920 × 1080 px/.test(o.jpeg), o.jpeg);
   assert.strictEqual(o.live, true);
   assert.deepStrictEqual([o.kept.fmt, o.kept.size, o.kept.mode], ["jpeg", "1280x720", "quick"]);
@@ -356,10 +364,13 @@ test("r23 / 7: nothing of the quality render is loaded or asked for until Qualit
   const o = boot({ blank: true, three: true, script: LIT + NOW + `
     return app.wait(() => v3.ready(), "the 3D window").then(() => {
       const scripts = () => app.el("body").children.filter(c => /three-pathtracer/.test(c.src || "")).length;
+      app.ev("saveRender")(app.ev("normRender")({ mode: "quick" }));
       app.ev("renderWindow")(); out.quick = [scripts(), app.ev("typeof THREE_PATHTRACER"), app.ev("ptSupport").said === undefined];
-      const side = app.el("rw-side");
+      const side = app.el("rw-side"), RW = app.ev("RWIN"); RW.pane = "render";
       side.onchange({ target: { dataset: { r: "mode" }, value: "quality", type: "select-one" } });
+      app.ev("rwinInteractive")();      // (Round r29: asked for only when something is started)
       out.quality = [scripts(), /cannot run here/.test(app.el("rw-msg").textContent), /data-act="use-quick"/.test(side.innerHTML), app.ev("loadRender")().mode];
+      app.ev("rwinStop")();
       side.onclick({ target: { dataset: { act: "use-quick" } } }); out.back = app.ev("loadRender")().mode;
       out.samples = [app.ev("normRender")({ samples: 3 }).samples, app.ev("normRender")({ samples: 99999 }).samples, app.ev("normRender")({}).samples];
       return out;
@@ -379,7 +390,7 @@ test("r23 / 7: a quality render runs pass by pass up to Samples with a progress 
       app.ev("rwinRender")();
       // the passes run a frame's time at a go (setTimeout here stands for the next frame): run the goes by hand
       const step = () => { const r = app.ev("PTRUN"); if (r) app.ev("ptStep")(r); };
-      out.prog = [/Preparing the renderer/.test(app.el("rw-pt").textContent)]; step(); out.prog.push(/^Quality render: [0-9]+ of 20 samples/.test(app.el("rw-pt").textContent));
+      out.prog = [/Preparing the quality renderer/.test(app.el("rw-pt").textContent)]; step(); out.prog.push(/^Final Render: [0-9]+ of 20 samples/.test(app.el("rw-pt").textContent));      // (Round r29: the reference's name; Round r29b: the words say how often, as measured)
       // (one sample a frame: the work is queued on the graphics card)
       for (let k = 0; k < 40 && app.ev("PTRUN"); k++) step();
       out.done = [!!RW.result, RW.lastPT && RW.lastPT.samples, RW.lastPT && RW.lastPT.stopped, /quality, 20 samples/.test(app.el("rw-tn").textContent), RW.busy];
@@ -404,7 +415,7 @@ test("r23 / 7: in Quality the preview is a quick coarse picture at once, then pa
     return app.wait(() => v3.ready(), "the 3D window").then(() => {
       const later = []; app.ev("globalThis").setTimeout = (f) => { later.push(f); return later.length; };
       app.ev("saveRender")(app.ev("normRender")({ mode: "quality", samples: 16 }));
-      app.ev("renderWindow")();
+      app.ev("renderWindow")(); app.ev("rwinInteractive")();
       out.first = [app.ev("PTRUN"), later.length > 0];
       later.splice(0).forEach(f => f());                 // the still moment
       const r = app.ev("PTRUN"); out.run = [!!r && r.preview, r && r.w + "x" + r.h];
@@ -439,14 +450,14 @@ test("r23 / 8: the lines in a view's pixels: the garment against the background 
 test("r23 / 8: Schematic in the Render window: views (front and back by default), fill, the avatar, four line weights and a colour; four passes a view at twice the size with only the cloth shown; the 3D window as it was afterwards; PNG or JPEG", () => {
   const o = boot({ blank: true, three: true, script: LIT + NOW + `
     return app.wait(() => v3.ready(), "the 3D window").then(() => {
-      app.ev("renderWindow")(); const side = app.el("rw-side");
+      app.ev("renderWindow")(); const side = app.el("rw-side"); app.ev("RWIN").pane = "render";
       side.onchange({ target: { dataset: { r: "mode" }, value: "schematic", type: "select-one" } });
       const html = side.innerHTML;
       out.fields = ["schViews", "schFill", "schAvatar", "schSil", "schSeam", "schInt", "schStitch", "schColor"].filter(k => html.includes('data-r="' + k + '"'));
       const d = app.ev("normRender")({ mode: "schematic" }); out.defaults = [d.schViews, d.schFill, d.schAvatar, d.schSil, d.schSeam, d.schInt, d.schStitch, d.schColor];
       out.fmts = app.ev("rwinFormats")().map(f => f[0]);
       const mats = [...G3.items.values()].map(it => it.obj.material);
-      app.ev("saveRender")(app.ev("normRender")({ mode: "schematic", size: "1280x720", bg: "white" }));
+      app.ev("saveRender")(app.ev("normRender")({ mode: "schematic", size: "1280x720", bg: "white", schFill: "white" }));      // (Round r29: a flat sheet, no lights)
       const n0 = app.renders.length; side.onclick({ target: { dataset: { act: "render" } } });
       const r = app.renders.slice(n0); out.passes = [r.length, [...new Set(r.map(x => x.w + "x" + x.h))], r.some(x => x.grid), r.every(x => x.lights.length === 0)];
       out.result = [!!app.ev("RWIN").result, app.ev("RWIN").result.w, app.ev("RWIN").result.h];
@@ -455,7 +466,7 @@ test("r23 / 8: Schematic in the Render window: views (front and back by default)
       return out;
     });` }).result;
   assert.deepStrictEqual(o.fields, ["schViews", "schFill", "schAvatar", "schSil", "schSeam", "schInt", "schStitch", "schColor"]);
-  assert.deepStrictEqual(o.defaults, ["frontback", "white", false, 3, 2, 2, 2, "#000000"], "the reference's weights (silhouette 3, seamline 2, internal 2)");
+  assert.deepStrictEqual(o.defaults, ["frontback", "texture", false, 3, 2, 2, 2, "#000000"], "the reference's weights (silhouette 3, seamline 2, internal 2); Garment Texture is its default (Round r29: frame 150)");
   assert.deepStrictEqual(o.fmts, ["png", "jpeg"], "no SVG: the lines are found in pixels");
   assert.deepStrictEqual(o.passes, [8, ["1280x1440"], false, true], "front and back, four passes each, each view 640 × 720 drawn at twice the size, no grid, no lights (flat)");
   assert.deepStrictEqual(o.result, [true, 1280, 720]);
@@ -469,7 +480,8 @@ test("r23 / 6, 8: a preview from a named view (Front) is drawn once, coarse and 
   const o = boot({ blank: true, three: true, script: LIT + NOW + `
     return app.wait(() => v3.ready(), "the 3D window").then(() => {
       app.ev("saveRender")(app.ev("normRender")({ view: "front" }));
-      const n0 = app.renders.length; app.ev("renderWindow")(); app.ev("rwinWatch")(); app.ev("rwinWatch")();
+      app.ev("saveRender")(app.ev("normRender")({ view: "front", mode: "quick" }));
+      const n0 = app.renders.length; app.ev("renderWindow")(); app.ev("rwinInteractive")(); app.ev("rwinWatch")(); app.ev("rwinWatch")();
       return app.renders.length - n0;
     });` }).result;
   assert.strictEqual(o, 2);

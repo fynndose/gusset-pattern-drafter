@@ -220,12 +220,16 @@ function askWhere(suggested) {
   return dialog.showSaveDialog(win, { defaultPath: suggested, filters: [...(ext ? [{ name: KINDS[ext] || ext.toUpperCase() + " file", extensions: [ext] }] : []), { name: "All files", extensions: ["*"] }] })
     .then((r) => (r.canceled || !r.filePath ? null : r.filePath));
 }
+let lastExport = null;
 ipcMain.handle("file:export", async (e, suggested, data) => {
   const file = await askWhere(String(suggested || "export"));
   if (!file) return null;
   writeAtomic(file, typeof data === "string" ? data : Buffer.from(data));
+  lastExport = file;
   return { path: file, name: path.basename(file) };
 });
+// (Round r29) the Render workspace's Show in Saved Folder: the file an export last wrote, no other path
+ipcMain.handle("file:show-saved", () => { if (lastExport) shell.showItemInFolder(lastExport); return !!lastExport; });
 // the page's print file (sheets sized in mm, an @page rule) made into a PDF of the same size by Chromium's own PDF writer
 async function htmlToPdf(html) {
   const file = path.join(app.getPath("temp"), "pdraft-pdf-" + Date.now() + ".html");

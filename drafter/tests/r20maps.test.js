@@ -162,10 +162,10 @@ test("Stress (N/m, kPa) and Pressure (kPa, mmHg) come from the simulation: the s
 test("the pictures: a 3D Snapshot or a Render with a map shown can carry it and its legend, drawn into the picture; the boxes offer it only while a map is on", () => {
   const o = boot({ blank: true, three: true, script: SEWN + `
     // (Round r23 / 6: Render… opens the Render window; what its settings column offers is read without opening it, which would draw a preview the fake page cannot paint)
-    out.boxOff = [app.ev("snap3Dialog")() && /The 3D Map/.test(app.el("dlg").innerHTML), /3D map/.test(app.ev("rwinRenderHTML")())];
+    out.boxOff = [app.ev("snap3Dialog")() && /The 3D Map/.test(app.el("dlg").innerHTML), /3D map/.test(app.ev("rwinRenderHTML")({ ...app.ev("loadRender")(), mode: "quick" }))];
     app.ev("hideDlg")();
     app.key("6", { altKey: true }); S.ui.mapUnit = { stress: "pct" }; app.ev("strainShow")();
-    out.boxOn = [app.ev("snap3Dialog")() && /The 3D Map and Its Legend/.test(app.el("dlg").innerHTML), /The 3D map shown and its legend/.test(app.ev("rwinRenderHTML")())];
+    out.boxOn = [app.ev("snap3Dialog")() && /The 3D Map and Its Legend/.test(app.el("dlg").innerHTML), /The 3D map shown and its legend/.test(app.ev("rwinRenderHTML")({ ...app.ev("loadRender")(), mode: "quick" }))];      // (Round r29: a row of the Quick engine's pane)
     app.ev("hideDlg")();
     out.defaults = [app.ev("loadSnap")().d3.map, app.ev("loadRender")().map];
     // the legend painted: its title, ticks and lines as text, at the picture's bottom right

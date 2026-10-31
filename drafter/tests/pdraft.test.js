@@ -152,7 +152,7 @@ test("every version 11 test file opens (" + v11.length + " files): patterns, sew
     assert.strictEqual(o.drape, Object.keys(was.drape || {}).length, f + ": the drape"); assert.strictEqual(o.images, was.images.length, f); assert.strictEqual(o.res, was.cloth.res);
     // (Round F: every pattern has its place in 3D once the file is open; one the file gave a place keeps it)
     assert.ok(o.p3.every(Boolean), f + ": every pattern has its place in 3D"); was.pieces.forEach((p, k) => { if (p.p3) assert.deepStrictEqual(o.p3[k], p.p3.pos, f + ": the file's place"); }); assert.strictEqual(o.pins, was.pieces.reduce((n, p) => n + (p.pins || []).length, 0));
-    assert.deepStrictEqual([o.v, o.zip], [26, true], "saved as version 26 (Round r26; 25 since Round r25; 24 since Round r20; 23 since the r19 follow-up; 22 since Round r18; 21 since Round r17b; 20 since Round build-1; 19 since Round perf-2; 18 since Round r15; 17 since Round r14), a ZIP container");
+    assert.deepStrictEqual([o.v, o.zip], [27, true], "saved as version 27 (Round r29; 26 since Round r26; 25 since Round r25; 24 since Round r20; 23 since the r19 follow-up; 22 since Round r18; 21 since Round r17b; 20 since Round build-1; 19 since Round perf-2; 18 since Round r15; 17 since Round r14), a ZIP container");
     assert.deepStrictEqual(o.parts, ["document.json", "history.json", ...was.images.map(im => "images/" + im.id + ".png"), ...(was.drape ? ["drape.bin"] : [])], f + ": its parts");
     assert.strictEqual(o.same, true, f + ": the same document after the round trip"); assert.deepStrictEqual(o.hist2, o.hist); assert.strictEqual(o.toast2, "Opened again.pdraft with " + steps + " history steps");
     assert.strictEqual(o.identical, true, f + ": save, reopen, save gives identical bytes");
@@ -182,7 +182,7 @@ test("save, reopen, save gives identical bytes with the platform's deflate too, 
   assert.deepStrictEqual(o.saved, ["Saved", false]); assert.strictEqual(o.same, true); assert.strictEqual(o.identical, true);
   const parts = partsOf(Buffer.from(o.b64, "base64"));
   assert.deepStrictEqual(parts.map(p => [p.name, p.method]), [["document.json", 8], ["history.json", 8], ["images/1.png", 0]]);
-  assert.strictEqual(JSON.parse(parts[0].data.toString("utf8")).v, 26);      // (version 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
+  assert.strictEqual(JSON.parse(parts[0].data.toString("utf8")).v, 27);      // (version 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
   assert.ok(o.size < text.length/3, "version 12: " + o.size + " bytes, version 11: " + text.length);
 });
 
@@ -242,7 +242,7 @@ test("a document made in this session (not read from a file) is saved, opened an
 
 test("a file that is no pattern file, a damaged one and one from a newer version are refused with the reason, and the open document stays", () => {
   const junk = foreignZip([{ name: "readme.txt", data: Buffer.from("hello") }]);
-  const newer = foreignZip([{ name: "document.json", data: Buffer.from(JSON.stringify({ v: 27, pieces: [] })      /* (one past this build's: 27 since Round r26, 26 since Round r25, 25 since Round r20, 24 since the r19 follow-up, 23 since Round r18, 22 since Round r17b, 21 since Round build-1, 20 since Round perf-2, 19 since Round r15, 18 since Round r14, 17 since Round r13) */), deflate: false }]);
+  const newer = foreignZip([{ name: "document.json", data: Buffer.from(JSON.stringify({ v: 28, pieces: [] })      /* (one past this build's: 28 since Round r29, 27 since Round r26, 26 since Round r25, 25 since Round r20, 24 since the r19 follow-up, 23 since Round r18, 22 since Round r17b, 21 since Round build-1, 20 since Round perf-2, 19 since Round r15, 18 since Round r14, 17 since Round r13) */), deflate: false }]);
   const cut = foreignZip([{ name: "document.json", data: Buffer.from(JSON.stringify({ v: 12, pieces: [] })), crc: 1 }]);
   const r = boot({ script: `
     const out = [], open = (name, b64) => { app.ev("openFile")(name, app.ev("bytesOf")(b64), null, true); out.push([toasts[toasts.length-1], S.pieces.length, !!S.dirty]); };

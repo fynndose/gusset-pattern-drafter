@@ -558,7 +558,7 @@ test("files: curve points are saved and read back; junk is dropped; a file from 
   reset();
   const p = curved(); addPoint(p, 1, 0.4); S.nextId = 5;
   const text = docJSON(), d = JSON.parse(text);
-  assert.strictEqual(d.v, 26);      // (version 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
+  assert.strictEqual(d.v, 27);      // (version 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
   const want = [1, 2].flatMap(i => trace(p, i, 50));
   reset(); loadDoc(JSON.parse(text)); checkDoc(S.pieces, S.seams);
   const q = S.pieces[0];

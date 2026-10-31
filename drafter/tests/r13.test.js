@@ -128,7 +128,7 @@ test("r13 / 2: the Property Editor's Selected Notch has Length (greyed with Perp
   assert.strictEqual(o.enabled, false, "with a Custom angle Length stays greyed");
   assert.deepStrictEqual(o.own[0], [{ t: 0.5, angle: 15, len: 14, flip: true }]); near(o.own[1], 14, 1e-3, "drawn its own length");
   assert.deepStrictEqual(o.steps, ["Notch", "Notch", "Notch", "Notch"]);
-  assert.strictEqual(o.inFile[0], 26);      /* (version 26 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1;) */ assert.deepStrictEqual(o.inFile[1], [{ t: 0.5, angle: 15, len: 14, flip: true }]);      // (version 19 since Round perf-2; 18 since Round r15; 17 since Round r14)
+  assert.strictEqual(o.inFile[0], 27);      /* (version 27 since Round r29 (a document's render settings); 26 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1;) */ assert.deepStrictEqual(o.inFile[1], [{ t: 0.5, angle: 15, len: 14, flip: true }]);      // (version 19 since Round perf-2; 18 since Round r15; 17 since Round r14)
   assert.deepStrictEqual(o.opened, o.inFile[1]);
   assert.deepStrictEqual(o.perp, [{ t: 0.5, flip: true }]); assert.deepStrictEqual(o.back, [0.5]);
 });
@@ -143,7 +143,7 @@ test("r13 / 2: a version 15 file's notches with their own look open as they were
     // a container file (every file since version 12) whose document says 17
     const part = (v) => new Map([["document.json", new TextEncoder().encode(JSON.stringify({ ...doc, v }))]]), pd = app.ev("pdraftDoc");
     out.v16 = pd(part(16)).v;
-    try { pd(part(27)); out.v17 = "opened"; } catch (e) { out.v17 = e.message; }      // (Round r26: 26 is this build's version; Round r25: 25 was; Round r20: 24 was; the r19 follow-up: 23 was; Round r18: 22 was this build's version; Round r17b: 21 was this build's version; Round build-1: 20 was this build's version (19 since Round perf-2, 18 since Round r15); the one after it is refused)
+    try { pd(part(28)); out.v17 = "opened"; } catch (e) { out.v17 = e.message; }      // (Round r29: 27 is this build's version; Round r26: 26 was this build's version; Round r25: 25 was; Round r20: 24 was; the r19 follow-up: 23 was; Round r18: 22 was this build's version; Round r17b: 21 was this build's version; Round build-1: 20 was this build's version (19 since Round perf-2, 18 since Round r15); the one after it is refused)
     return out;` }).result;
   assert.strictEqual(o.v16, 16);
   assert.deepStrictEqual(o.v15, [0.25, { t: 0.75, type: "V", angle: 20 }]);

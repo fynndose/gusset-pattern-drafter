@@ -26,7 +26,7 @@ test("in a browser: Save downloads pattern.pdraft, unsaved work is autosaved in 
     app.saveDoc(false); const a = file; file = null; app.saveDoc(true);
     return { unsaved, a, b: file, toast: toasts[toasts.length-1] };` });
   assert.deepStrictEqual(r.errors, []);
-  assert.deepStrictEqual(r.result, { unsaved: 26, a: ["pattern.pdraft", 26], b: ["pattern.pdraft", 26], toast: "Saved" });      // (version 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
+  assert.deepStrictEqual(r.result, { unsaved: 27, a: ["pattern.pdraft", 27], b: ["pattern.pdraft", 27], toast: "Saved" });      // (version 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
   assert.strictEqual(r.storage["pdraft:doc"], undefined, "saved: nothing is left to recover");
   assert.strictEqual(r.saveText, "SAVED");
   assert.strictEqual(r.desk, undefined); assert.strictEqual(r.title, undefined);
@@ -35,7 +35,7 @@ test("in a browser: Save downloads pattern.pdraft, unsaved work is autosaved in 
 test("desktop: autosave goes to the shell's store and comes back from it; localStorage holds no document", () => {
   const r = boot({ desktop: true });
   assert.deepStrictEqual(r.errors, []);
-  assert.strictEqual(JSON.parse(r.desk.store["pdraft:doc"]).v, 26);      // (version 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
+  assert.strictEqual(JSON.parse(r.desk.store["pdraft:doc"]).v, 27);      // (version 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
   assert.strictEqual(r.storage["pdraft:doc"], undefined);
   assert.strictEqual(r.saveText, "AUTOSAVED");
   const again = boot({ desktop: { store: { "pdraft:doc": doc("From the file") } } });
@@ -47,7 +47,7 @@ test("desktop: an unreadable autosave file is kept beside it and the toast gives
   assert.deepStrictEqual(r.errors, []);
   const keys = Object.keys(r.desk.store).filter(k => k.startsWith("pdraft:doc.unreadable."));
   assert.strictEqual(keys.length, 1); assert.strictEqual(r.desk.store[keys[0]], "{not json");
-  assert.strictEqual(JSON.parse(r.desk.store["pdraft:doc"]).v, 26, "a fresh autosave was written");      // (version 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
+  assert.strictEqual(JSON.parse(r.desk.store["pdraft:doc"]).v, 27, "a fresh autosave was written");      // (version 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
   assert.strictEqual(r.toasts.length, 1);
   assert.ok(r.toasts[0].includes("C:\\data\\" + keys[0].replace("pdraft:doc", "autosave") + ".json"), r.toasts[0]);
 });
@@ -69,7 +69,7 @@ test("desktop: Save asks where the first time, then writes in place; Save As pic
   assert.deepStrictEqual(r.errors, []);
   const o = r.result;
   assert.deepStrictEqual(o.cancelled, ["saveAs", 0, "Gusset \u2013 Pattern Drafter", 0]);
-  assert.deepStrictEqual(o.first, ["saveAs saveAs", 26, "skirt.pdraft \u2014 Gusset \u2013 Pattern Drafter", "Saved skirt.pdraft"]);      // (version 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; version 18 since Round r15; 17 since Round r14; 16 since Round r13)
+  assert.deepStrictEqual(o.first, ["saveAs saveAs", 27, "skirt.pdraft \u2014 Gusset \u2013 Pattern Drafter", "Saved skirt.pdraft"]);      // (version 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; version 18 since Round r15; 17 since Round r14; 16 since Round r13)
   assert.deepStrictEqual(o.inPlace, [["save", A], "Renamed"]);
   assert.deepStrictEqual(o.as, [["saveAs", A], true, "copy.pdraft \u2014 Gusset \u2013 Pattern Drafter"], "Save As starts from the current file");
   assert.deepStrictEqual(o.then, ["save", B], "and Save now goes to the new one");
@@ -190,7 +190,7 @@ test("desktop: a version 11 file is opened and saved: the toast names the copy t
   assert.deepStrictEqual(o.opened, ["An old one", "skirt.pdraft \u2014 Gusset \u2013 Pattern Drafter"]);
   assert.deepStrictEqual(o.first[0], ["save", A], "saved in place, no dialog");
   assert.strictEqual(o.first[1], "Saved skirt.pdraft. It was a file of an earlier version, which earlier builds can still open: the original is kept beside it as skirt.v11.pdraft");
-  assert.deepStrictEqual(o.first.slice(2), [true, true, 26], "the file is version 26 now (Round r26; 25 since Round r25; 24 since Round r20; 23 since the r19 follow-up; 22 since Round r18; 21 since Round r17b; 20 since Round build-1; 19 since Round perf-2; 18 since Round r15; 17 since Round r14), and the copy is the original text");
+  assert.deepStrictEqual(o.first.slice(2), [true, true, 27], "the file is version 27 now (Round r29; 26 since Round r26; 25 since Round r25; 24 since Round r20; 23 since the r19 follow-up; 22 since Round r18; 21 since Round r17b; 20 since Round build-1; 19 since Round perf-2; 18 since Round r15; 17 since Round r14), and the copy is the original text");
   assert.deepStrictEqual(o.second, ["Saved skirt.pdraft", true, 2], "once a file");
 });
 

@@ -276,10 +276,10 @@ test("r25 / 3 a version 24 file (written by the build before the bump) opens unc
         .then((again) => new Promise((res) => app.ev("zipUnpack")(again, (e, p) => res(p)))).then((parts) => app.ev("pdraftDoc")(parts))
         .then((d) => { out.again = d.v; return out; });
     });` }).result;
-  assert.deepStrictEqual(o.v, [24, 26]);      // (this build's version: 26 since Round r26)
+  assert.deepStrictEqual(o.v, [24, 27]);      // (this build's version: 27 since Round r29, 26 since Round r26)
   assert.strictEqual(o.same, true, "the same document");
   assert.ok(o.steps > 0, "its history came with it");
-  assert.strictEqual(o.again, 26);      // (Round r26: this build's version)
+  assert.strictEqual(o.again, 27);      // (Round r29: this build's version)
 });
 
 /* ---- batch 4: a hole in a DXF ---- */

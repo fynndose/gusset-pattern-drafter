@@ -37,6 +37,7 @@ contextBridge.exposeInMainWorld("desktop", {
   // an export (DXF, SVG, XML, JSON, a print file) written where the user chooses; pdf: the print file made into a PDF;
   // bugReport: the text and, if given, the open document's bytes beside it. Each resolves to { path, name } or null if cancelled.
   exportFile: (suggested, data) => ipcRenderer.invoke("file:export", suggested, data),
+  showSaved: () => ipcRenderer.invoke("file:show-saved"),
   pdf: (suggested, html) => ipcRenderer.invoke("file:pdf", suggested, html),
   bugReport: (suggested, text, doc) => ipcRenderer.invoke("file:bug-report", suggested, text, doc || null),
   copyText: (text) => ipcRenderer.invoke("clipboard:write", text),

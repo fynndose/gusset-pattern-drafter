@@ -121,7 +121,7 @@
   #lay-tools button svg { width: 20px; height: 20px; fill: none; stroke: #d6d6d6; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
   #lay-tools .sep { height: 1px; background: #3a3a3e; margin: 3px 2px; flex: none; }
   #stage { position: relative; background: var(--canvas); overflow: hidden; flex: 1; min-height: 0; }
-  #stage3d { position: relative; background: #9c9c9f; overflow: hidden; flex: 1; min-height: 0; }
+  #stage3d { position: relative; isolation: isolate; background: #9c9c9f; overflow: hidden; flex: 1; min-height: 0; }
   #box3d { display: none; position: absolute; border: 1px dashed #fff; background: #ffffff22; pointer-events: none; }
   #lasso3d { display: none; position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
   #cam3d { position: absolute; right: 8px; top: 8px; display: flex; gap: 2px; flex-wrap: wrap; justify-content: flex-end; max-width: 62%; }
@@ -610,36 +610,66 @@
   #dlg .df .rds label { width: auto; display: flex; align-items: center; gap: 3px; cursor: pointer; }
   #dlg .df .rds input { width: auto; }
   #dlg .da { display: flex; gap: 5px; }
-  /* (Round r23 / 5, 6) the Render window: a window of its own inside the page (as a window taken out), moved by its title, sized at its
-     corner: the picture at the left, its settings and the lights at the right */
-  #rwin { position: fixed; z-index: 40; display: none; flex-direction: column; background: var(--menu); border: 1px solid #5a5a5a; box-shadow: 0 10px 30px #000b;
-    resize: both; overflow: hidden; min-width: 520px; min-height: 340px; }
-  #rwin.open { display: flex; }
-  #rwin .rw-t { position: relative; flex: none; height: 22px; line-height: 21px; font-size: 11px; color: #cfcfcf; text-align: center; background: #303032;
-    border-bottom: 1px solid #464648; cursor: move; user-select: none; touch-action: none; padding: 0 28px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #rwin #rw-x { position: absolute; right: 2px; top: 1px; height: 19px; width: 22px; background: none; border: none; color: #cfcfcf; cursor: pointer; font-size: 11px; padding: 0; }
+  /* (Round r29) the Render workspace: in the 2D window's place as the Avatar Editor is, the tabs #avtabs under it; the picture, the render
+     toolbar at its right, a strip under them; its settings in the Property Editor (#rw-side in place of #props) */
+  #rwin { position: absolute; left: 0; right: 0; top: 0; bottom: 26px; z-index: 31; display: none; flex-direction: column; background: var(--chrome); color: #e4e4e4; }
+  #rwin .rw-t { position: relative; flex: none; height: 22px; line-height: 21px; font-size: 11px; color: #cfcfcf; text-align: center; background: #242426; border-bottom: 1px solid #101011; user-select: none; padding: 0 28px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #rwin #rw-x { position: absolute; right: 2px; top: 1px; height: 19px; width: 22px; background: none; border: none; color: #e4e4e4; cursor: pointer; font-size: 13px; padding: 0; }
   #rwin #rw-x:hover { background: #ffffff1c; }
   #rwin .rw-b { flex: 1; display: flex; min-height: 0; }
-  #rwin .rw-view { flex: 1; position: relative; background: #2b2b2e; display: grid; place-items: center; overflow: hidden; min-width: 0; }
-  #rw-cv { max-width: calc(100% - 12px); max-height: calc(100% - 12px); box-shadow: 0 0 0 1px #555; background-image: repeating-conic-gradient(#3a3a3a 0% 25%, #2e2e2e 0% 50%); background-size: 16px 16px; }
-  #rw-msg { position: absolute; left: 0; right: 0; top: 8px; text-align: center; font-size: 11px; color: #d8d8d8; pointer-events: none; }
-  #rwin .rw-prog { position: absolute; right: 8px; bottom: 8px; width: 240px; height: 16px; border: 1px solid #777; background: #1e1e20; display: none; }
+  #rwin .rw-view { flex: 1; position: relative; background: #2b2b2e; display: grid; place-items: center; overflow: auto; min-width: 0; touch-action: none; }
+  #rw-cv { display: none; box-shadow: 0 0 0 1px #555; background-image: repeating-conic-gradient(#3a3a3a 0% 25%, #2e2e2e 0% 50%); background-size: 16px 16px; }
+  #rw-msg { position: absolute; left: 0; right: 0; top: 50%; text-align: center; font-size: 11px; color: #d8d8d8; pointer-events: none; }
+  #rw-tools { flex: none; display: flex; gap: 2px; padding: 6px 4px; border-left: 1px solid #3a3a3e; overflow-y: auto; }
+  #rw-tools .col { display: flex; flex-direction: column; gap: 3px; align-items: center; }
+  #rw-tools .sep { width: 22px; height: 1px; background: #4a4a4e; margin: 4px 0; flex: none; }
+  #rw-tools button { width: 28px; height: 28px; padding: 3px; background: none; border: 1px solid transparent; border-radius: 3px; color: #e4e4e4; cursor: pointer; }
+  #rw-tools button:hover:not(:disabled) { background: #ffffff14; }
+  #rw-tools button:disabled { opacity: .35; cursor: default; }
+  #rw-tools button.on { background: #111; border-color: #e4e4e8; }
+  #rw-tools svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
+  #rw-foot { flex: none; display: flex; align-items: center; gap: 4px; height: 26px; padding: 0 6px; border-top: 1px solid #3a3a3e; font-size: 11px; color: #cfcfd4; }
+  #rw-foot .btn { flex: none; width: auto; padding: 0 6px; height: 20px; font-size: 11px; }
+  #rw-seq { display: flex; align-items: center; gap: 4px; margin-left: 8px; }
+  #rwin .rw-prog { position: relative; margin-left: auto; width: 45%; min-width: 220px; height: 18px; border: 1px solid #777; background: #1e1e20; display: none; }
   #rwin .rw-prog.on { display: block; }
   #rw-bar { height: 100%; width: 0; background: #0072b2; }
-  #rw-pt { position: absolute; left: 0; right: 0; top: 0; font-size: 10px; line-height: 14px; text-align: center; color: #fff; }
-  #rwin .rw-side { width: 290px; flex: none; overflow-y: auto; padding: 6px 10px 10px; border-left: 1px solid #3a3a3e; }
-  #rwin h3 { font-size: 9px; font-weight: 400; letter-spacing: .08em; text-transform: uppercase; color: var(--dimmer); margin: 10px 0 4px; }
-  #rwin .df { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; }
-  #rwin .df label { font-size: 11px; color: var(--dim); width: 92px; flex: none; }
-  #rwin .df input[data-num] { width: 64px; }
-  #rwin .df select { flex: 1; min-width: 0; background: #202021; border: 1px solid var(--rule); color: var(--text); font-family: var(--mono); font-size: 11px; padding: 3px 2px; border-radius: 2px; }
-  #rwin .df .u { font-family: var(--mono); font-size: 10px; color: var(--dimmer); }
-  #rwin .lk { display: flex; align-items: center; gap: 5px; font-size: 10.5px; color: var(--dim); margin: 2px 0 8px; cursor: pointer; }
-  #rwin .lk input { width: auto; }
-  #rwin .da { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 6px; }
-  #rwin .hint { font-size: 10px; color: var(--dimmer); margin-bottom: 7px; }
-  #rwin .lt-list { max-height: 150px; overflow-y: auto; border: 1px solid #3a3a3e; margin-bottom: 4px; }
-  #rwin .btn.on { border-color: var(--sel); }
+  #rwin .rw-prog.prep #rw-bar { width: 30% !important; animation: rw-prep 1.6s ease-in-out infinite alternate; }
+  @keyframes rw-prep { from { margin-left: 0; } to { margin-left: 70%; } }
+  @media (prefers-reduced-motion: reduce) { #rwin .rw-prog.prep #rw-bar { animation: none; width: 100% !important; opacity: .5; } }
+  #rw-cancel { display: none; }
+  .rw-prog.prep + #rw-cancel { display: inline-block; }
+  #rw-pt { position: absolute; left: 4px; right: 4px; top: 0; font-size: 10px; line-height: 16px; text-align: left; color: #fff; white-space: nowrap; overflow: hidden; text-shadow: 0 0 2px #000; }
+  #rw-side { display: none; flex: 1; overflow-y: auto; overflow-x: hidden; }
+  #pe.rw #props { display: none; } #pe.rw #rw-side { display: block; }
+  #rw-side .rw-ph { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; font-size: 12px; color: #e4e4e4; } #rw-side .rw-ph span { flex: 1; }
+  #rw-side .rw-ph button { background: none; border: none; color: #e4e4e4; cursor: pointer; font-size: 13px; padding: 0 2px; }
+  #rw-side h3 { font-size: 9px; font-weight: 400; letter-spacing: .08em; text-transform: uppercase; color: var(--dimmer); margin: 10px 0 4px; }
+  #rw-side .df { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; }
+  #rw-side .df label { font-size: 11px; color: var(--dim); width: 92px; flex: none; }
+  #rw-side .df input[data-num] { width: 64px; }
+  #rw-side .df input[type="text"]:not([data-num]) { flex: 1; min-width: 0; }
+  #rw-side .df select { flex: 1; min-width: 0; background: #202021; border: 1px solid var(--rule); color: var(--text); font-family: var(--mono); font-size: 11px; padding: 3px 2px; }
+  #rw-side .df.nb { opacity: .5; }
+  #rw-side .df .u { font-family: var(--mono); font-size: 10px; color: var(--dimmer); }
+  #rw-side .lk { display: flex; align-items: center; gap: 5px; font-size: 10.5px; color: var(--dim); margin: 2px 0 8px; cursor: pointer; }
+  #rw-side .lk input { width: auto; }
+  #rw-side .da { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 6px; }
+  #rw-side .da .btn { flex: none; width: auto; padding: 2px 6px; white-space: nowrap; }
+  #rw-side .hint { font-size: 10px; color: var(--dimmer); margin-bottom: 7px; }
+  #rw-side .lt-list { max-height: 150px; overflow-y: auto; border: 1px solid #3a3a3e; margin-bottom: 4px; }
+  #rw-side .lt-list .obi .btn { margin-left: auto; padding: 0 4px; }
+  /* (Round r29) Schematic Render over the 3D window: the picture, which the mouse passes through, and its panel */
+  #sch3d { display: none; position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; background: #fff; }
+  #schpanel { display: none; position: absolute; right: 8px; top: 34px; width: 262px; background: #2b2b2ef2; border: 1px solid #1a1a1c; color: #d8d8dc; font: 11px Segoe UI, Arial, sans-serif; padding: 0 8px 8px; z-index: 7; }
+  #schpanel .sph { position: relative; text-align: center; padding: 5px 0; margin: 0 -8px 4px; border-bottom: 1px solid #1a1a1c; } #schpanel .sph button { position: absolute; right: 4px; top: 3px; background: none; border: none; color: #e4e4e4; cursor: pointer; }
+  #schpanel h4 { margin: 6px 0 4px; font-weight: 500; font-size: 11px; color: #cfcfd4; border-left: 2px solid #d8d8dc; padding-left: 6px; }
+  #schpanel .sr { display: flex; align-items: center; gap: 5px; margin: 3px 0; } #schpanel .sr label { flex: 1; } #schpanel .sr.nb { opacity: .5; }
+  #schpanel input[type="text"] { width: 44px; text-align: right; background: #1e1e20; color: #e4e4e8; border: 1px solid #101011; font: 11px var(--mono); padding: 2px 3px; }
+  #schpanel select { background: #1e1e20; color: #e4e4e8; border: 1px solid #101011; font: 11px Segoe UI, Arial, sans-serif; } #schpanel .u { font: 10px var(--mono); color: #9a9aa0; }
+  #schpanel .eye { width: 20px; height: 18px; padding: 0; background: none; border: 1px solid transparent; color: #e4e4e4; cursor: pointer; font-size: 12px; line-height: 1; } #schpanel .eye.off { color: #8a8a90; border-color: #5a5a5e; }
+  #sel3d button.on { outline: 2px solid #e4e4e8; outline-offset: -2px; background: #111; }
+  #dlg .s3-pv { display: flex; justify-content: center; background: #1e1e20; padding: 8px; margin-bottom: 6px; overflow: auto; } #dlg .s3-pv canvas { max-width: 100%; }
   #dlg .hint { font-size: 10px; color: var(--dimmer); margin-bottom: 7px; }
   #dlg .df .lc { display: inline-block; padding: 1px 5px; border-radius: 2px; font-weight: 600; }
   #dlg .df input.ro { background: transparent; border-color: transparent; color: var(--text); }
@@ -725,9 +755,9 @@
     <button id="s-lib" title="Library (Y): open or add a block or one of your patterns" aria-label="Library"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M3 3h18M3 12h18M5 4v7M8 5v6M11 4v7M14 13v7M17 14v6M20 15v5M4.5 13.5l2.5 6.5"/></svg></button>
   </div>
   <div id="work">
-    <div id="pane3d" class="pane" style="display:none"><div class="wt" id="wt3d"><span id="wt3d-n">3D Garment Window</span><button class="wt-float" data-win="3d" title="Take the 3D window out as a window of its own inside the page, or put it back">⧉</button></div><div id="rail3d" class="rail" data-win="3D"></div><div id="stage3d"><div id="sel3d" class="selectors"></div><div id="cam3d"></div><div id="box3d"></div><svg id="lasso3d"><polygon fill="#ffffff22" stroke="#fff" stroke-dasharray="4 3"/></svg><div id="posepanel"></div><div id="jointpanel"></div><div id="giz3d"></div><div id="strain3d"></div><div id="note3d"></div></div></div>
+    <div id="pane3d" class="pane" style="display:none"><div class="wt" id="wt3d"><span id="wt3d-n">3D Garment Window</span><button class="wt-float" data-win="3d" title="Take the 3D window out as a window of its own inside the page, or put it back">⧉</button></div><div id="rail3d" class="rail" data-win="3D"></div><div id="stage3d"><div id="sel3d" class="selectors"></div><div id="cam3d"></div><div id="box3d"></div><svg id="lasso3d"><polygon fill="#ffffff22" stroke="#fff" stroke-dasharray="4 3"/></svg><div id="posepanel"></div><canvas id="sch3d"></canvas><div id="schpanel"></div><div id="jointpanel"></div><div id="giz3d"></div><div id="strain3d"></div><div id="note3d"></div></div></div>
     <div id="split" style="display:none" title="Drag to give one window more room; double-click for half and half"></div>
-    <div id="pane2d" class="pane"><div class="wt" id="wt2d"><span id="wt2d-n">2D Pattern Window</span><button class="wt-float" data-win="2d" title="Take the 2D window out as a window of its own inside the page, or put it back">⧉</button></div><div id="stage"><canvas id="c"></canvas><div id="sel2d" class="selectors"></div><div id="toast"></div></div><div id="rail" class="rail" data-win="2D"></div></div>
+    <div id="pane2d" class="pane"><div class="wt" id="wt2d"><span id="wt2d-n">2D Pattern Window</span><button class="wt-float" data-win="2d" title="Take the 2D window out as a window of its own inside the page, or put it back">⧉</button></div><div id="stage"><div id="rwin"><div class="rw-t" id="rw-t"><span id="rw-tn">Render</span><button id="rw-x" title="Close the Render workspace">&#x2715;</button></div><div class="rw-b"><div class="rw-view" id="rw-view"><canvas id="rw-cv"></canvas><div id="rw-msg"></div></div><div id="rw-tools"></div></div><div id="rw-foot"><button class="btn" data-act="z100" title="The picture at its own size">1:1</button><button class="btn" data-act="fit" title="The picture fitted to the window">Fit</button><span id="rw-seq"></span><div class="rw-prog" id="rw-prog"><div id="rw-bar"></div><span id="rw-pt"></span></div><button class="btn" id="rw-cancel" data-act="stop" title="Stop preparing: the program goes on working">Cancel</button></div></div><canvas id="c"></canvas><div id="sel2d" class="selectors"></div><div id="toast"></div></div><div id="rail" class="rail" data-win="2D"></div></div>
     <div id="layoutPane" class="pane" style="display:none"><div class="wt" id="wtlay"><span id="wtlay-n">Print Layout</span></div><div id="lay-bar" class="rail" data-win="LAYOUT"></div><div id="lay-stage"><canvas id="lc"></canvas><div id="sel-lay" class="selectors"></div><div id="lay-tools"></div></div></div>
   </div>
   <div id="panel">
@@ -742,6 +772,7 @@
     <div id="pe">
       <div class="ph">Property Editor</div>
       <div class="sect" id="props"></div>
+      <div class="sect" id="rw-side"></div>
     </div>
     <div id="legacy">
       <span id="n-pc"></span>
@@ -763,7 +794,6 @@
 </div>
 <div id="menu"></div>
 <div id="dlg"></div>
-<div id="rwin" class="rwin"><div class="rw-t" id="rw-t"><span id="rw-tn">Render</span><button id="rw-x" title="Close the Render window">&#x2715;</button></div><div class="rw-b"><div class="rw-view" id="rw-view"><canvas id="rw-cv"></canvas><div id="rw-msg"></div><div class="rw-prog" id="rw-prog"><div id="rw-bar"></div><span id="rw-pt"></span></div></div><div class="rw-side" id="rw-side"></div></div></div>
 <div id="dockhint"></div>
 
 <script src="drafter-tools.js"></script>

@@ -244,7 +244,7 @@ test("r9 / 3: every cloth point on either side of a seam gets its partner; a fab
     const ph = app.ev("fabricPhys"), item = app.ev("normLibItem");
     return [item("fabric", { physical: "Single jersey" }, 1).maxStretch, item("fabric", { physical: "Heavy woven" }, 2).maxStretch, item("fabric", { physical: "Heavy woven", maxStretch: 12 }, 3).maxStretch,
       ph(item("fabric", { physical: "Rib knit" }, 4)).maxStretch, app.ev("FILE_VERSION")];` }).result;
-  assert.deepStrictEqual(o, [30, 5, 12, 0.5, 26]);      // (the file version: 26 since Round r26; 25 since Round r25; 24 since Round r20; 23 since the r19 follow-up; 22 since Round r18; 21 since Round r17b; 20 since Round build-1; 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
+  assert.deepStrictEqual(o, [30, 5, 12, 0.5, 27]);      // (the file version: 27 since Round r29; 26 since Round r26; 25 since Round r25; 24 since Round r20; 23 since the r19 follow-up; 22 since Round r18; 21 since Round r17b; 20 since Round build-1; 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
 });
 
 /* ---------- 4: the strain map ---------- */

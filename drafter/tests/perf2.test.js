@@ -448,7 +448,7 @@ test("perf-2 / 5: a version 18 file with its v2 history opens, its steps undo to
   ` }).result;
   assert.deepStrictEqual([o.opened, o.kept], [true, 12]);
   assert.deepStrictEqual(o.bad, []);
-  assert.deepStrictEqual([o.v, o.hv, o.hfv], [26, 3, 26]);      // (version 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; the history keeps its v3 layout)
+  assert.deepStrictEqual([o.v, o.hv, o.hfv], [27, 3, 27]);      // (version 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; the history keeps its v3 layout)
 });
 
 test("perf-2 / 5: in a browser the autosave is kept in IndexedDB, offered at the start from there (or from an older version's localStorage, then moved over), and a full storage says so", () => {

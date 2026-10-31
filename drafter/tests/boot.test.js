@@ -48,7 +48,7 @@ test("fresh start: starter pattern, autosaved", () => {
   const r = boot();
   assertUp(r, "fresh");
   assert.deepStrictEqual(r.names, [STARTER]);
-  assert.strictEqual(JSON.parse(r.storage["pdraft:doc"]).v, 26);      // (version 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
+  assert.strictEqual(JSON.parse(r.storage["pdraft:doc"]).v, 27);      // (version 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
   assert.deepStrictEqual(r.toasts, []);
 });
 
@@ -945,7 +945,7 @@ test("sewing tools run in the booted app: Segment Sewing 1:N with Shift, M:N wit
   assert.strictEqual(o.partNow[0], 1); assert.strictEqual(o.partNow[1], 0, "the range now starts on the new point");
   assert.strictEqual(o.deselected, null);
   assert.strictEqual(o.check[0], true); assert.ok(/1 seam differs/.test(o.check[1]), o.check[1]); assert.ok(/within the limit/.test(o.checkOk));
-  assert.strictEqual(JSON.parse(r.storage["pdraft:sewcheck"]).on, true, "the setting is saved per browser"); assert.strictEqual(o.fileV, 26);      // (version 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13; 15 since Round r12)
+  assert.strictEqual(JSON.parse(r.storage["pdraft:sewcheck"]).on, true, "the setting is saved per browser"); assert.strictEqual(o.fileV, 27);      // (version 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13; 15 since Round r12)
 });
 
 module.exports = T;
