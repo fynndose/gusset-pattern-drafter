@@ -8,7 +8,7 @@
 # "all" and a tag are win-x64 (installer and portable), mac-arm64, mac-x64, linux-x64. A private repository's macOS minutes count ten times: there "all" leaves out the Intel Mac.
 # By hand the pre-release job runs too, as a dry run: everything but making the release.
 # Every build is given where the app looks for updates (PDRAFT_UPDATE_SOURCE: the input update_source, else the repository
-# variable, else the public repository; "none": such a build does not look for updates), and carries the channel files the app reads (beta.yml or
+# variable, else the website's update feed, not the public repository; "none": such a build does not look for updates), and carries the channel files the app reads (beta.yml or
 # latest.yml, -mac.yml, -linux.yml) and the blockmaps, checked by scripts/update-files-check.js before the release takes
 # them, in the dry run too.
 # The website's list of downloads (scripts/make-downloads.js): GitHub's "latest release" leaves out pre-releases, so the list is
@@ -31,7 +31,7 @@ on:
         description: "Instead of building: webgl (the Intel Mac) or webgl-arm (the Apple-chip Mac) tries Chromium's WebGL switches (a few minutes)"
         default: ""
       update_source:
-        description: "Where the built app looks for updates: github:<owner>/<repo> or an https address (empty: the variable PDRAFT_UPDATE_SOURCE, else the public repository; none: the app does not look)"
+        description: "Where the built app looks for updates: an https address or github:<owner>/<repo> (empty: the variable PDRAFT_UPDATE_SOURCE, else the public repository; none: the app does not look)"
         default: ""
 
 # one run per tag or branch at a time: a newer one stops the older
@@ -44,7 +44,7 @@ permissions:
 
 # where the built apps look for updates; "none" for builds that do not look
 env:
-  PDRAFT_UPDATE_SOURCE: ${{ inputs.update_source || vars.PDRAFT_UPDATE_SOURCE || 'github:fynndose/gusset-pattern-drafter' }}
+  PDRAFT_UPDATE_SOURCE: ${{ inputs.update_source || vars.PDRAFT_UPDATE_SOURCE || 'https://gussetdrafter.com/updates/' }}
 
 jobs:
   # the systems this run builds
@@ -295,9 +295,11 @@ jobs:
           gh release download "$TAG" -p SHA256SUMS.txt -D "$RUNNER_TEMP" || true
           gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$RUNNER_TEMP/releases.json"
           node scripts/make-downloads.js --api "$RUNNER_TEMP/releases.json" --sums "$RUNNER_TEMP/SHA256SUMS.txt" --repo "$GITHUB_REPOSITORY" --out website/downloads.json
-          if git diff --quiet -- website/downloads.json; then echo "The list has not changed"; exit 0; fi
+          # (Round r29d) the update feed the app reads: only what is published ever reaches it, so a pushed tag or a draft is no version to anyone
+          node scripts/make-update-feed.js --api "$RUNNER_TEMP/releases.json" --repo "$GITHUB_REPOSITORY" --out website/updates
+          if [ -z "$(git status --porcelain -- website/downloads.json website/updates)" ]; then echo "The list and the feed have not changed"; exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add website/downloads.json
-          git commit -m "The website's list of downloads, after $TAG"
+          git add website/downloads.json website/updates
+          git commit -m "The website's list of downloads and update feed, after $TAG"
           git push

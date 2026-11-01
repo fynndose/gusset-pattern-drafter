@@ -10,6 +10,10 @@
   Cache-Control: no-cache
   Content-Type: application/json; charset=utf-8
 
+/updates/*
+  Cache-Control: no-cache
+  Content-Type: text/yaml; charset=utf-8
+
 /app/assets/avatar/presets/*.glb
   Content-Type: model/gltf-binary
 

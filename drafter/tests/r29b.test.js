@@ -278,6 +278,8 @@ test("r29c / 1: left alone it finishes by itself and the first render does not p
       app.ev("rwinClose")(); app.ev("renderWindow")(); app.ev("ptWarm")(); out.reopen = [prepping(), app.ev("WARM")];
       app.ev("rwinRender")(); out.final = [prepping(), RW.busy, G.__compiles]; app.ev("rwinStop")();
       app.ev("rwinSet")("mode", { value: "quality", dataset: {} }); out.chosen = [!!app.ev("WARM"), prepping()];
+      app.ev("rwinSet")("mode", { value: "quick", dataset: {} }); out.other = [app.ev("WARM"), prepping(), ticks.size];
+      app.ev("rwinSet")("mode", { value: "quality", dataset: {} });
       app.ev("rwinClose")(); out.closed = [app.ev("WARM"), ticks.size];
       // Quick
       app.ev("saveRender")(app.ev("normRender")({ mode: "quick" })); app.ev("renderWindow")(); app.ev("ptWarm")(); out.quick = app.ev("WARM"); app.ev("rwinClose")();
@@ -293,6 +295,7 @@ test("r29c / 1: left alone it finishes by itself and the first render does not p
   assert.deepStrictEqual(o.reopen, [false, null], "not begun again by itself");
   assert.deepStrictEqual(o.final, [true, true, 2], "Final Render goes on from the compile the card is still doing");
   assert.deepStrictEqual(o.chosen, [true, true], "choosing Path Traced begins it again");
+  assert.deepStrictEqual(o.other, [null, false, 0], "(Round r29d) another Engine: the bar goes");
   assert.deepStrictEqual(o.closed, [null, 0]);
   assert.strictEqual(o.quick, null);
   assert.deepStrictEqual(o.limit, [null, false, false, null, true, true, "quick"]);
@@ -347,6 +350,13 @@ test("r29c: the box that says the simulation is running closes on its OK (from r
       return [r, !!m, ok !== false, app.ev("modalNow")];
     });` }).result;
   assert.deepStrictEqual(o, [true, true, true, null]);
+});
+
+test("the release's check of the built app finds the 3D window's canvas: the page has a second one in there since Schematic Render, and the strict locator that found two failed the v1.0.0-beta.2 tag run on three systems", () => {
+  const html = fs.readFileSync(path.join(__dirname, "..", "pattern-drafter.html"), "utf8"), s = fs.readFileSync(path.join(__dirname, "..", "..", "scripts", "start-built.js"), "utf8");
+  assert.ok(/<canvas id="sch3d"/.test(html), "the second canvas is in the page: this test's reason");
+  assert.ok(/locator\("#stage3d canvas\[data-engine\]"\)/.test(s), "only the renderer's own");
+  assert.ok(!/locator\("#stage3d canvas"\)/.test(s));
 });
 
 /* ---- batch 3 ---- */

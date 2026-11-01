@@ -14032,13 +14032,13 @@ function checkUpdates(manual) {
       if (manual) toast("Version " + r.found.version + " is out: the button at the top right " + (r.canInstall ? "downloads it" : "opens its download page"), 8000);
     } else {
       UPD.st = "idle"; UPD.found = null;
-      if (manual) toast(r.status === "none" ? "Gusset " + r.version + " is the newest version" + (r.channel !== "latest" ? " (test versions included)" : "")
-        : r.status === "nosource" ? "This copy has no place set to look for updates" : "Couldn't check for updates: " + r.error, 7000);
-      else if (r.status === "error") noteError("update check: " + r.error);
+      // (Round r29d) r.unread: the feed could not be read, which is no update and no error: no claim of being the newest either
+      if (manual) toast(r.unread ? "No update available" : r.status === "none" ? "Gusset " + r.version + " is the newest version" + (r.channel !== "latest" ? " (test versions included)" : "")
+        : r.status === "nosource" ? "This copy has no place set to look for updates" : "No update available", 7000);
     }
     updButton();
     return r;
-  }, (e) => { UPD.st = "idle"; updButton(); if (manual) toast("Couldn't check for updates: " + deskErr(e), 7000); return null; });
+  }, () => { UPD.st = "idle"; updButton(); if (manual) toast("No update available", 7000); return null; });
 }
 function updClick() {
   if (!DESK || !DESK.updates) return;
@@ -20054,6 +20054,7 @@ function rwinSet(k, t) {
   rwinSide();
   rwinPreview(true);
   if (k === "mode" && v === "quality") { PT_WARM_OFF = false; ptWarm(); }
+  else if (k === "mode") ptWarmDrop();      // (Round r29d: another Engine, nothing to wait for; the card finishes behind it)
 }
 function rwinAct(act) {
   if (act === "render") return rwinRender();
@@ -21026,12 +21027,17 @@ const gifDone = (st) => Uint8Array.from([...st.out, 0x3b]);
 /* Save Video: the pictures played once into the browser's own video writer (WebM), at the GIF's rate. Played in the workspace's own canvas:
    a stream carries frames only from a canvas the page is really painting (a canvas of its own, off the page or hidden, gave a file of a
    header and no picture), so the series is seen going round while it is written. done(bytes), or done(null) where there is none */
-function videoOf(q, done) {
+function videoOf(q, done, tries) {
   const cv = rwEl("rw-cv"), list = q.files.filter(f => f.name), type = q.o.fmt === "jpeg" ? "image/jpeg" : "image/png", chunks = [];
   if (!cv || !list.length || typeof MediaRecorder === "undefined" || !cv.captureStream || typeof createImageBitmap !== "function") return done(null);
   const f = rwinFit(q.w, q.h), keep = [cv.style.width, cv.style.height];
   cv.width = q.w; cv.height = q.h; cv.style.width = f.w + "px"; cv.style.height = f.h + "px";
-  const g = cv.getContext("2d"), end = (b) => { cv.style.width = keep[0]; cv.style.height = keep[1]; rwinRefit(); done(b && b.length > 1000 ? b : null); };
+  const g = cv.getContext("2d"), end = (b) => {
+    cv.style.width = keep[0]; cv.style.height = keep[1]; rwinRefit();
+    // (Round r29d) a series plays for moments, and the session's first recording, with the card busy preparing the path tracer, can come back with a header and no picture: played again
+    if (!(b && b.length > 1000) && (tries || 0) < 2) return videoOf(q, done, (tries || 0) + 1);
+    done(b && b.length > 1000 ? b : null);
+  };
   let rec = null;
   const load = (k, then) => createImageBitmap(new Blob([list[k].data], { type })).then((im) => { g.clearRect(0, 0, q.w, q.h); g.drawImage(im, 0, 0); if (im.close) im.close(); then(); }, then);
   const step = (k) => {

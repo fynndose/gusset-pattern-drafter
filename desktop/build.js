@@ -16,7 +16,7 @@
 // looks for newer versions (desktop/updates.js): it is written into the packed package.json ("updateSource") and given to
 // electron-builder as where the versions are published, so it writes the channel files beside the builds (beta.yml or
 // latest.yml, -mac.yml, -linux.yml; every channel at or below the version's: generateUpdatesFilesForAllChannels) and the
-// blockmaps; they are kept with the builds. Without it the source is the public repository (DEFAULT_SOURCE, Round PUB-1: a fork's build sets its own,
+// blockmaps; they are kept with the builds. Without it the source is the website's update feed (DEFAULT_SOURCE, Round r29d; the public repository from Round PUB-1 to beta 1: a fork's build sets its own,
 // "none" builds an app that does not look; a test build of another name has none unless told). The installer's licence page is made here: LICENSE, then ATTRIBUTION.md and TRADEMARKS.md.
 // For the update check's own test only (scripts/update-test.js): PDRAFT_BUILD_VERSION (another version), PDRAFT_BUILD_NAME (an
 // app of another name and id: its own install, shortcuts and data folder, never Gusset's), PDRAFT_OUT (where the files go).
@@ -53,12 +53,13 @@ env.CSC_IDENTITY_AUTO_DISCOVERY = "false";               // a Mac: no certificat
 const q = (s) => "\"" + String(s).replace(/"/g, "") + "\"";
 const extra = [];
 const channelOf = (v) => { const m = /-([a-z]+)/i.exec(String(v)); return m ? m[1].toLowerCase() : "latest"; };      // (as desktop/updates.js reads it)
-const DEFAULT_SOURCE = "github:fynndose/gusset-pattern-drafter", asked = String(process.env.PDRAFT_UPDATE_SOURCE || "").trim();
+const DEFAULT_SOURCE = "https://gussetdrafter.com/updates/", asked = String(process.env.PDRAFT_UPDATE_SOURCE || "").trim();
 const src = asked === "none" || (!asked && process.env.PDRAFT_BUILD_NAME) ? "" : asked || DEFAULT_SOURCE, gh = /^github:([\w.-]+)\/([\w.-]+)$/.exec(src);
 if (src && !gh && !/^https?:\/\/\S+$/i.test(src)) { console.error("PDRAFT_UPDATE_SOURCE must be github:<owner>/<repo> or an http(s) address, not " + src); process.exit(1); }
 if (src) extra.push("--config.extraMetadata.updateSource=" + q(src), "--config.generateUpdatesFilesForAllChannels=true",
-  // (Round r28: for a GitHub source electron-builder writes only the channel it is told, latest.yml if it is told none, whatever the version says)
-  ...(gh ? ["--config.publish.provider=github", "--config.publish.owner=" + gh[1], "--config.publish.repo=" + gh[2], "--config.publish.releaseType=prerelease", "--config.publish.channel=" + channelOf(process.env.PDRAFT_BUILD_VERSION || require("./package.json").version)]
+  // (Round r28: electron-builder writes only the channel it is told, latest.yml if it is told none, whatever the version says; Round r29d: the same for either source, so the release's files stay as they were and the GitHub source's older apps still find them)
+  "--config.publish.channel=" + channelOf(process.env.PDRAFT_BUILD_VERSION || require("./package.json").version),
+  ...(gh ? ["--config.publish.provider=github", "--config.publish.owner=" + gh[1], "--config.publish.repo=" + gh[2], "--config.publish.releaseType=prerelease"]
     : ["--config.publish.provider=generic", "--config.publish.url=" + q(src)]));
 if (FOR[0] === "win") {
   const lic = path.join(os.tmpdir(), "pdraft-installer-licence.txt"), read = (f) => fs.readFileSync(path.join(ROOT, f), "utf8").replace(/\r\n/g, "\n");

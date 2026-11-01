@@ -68,7 +68,7 @@ npm run dist         # this system's app, into desktop/dist/ (Windows: the porta
 npm run dist:installer   # Windows: the installer
 ```
 
-A build looks for updates at this repository. A fork sets its own source when building: `PDRAFT_UPDATE_SOURCE=github:<owner>/<repo>`, or `none` for a build that does not look.
+A build looks for updates on the project's website, which lists only published releases. A fork sets its own source when building: `PDRAFT_UPDATE_SOURCE=<an https address>` or `github:<owner>/<repo>`, or `none` for a build that does not look.
 
 The portable `.exe` (`Gusset-<version>-win-x64-portable.exe`) needs no installation: put it anywhere and start it. It keeps its settings, recent files and unsaved work in `%APPDATA%\Gusset` (`~/Library/Application Support/Gusset` on a Mac, `~/.config/Gusset` on Linux).
 

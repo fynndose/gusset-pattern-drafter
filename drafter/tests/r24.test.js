@@ -170,7 +170,8 @@ test("r24 updates: nothing downloaded or installed without being asked; a beta r
   const n = make("0.9.0-beta.4", "installer", avail("x"), "");
   assert.strictEqual((await n.up.check()).status, "nosource"); assert.deepStrictEqual(n.u.calls, []);
   const e = make("0.9.0-beta.4", "installer", new Error("HttpError: 404 Not Found\nmore"));
-  const er = await e.up.check(); assert.strictEqual(er.status, "error"); assert.strictEqual(er.error, "HttpError: 404 Not Found");
+  // (Round r29d: on purpose, a feed that cannot be read is no update available, logged quietly: r29d.test.js)
+  const er = await e.up.check(); assert.strictEqual(er.status, "none"); assert.strictEqual(er.unread, true); assert.strictEqual(er.error, undefined);
 });
 
 test("r24 updates, the page: the check at the start only while the setting is on; the button's words through the download; Restart asks first while there is unsaved work; the browser has none of it", () => {
@@ -232,7 +233,7 @@ test("r24 installer and release files: per user, folder optional, both shortcuts
   const wf = fs.readFileSync(path.join(ROOT, ".github", "workflows", "release.yml"), "utf8");
   assert.ok(wf.includes("desktop/dist/*.yml") && wf.includes("desktop/dist/*.blockmap"), "uploaded with the builds");
   // (Round r24 follow-up) no default to this repository: its owner is a person's account, which would be packed into every build
-  assert.ok(wf.includes("PDRAFT_UPDATE_SOURCE: ${{ inputs.update_source || vars.PDRAFT_UPDATE_SOURCE || 'github:fynndose/gusset-pattern-drafter' }}"), "configurable; (Round PUB-1, the maintainer's brief) the public repository by default");
+  assert.ok(wf.includes("PDRAFT_UPDATE_SOURCE: ${{ inputs.update_source || vars.PDRAFT_UPDATE_SOURCE || 'https://gussetdrafter.com/updates/' }}"), "configurable; (Round r29d) the website's feed by default; Round PUB-1 had the public repository");
   assert.ok(wf.includes('if [ "$PDRAFT_UPDATE_SOURCE" != none ]; then node scripts/update-files-check.js dist "$V"'), "the channel files checked when there is a source");
   const rel = wf.slice(wf.indexOf("name: Create or update the draft release"));
   assert.ok(rel.indexOf('node scripts/update-files-check.js dist "$V"') > 0 && rel.indexOf('node scripts/update-files-check.js') < rel.indexOf('echo "Would make'), "checked in the dry run too");

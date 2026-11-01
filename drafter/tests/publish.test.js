@@ -35,7 +35,7 @@ test("pub / 3 the update source: the public repository by default, an override, 
   const b = lf(read("desktop", "build.js"));
   const m = /const DEFAULT_SOURCE = "([^"]+)", asked = String\(process\.env\.PDRAFT_UPDATE_SOURCE \|\| ""\)\.trim\(\);\nconst src = (.*?), gh =/.exec(b);
   assert.ok(m, "as written in build.js");
-  assert.strictEqual(m[1], "github:fynndose/gusset-pattern-drafter");
+  assert.strictEqual(m[1], "https://gussetdrafter.com/updates/");      // (Round r29d: the website's feed, which only published releases reach; it was the public repository)
   const src = (asked, name) => { const DEFAULT_SOURCE = m[1], process = { env: { PDRAFT_BUILD_NAME: name } }; return eval(m[2]); };
   assert.strictEqual(src("", undefined), m[1]);
   assert.strictEqual(src("github:a/b", undefined), "github:a/b");
@@ -44,7 +44,7 @@ test("pub / 3 the update source: the public repository by default, an override, 
   assert.strictEqual(src("http://127.0.0.1:47821/", "Gusset Update Test"), "http://127.0.0.1:47821/");
   const U = require(path.join(ROOT, "desktop", "updates.js"));
   const fed = U.sourceOf({ updateSource: m[1] }, {});
-  assert.strictEqual("github:" + fed.owner + "/" + fed.repo, m[1]);
+  assert.deepStrictEqual(fed, { provider: "generic", url: m[1] });
 });
 
 test("pub / 4 the release path: a tag builds every system and makes a draft, the job that checks the channel files can see the source, the version must match, the list follows the maintainer's publishing", () => {

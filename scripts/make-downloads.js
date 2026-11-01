@@ -94,4 +94,4 @@ if (require.main === module) {
   fs.writeFileSync(out, JSON.stringify(list, null, 2) + "\n");
   console.log(out + ": latest " + (list.latest ? list.latest.version + " (" + list.latest.files.length + " files)" : "none") + ", stable " + (list.stable ? list.stable.version : "none"));
 }
-module.exports = { classify, compareVersions, fromApi, fromDist, listOf };
+module.exports = { classify, parseVersion, compareVersions, fromApi, fromDist, listOf };

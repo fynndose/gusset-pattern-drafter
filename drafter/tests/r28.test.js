@@ -151,7 +151,7 @@ test("r28 / 9 the workflow: the list is written in the dry run and the tag's run
   assert.ok(!/releases\/latest/.test(wf), "never GitHub's latest");
   assert.ok(wf.includes("if: github.event_name != 'release' && (inputs.probe == '' || inputs.probe == null)"), "a published release builds nothing");
   assert.ok(wf.includes("if: github.event_name != 'release' && (startsWith(github.ref, 'refs/tags/v')"), "a published release makes no pre-release");
-  assert.ok(wf.includes("PDRAFT_UPDATE_SOURCE: ${{ inputs.update_source || vars.PDRAFT_UPDATE_SOURCE || 'github:fynndose/gusset-pattern-drafter' }}"), "(Round PUB-1) the public repository by default");
+  assert.ok(wf.includes("PDRAFT_UPDATE_SOURCE: ${{ inputs.update_source || vars.PDRAFT_UPDATE_SOURCE || 'https://gussetdrafter.com/updates/' }}"), "(Round r29d: the website's feed by default; Round PUB-1 had the public repository)");
   assert.ok(!/github:[a-z]/i.test(wf.split("github:<owner>/<repo>").join("").split("github:fynndose/gusset-pattern-drafter").join("")), "names no other repository");
 });
 

@@ -5,13 +5,15 @@
 //   can install the installer and the AppImage download the new version and restart into it; the rest are told of it and
 //               open the release page
 //   the source  where the versions are read from: the build's own (desktop/build.js writes the packed package.json's
-//               "updateSource": "github:<owner>/<repo>" or a web folder's address), or PDRAFT_UPDATE_URL, a check's own
-//               server. None: there is nothing to check, and the page says so
+//               "updateSource": a web folder's address, the website's update feed since Round r29d, or "github:<owner>/<repo>"), or
+//               PDRAFT_UPDATE_URL, a check's own server. None: there is nothing to check, and the page says so
 //   channel     a test version (0.9.0-beta.4) reads the beta channel (beta.yml, which a beta build and every stable build
 //               write) and so is offered betas and stable versions; a stable version reads latest.yml, which no beta writes,
 //               and is offered stable versions only. Never a downgrade.
 // What is sent: the request for the channel's file and the download, as any web page asks for a file; nothing about the user.
 // electron-updater is loaded only when a check is made, so it costs the start nothing.
+// (Round r29d) A feed that is missing or cannot be read is no update available: logged quietly, never an error to the user. Nothing they could do about it, and it is
+// what a pushed tag with no published release looks like from the GitHub source. A download they asked for still says when it fails.
 "use strict";
 
 function kindOf(app, env, platform) {
@@ -40,7 +42,7 @@ function releasePage(src, version) {
 // "0.9.0-beta.4" → "beta"; "1.0.0" → "latest"
 const channelOf = (version) => { const m = /-([a-z]+)/i.exec(String(version)); return m ? m[1].toLowerCase() : "latest"; };
 
-function make({ app, env, platform, meta, send, openExternal, load, downloadPage }) {
+function make({ app, env, platform, meta, send, openExternal, load, downloadPage, log }) {
   const kind = kindOf(app, env, platform), src = sourceOf(meta, env), version = app.getVersion();
   const canInstall = INSTALLS.includes(kind) || (kind === "source" && env.PDRAFT_UPDATE_INSTALL === "1");
   let up = null, found = null, downloaded = false;
@@ -67,7 +69,11 @@ function make({ app, env, platform, meta, send, openExternal, load, downloadPage
       const info = r && r.updateInfo, newer = !!(r && r.isUpdateAvailable !== false && info && info.version && info.version !== version);
       found = newer ? { version: info.version, date: info.releaseDate || "" } : null;
       return { status: found ? "available" : "none", latest: info ? info.version : "", ...state(), found };
-    } catch (e) { return { status: "error", error: String(e && e.message || e).split("\n")[0].slice(0, 300), ...state() }; }
+    } catch (e) {
+      (log || console.warn)("Update check: no update read: " + String(e && e.message || e).split("\n")[0].slice(0, 300));
+      found = null;
+      return { status: "none", unread: true, latest: "", ...state(), found: null };
+    }
   }
   async function download() {
     if (!found) throw new Error("no update found");

@@ -57,7 +57,7 @@ const args = [...(LINUX ? ["--no-sandbox"] : []), ...(LINUX || process.env.PDRAF
     const ex = await until(() => page.evaluate(() => { const d = drafterDebug(); return d.S.av && d.S.av.name === "Marty" && d.G3.items.size === 4 && d.S.pieces.map(p => p.name).join(", "); }), 60000);
     await sleep(800); await page.screenshot({ path: path.join(shots, "2-example.png") });
     step("Open an Example: the skirt on Marty, Marty loaded", !!ex, ex);
-    const c3 = await page.locator("#stage3d canvas").boundingBox();
+    const c3 = await page.locator("#stage3d canvas[data-engine]").boundingBox();      // (the renderer's own canvas: Schematic Render's picture is a canvas in there too)
     await page.mouse.move(c3.x + c3.width*0.5, c3.y + c3.height*0.2);
     await page.keyboard.press("Space");
     const ticks = await until(() => page.evaluate(() => drafterDebug().SIM.tick > 150 && drafterDebug().SIM.tick), 180000);
