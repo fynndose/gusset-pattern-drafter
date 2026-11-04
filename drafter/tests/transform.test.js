@@ -221,7 +221,8 @@ test("Edit Pattern, right-click while dragging a point: Moving Distance with the
     return out;` });
   assert.deepStrictEqual(r.errors, []);
   const o = r.result, s = o.seen[0];
-  assert.strictEqual(s.t, "Moving Distance"); assert.deepStrictEqual(s.f.map(x => x[0]), ["Distance Moved", "X-Axis", "Y-Axis", "Length"]);
+  // (Round r30 / 1: the angle at the point can be typed too, so the dialog ends with an Angle field)
+  assert.strictEqual(s.t, "Moving Distance"); assert.deepStrictEqual(s.f.map(x => x[0]), ["Distance Moved", "X-Axis", "Y-Axis", "Length", "Angle"]);
   near(s.f[0][1], 50, 1e-6); near(s.f[1][1], 30, 1e-6); near(s.f[2][1], -40, 1e-6);
   near(s.f[3][1], Math.hypot(30, 240), 1e-3, "the length of line 1 as it would be after the move");
   assert.deepStrictEqual(s.sel.options.map(x => x[0]), ["1", "2"]); assert.ok(/Line 1/.test(s.sel.options[0][1]) && /Line 2/.test(s.sel.options[1][1]));

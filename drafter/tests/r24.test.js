@@ -65,21 +65,25 @@ test("r24 splash, browser: the app ends it once the page has loaded (the mark gu
   assert.ok(app.includes('if (document.readyState === "complete") started(); else window.addEventListener("load", started);'));
 });
 
-test("r24 splash, desktop: its own window, made after the old folder is brought over and before the page's; the page's window shown when it can paint; at most 0.8 s and a fade of at most 0.3 s", () => {
+// (Round r32: the splash is made first, and the page's window is shown only when the page says it is fully ready, the splash closed in the same moment,
+// SPLASH_MIN 1 s at the shortest and SPLASH_LATE 30 s at the longest; no fade and no click: there was a grey window between. r32.test.js has the rest)
+test("r24 splash, desktop: its own window, made after the old folder is brought over and before the page's; the page's window hidden until the page is ready; at least 1 s, at most 30 s", () => {
   const ready = MAIN.slice(MAIN.indexOf("app.whenReady().then("));
   const at = (s) => { const i = ready.indexOf(s); assert.ok(i > 0, s); return i; };
   assert.ok(at("bringOver();") < at("showSplash();") && at("showSplash();") < at("loadLists();") && at("loadLists();") < at("createWindow();"));
-  const min = +/const SPLASH_MIN = (\d+)/.exec(MAIN)[1], fade = +/SPLASH_FADE = (\d+)/.exec(MAIN)[1];
-  assert.ok(min > 0 && min <= 800 && fade > 0 && fade <= 300, min + " / " + fade);
+  const min = +/const SPLASH_MIN = (\d+)/.exec(MAIN)[1], late = +/SPLASH_LATE = (\d+)/.exec(MAIN)[1];
+  assert.ok(min >= 1000 && min <= 1500 && late === 30000, min + " / " + late);
   assert.ok(MAIN.includes("show: !splash,"), "the page's window hidden while the splash is up");
-  assert.ok(/w\.once\("ready-to-show", up\)/.test(MAIN) && /SPLASH_WAIT\)/.test(MAIN), "shown at its first paint, or after SPLASH_WAIT whatever happens");
+  assert.ok(!/"ready-to-show", up/.test(MAIN) && !/SPLASH_FADE/.test(MAIN), "no longer shown at its first paint, no fade");
   assert.ok(/Math\.max\(0, SPLASH_MIN - \(Date\.now\(\) - splashAt\)\)/.test(MAIN), "kept up only as long as the shortest time, never longer");
   assert.ok(/skipTaskbar: true, alwaysOnTop: true, show: true, backgroundColor: "#1F1F1F"/.test(MAIN));
   assert.ok(/webPreferences: \{ contextIsolation: true, sandbox: true, nodeIntegration: false, devTools: false \}/.test(MAIN), "no preload, no bridge");
   const page = fs.readFileSync(path.join(ROOT, "drafter", "splash.html"), "utf8");
-  assert.ok(page.includes('<body onclick="window.close()">'), "a click closes it");
+  assert.ok(page.includes("<body>") && !/onclick/.test(page), "(Round r32) a click no longer closes it: there would be nothing on the screen");
   assert.ok(page.includes('<source media="(prefers-reduced-motion: reduce)" srcset="assets/brand/gusset-mark.svg"><img src="assets/brand/gusset-mark-sewn.svg"'));
-  assert.ok(/@media \(prefers-reduced-motion: reduce\) \{ \.line \{ display: block; \} \}/.test(page), "the line under reduced motion");
+  // (Round r32) the line under the mark always, a bar running along it while the splash is up; under reduced motion it fills once
+  assert.ok(/\.line \{[^}]*display: block; \}/.test(page) && /animation: run 1\.4s \.6s ease-in-out infinite/.test(page), "the bar runs");
+  assert.ok(/@media \(prefers-reduced-motion: reduce\) \{ \.line::after \{ width: 100%; transform-origin: 0 50%; animation: fill 1\.2s ease-out forwards; \} \}/.test(page), "the line fills once under reduced motion");
   assert.ok(!/<script/i.test(page) && !/https?:/.test(page), "nothing else loaded");
   const files = PKG.build.extraResources.find(r => r.from === "../drafter").filter;
   for (const f of ["splash.html", "assets/brand/gusset-mark-sewn.svg", "assets/brand/gusset-mark.svg"]) assert.ok(files.includes(f), f + " packed");
@@ -87,7 +91,8 @@ test("r24 splash, desktop: its own window, made after the old folder is brought 
 
 test("r24 start-up times: written only when PDRAFT_STARTUP_LOG names a file", () => {
   assert.ok(MAIN.includes('const START_LOG = process.env.PDRAFT_STARTUP_LOG || ""'));
-  assert.ok(MAIN.includes("if (START_LOG) try { fs.writeFileSync(START_LOG, JSON.stringify({ ...T0, version: app.getVersion(), exe: process.execPath })); } catch (e) {}"));
+  // (Round r32) written at each later moment, with the process's start (origin)
+  assert.ok(MAIN.includes("const startLog = () => { if (START_LOG) try { fs.writeFileSync(START_LOG, JSON.stringify({ ...T0, origin: Math.round(performance.timeOrigin), version: app.getVersion(), exe: process.execPath })); } catch (e) {} };"));
   assert.ok(/const mark = \(n\) => \{ if \(START_LOG && T0\[n\] == null\)/.test(MAIN), "nothing kept without it");
 });
 

@@ -529,7 +529,12 @@ C.bodyReach = function (f, ax, ay, az, dx, dy, dz, max, gap) {
      field:  the body's distance field, or null
      opt:    { substeps 20, stretchIters 2, gravity 9810, easeIn 45 (frames), damping 2.5 (1/s), selfDist, selfMin 2.5 (mm: selfDist is never less, Round r15 / 8), self true, ground true, maxPull 6, seamSlip 3 (mm: a seam open by more slides on the body),
                seamClose 1 (mm: a seam once closed this far is held shut), seamIters 2, interleave true (a seam pass after each stretch pass), limitEach true (the strain limit after each stretch pass as well),
-               dragK 5e4 (g/s², the drag spring), dragMax 1e6 (g·mm/s², the most it pulls: 1 N, about the weight of a garment),
+               dragK 2e5 (g/s², the drag spring; Round r31 / 3: 5e4 held cloth on a level body 45 mm along a 60 mm pull, which felt
+               glued), dragMax 1e6 (g·mm/s², the most it pulls: 1 N, about the weight of a garment; 3 N stretched a woven strip past its
+               Max Stretch),
+               bodyStatic / bodyKinetic (Round r31 / 3): the body's own friction, static and kinetic, in place of the fabric's
+               one coefficient; null (the default): the fabric's for both. The reference's avatar has 0.80 / 0.05, but in this
+               solver cloth still settling counts as sliding, and at 0.05 a tube on the hips sank 186 mm (cloth.test.js),
                sdfSkip true (Round r10 / 7: the body's field is not looked up where a point cannot have reached the body; the same answer),
                seamBend 5 (Round r11 / 1: bending across each closed stitch, this many times the softer fabric's bending; 0: none, a seam is a free hinge),
                seamRamp 0, seamSoft 1e-3 (Round r11 / 1, tried and left off: seams soft for the first seamRamp frames, compliance seamSoft falling to none) } }
@@ -540,7 +545,7 @@ C.bodyReach = function (f, ax, ay, az, dx, dy, dz, max, gap) {
              a strip lying along a line of the cloth (piping, binding: Round r11 / 3, 4). Its weight hangs on the cloth at its
              nodes; it keeps its length (to its limit) and resists bending, node to node and over every other node. */
 C.clothBuild = function (spec) {
-  const opt = Object.assign({ substeps: 20, stretchIters: 2, gravity: 9810, easeIn: 45, damping: 2.5, self: true, ground: true, maxPull: 6, seamSlip: 3, maxSpeed: 5000, seamClose: 1, seamIters: 2, interleave: true, limitEach: true, dragK: 5e4, dragMax: 1e6, sdfSkip: true, seamRamp: 0, seamSoft: 1e-3, seamBend: 5 }, spec.opt || {});
+  const opt = Object.assign({ substeps: 20, stretchIters: 2, gravity: 9810, easeIn: 45, damping: 2.5, self: true, ground: true, maxPull: 6, seamSlip: 3, maxSpeed: 5000, seamClose: 1, seamIters: 2, interleave: true, limitEach: true, dragK: 2e5, dragMax: 1e6, sdfSkip: true, bodyStatic: null, bodyKinetic: 0.05, seamRamp: 0, seamSoft: 1e-3, seamBend: 5 }, spec.opt || {});
   const off = [];
   let n = 0;
   for (const pc of spec.pieces) { off.push(n); n += pc.xy.length >> 1; }
@@ -1182,7 +1187,13 @@ C.clothStep = function (sim, dt) {
         // against the body, and held by that the two edges would stay where they first touched, one before a hip
         // and one behind it, and never meet. A seam is sewn before the garment is put on: until it has closed, its
         // edges slide round the body.
-        if (tl > 1e-9 && !open[i]) { const q = Math.min(1, sim.fric[i]*push/tl); x[k] -= tx*q; x[k+1] -= ty*q; x[k+2] -= tz*q; }
+        // (Round r31 / 3) with opt.bodyStatic set, against the body two coefficients: a slide smaller than static times the push is
+        // stopped, a larger one held back by kinetic times the push only. Off by default (null: the fabric's one coefficient for both,
+        // as always): at the reference's 0.05 kinetic a garment still settling slides down the body. The floor keeps the fabric's.
+        if (tl > 1e-9 && !open[i]) {
+          const onBody = !(o.ground && x[k+1] <= th + 1e-9 && g[1] === 1), ms = onBody && o.bodyStatic != null ? o.bodyStatic : sim.fric[i], mk = onBody && o.bodyStatic != null ? o.bodyKinetic : sim.fric[i];
+          const q = tl <= ms*push ? 1 : Math.min(1, mk*push/tl); x[k] -= tx*q; x[k+1] -= ty*q; x[k+2] -= tz*q;
+        }
       }
     }
     // the seams last: nothing done after them in this step, not the body's push, not the fabric's limit, can leave a sewn seam open

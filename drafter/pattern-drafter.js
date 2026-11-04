@@ -499,20 +499,39 @@ function insertCp(sh, i, t, place) {
   retime(sh, s.id, knotMap(xs, segCurve(sh, i).U));
   return c;
 }
-// Take curve point c out of segment i. With none left the segment is straight, or (if it had end directions) a handle curve.
+// Take curve point c out of segment i. With none left the segment is straight (Round r30 / 2: it used to keep its end
+// directions as a handle curve, so a line whose curve points were all deleted stayed bent)
 function deleteCp(sh, i, c) {
-  const s = sh.segs[i], [a, b] = sEnds(sh, i);
+  const s = sh.segs[i];
   if (!isSpline(s) || !s.cps[c]) return;
   const xs = segCurve(sh, i).U.slice();
   xs.splice(c + 1, 1);
   s.cps.splice(c, 1);
   if (s.cps.length) return retime(sh, s.id, knotMap(xs, segCurve(sh, i).U));
-  const e0 = s.e0, e1 = s.e1;
   delete s.cps; delete s.e0; delete s.e1;
-  if (!e0 && !e1) { s.curved = false; s.c1 = s.c2 = null; return; }
-  const ch = sub(b, a);
-  s.c1 = add(a, mul(e0 || ch, 1/3)); s.c2 = sub(b, mul(e1 || ch, 1/3));
+  s.curved = false; s.c1 = s.c2 = null;
 }
+/* (Round r30 / 2, the maintainer's decision: no curve handles) Every handle curve of a shape made into a curve-point curve of the
+   same shape (toCurvePoints(), within CURVE_FIT). What a tool makes goes through it, so no new handles appear; a document's own
+   handle curves are left as they are until edited (a handle can be deleted, dropHandle()). Returns the shape. */
+function cpsOnly(sh, only) {
+  if (!sh || !sh.segs) return sh;
+  sh.segs.forEach((g, i) => { if (g && g.curved && !isSpline(g) && g.c1 && g.c2 && (!only || only.includes(g))) toCurvePoints(sh, i); });
+  return sh;
+}
+/* (Round r30 / 2) A curve handle taken away (Delete with it selected, or dragged onto its own point): it lies on its point, where
+   it is neither drawn nor picked; with both handles on their points the line is straight. */
+const HANDLE_ON_PT = 1e-6;
+function dropHandle(sh, i, h) {
+  const g = sh.segs[i];
+  if (!g || !g.curved || isSpline(g)) return false;
+  const [a, b] = sEnds(sh, i);
+  g[h] = cp(h === "c1" ? a : b);
+  if (dist(g.c1, a) < HANDLE_ON_PT && dist(g.c2, b) < HANDLE_ON_PT) { g.curved = false; g.c1 = g.c2 = null; }
+  return true;
+}
+// is handle h of segment i drawn and picked? (one taken away lies on its point)
+const handleShown = (sh, i, h) => { const g = sh.segs[i]; return !!(g && g.curved && !isSpline(g) && g[h] && dist(g[h], sEnds(sh, i)[h === "c1" ? 0 : 1]) >= HANDLE_ON_PT); };
 // an end point of segment i has moved by dv (end 0 = its start, 1 = its end): a handle goes with it. A curve-point
 // curve needs nothing: its curve points stay where they are and it runs to the moved end.
 function endMoved(sh, i, end, dv) {
@@ -1215,15 +1234,64 @@ function selCp() {
   const g = subShapes(p).find(x => x.kind === S.selKind && x.j === S.selInt), s = g && g.sh.segs[sc.i];
   return s && s.cps && s.cps[sc.c] ? { p, sh: g.sh, i: sc.i, c: sc.c, cp: s.cps[sc.c] } : null;
 }
+/* (Round r30 / 2) Several curve points selected (Edit Curve Point: Shift+click, a box): S.selCps = [{ pid, kind, j, sid, c }], the
+   segment by its id so a list stays good while others change. With selCp() (the one picked up last) they are cpSelList(). */
+function cpEntry(e) {
+  const p = byId(e.pid), g = p && subShapes(p).find(x => x.kind === e.kind && x.j === e.j), i = g ? g.sh.segs.findIndex(s => s.id === e.sid) : -1, s = i >= 0 ? g.sh.segs[i] : null;
+  return s && s.cps && s.cps[e.c] ? { p, sh: g.sh, i, c: e.c, cp: s.cps[e.c] } : null;
+}
+function cpSelList() {
+  const out = (S.selCps || []).map(cpEntry).filter(Boolean), one = selCp();
+  if (one && !out.some(x => x.sh === one.sh && x.i === one.i && x.c === one.c)) out.push(one);
+  return out;
+}
+const cpInSel = (p, g, i, c) => (S.selCps || []).some(e => e.pid === p.id && e.kind === g.kind && e.j === g.j && e.sid === g.sh.segs[i].id && e.c === c);
+// Shift+click on a curve point: into the selection, or out of it
+function cpToggle(h) {
+  const g = { kind: h.kind || "outline", j: h.int === undefined ? -1 : h.int }, sid = h.sh.segs[h.i].id;
+  const one = selCp(); S.selCps = S.selCps || [];
+  if (one) { const s1 = one.sh.segs[one.i].id, k1 = { kind: S.selKind, j: S.selInt }; if (!S.selCps.some(e => e.pid === one.p.id && e.kind === k1.kind && e.j === k1.j && e.sid === s1 && e.c === one.c)) S.selCps.push({ pid: one.p.id, ...k1, sid: s1, c: one.c }); S.selCp = null; }
+  const at = S.selCps.findIndex(e => e.pid === h.p.id && e.kind === g.kind && e.j === g.j && e.sid === sid && e.c === h.c);
+  if (at >= 0) S.selCps.splice(at, 1); else S.selCps.push({ pid: h.p.id, ...g, sid, c: h.c });
+  if (!S.sel.includes(h.p.id)) S.sel.push(h.p.id);
+}
+// the box: the curve points of every pattern that lie inside it (Shift: added to those selected)
+function cpMarquee(addTo) {
+  const m = S.marquee, x0 = Math.min(m.a.x, m.b.x), x1 = Math.max(m.a.x, m.b.x), y0 = Math.min(m.a.y, m.b.y), y1 = Math.max(m.a.y, m.b.y);
+  const got = addTo ? cpSelList().map(x => ({ pid: x.p.id, kind: subShapes(x.p).find(g => g.sh === x.sh).kind, j: subShapes(x.p).find(g => g.sh === x.sh).j, sid: x.sh.segs[x.i].id, c: x.c })) : [];
+  for (const p of S.pieces) if (p.on && !isLocked(p) && pickHere(p)) for (const g of subShapes(p)) {
+    if (!pickShape(g)) continue;
+    g.sh.segs.forEach((s, i) => (s.cps || []).forEach((c, k) => {
+      const q = toS(c);
+      if (q.x >= x0 && q.x <= x1 && q.y >= y0 && q.y <= y1 && !got.some(e => e.pid === p.id && e.kind === g.kind && e.j === g.j && e.sid === s.id && e.c === k)) got.push({ pid: p.id, kind: g.kind, j: g.j, sid: s.id, c: k });
+    }));
+  }
+  S.selCp = null; S.selCps = got;
+  const pids = [...new Set(got.map(e => e.pid))];
+  if (pids.length) S.sel = pids;
+}
+// take the listed curve points out, each segment's from its last one back (so the others keep their numbers)
+function cpDeleteAll(list) {
+  const by = new Map();
+  for (const x of list) { const k = x.sh.segs[x.i].id; if (!by.has(k)) by.set(k, { sh: x.sh, sid: k, cs: [] }); by.get(k).cs.push(x.c); }
+  for (const { sh, sid, cs } of by.values()) for (const c of cs.sort((a, b) => b - a)) { const i = sh.segs.findIndex(s => s.id === sid); if (i >= 0) deleteCp(sh, i, c); }
+}
+// (Round r30 / 2) the selected curve handle: { p, sh, i, h } or null
+function selHandle() {
+  const e = S.selHandle, p = e && shapeHost(e.sh), i = p ? e.sh.segs.findIndex(s => s.id === e.sid) : -1;
+  return i >= 0 && handleShown(e.sh, i, e.h) ? { p, sh: e.sh, i, h: e.h } : null;
+}
+const handleSel = (sh, i, h) => { const e = S.selHandle; return !!(e && e.sh === sh && e.h === h && sh.segs[i] && sh.segs[i].id === e.sid); };
 const selPieces = () => S.sel.map(byId).filter(Boolean);
 const primary = () => (S.sel.length ? byId(S.sel[0]) : null);
 // the selected patterns that may be changed, and the ids a select-all may pick
 const freeSel = () => selPieces().filter(p => !isLocked(p));
 const pickable = () => S.pieces.filter(p => p.on && !isLocked(p)).map(p => p.id);
-// drawing order, bottom to top: by layer, then selected over unselected, then list order
+// drawing order, bottom to top: by layer, then list order. (Round r30 / 3, the maintainer's user test: a selected pattern was drawn
+// over the others of its layer, so a click seemed to change the order; selecting never does now, only Order does)
 function stack() {
-  return S.pieces.map((p, k) => ({ p, k, s: S.sel.includes(p.id) ? 1 : 0 }))
-    .sort((a, b) => ((a.p.layer || 0) - (b.p.layer || 0)) || (a.s - b.s) || (a.k - b.k)).map(x => x.p);
+  return S.pieces.map((p, k) => ({ p, k }))
+    .sort((a, b) => ((a.p.layer || 0) - (b.p.layer || 0)) || (a.k - b.k)).map(x => x.p);
 }
 /* Order: which pattern lies over which in the 2D window. Within a layer patterns are
    drawn in list order (stack()), so these commands move the given patterns in the list;
@@ -1252,8 +1320,7 @@ function orderSel(how) {
   if (next.every((p, k) => p === S.pieces[k])) return toast(up ? "Already in front on its layer" : "Already at the back on its layer");
   push(ORDER.find(o => o[0] === how)[1]); S.pieces = next; commit();
   const lay = (p) => p.layer || 0, over = S.pieces.some(q => q.on && !ps.includes(q) && ps.some(p => up ? lay(q) > lay(p) : lay(q) < lay(p)));
-  toast((up ? "Brought forward" : "Sent back") + (over ? ": patterns on a " + (up ? "higher" : "lower") + " layer stay " + (up ? "over" : "under") + " it" : "")
-    + ". A selected pattern is drawn on top: click away to see the order");
+  toast((up ? "Brought forward" : "Sent back") + (over ? ": patterns on a " + (up ? "higher" : "lower") + " layer stay " + (up ? "over" : "under") + " it" : ""));
 }
 /* Keep everything that is tied to something else up to date. Runs on every commit and
    during drags. Since R4 both ties work BOTH WAYS: a shape edit on either side goes to
@@ -1654,7 +1721,7 @@ function histGo(j) {
   S.sel = S.sel.filter(id => byId(id)); S.selPt = S.selSeg = S.selInt = -1; S.selCp = null; S.tps = null;
   commit();
 }
-function commit() { freeze3(); if (typeof renderTimeline === "function") renderTimeline(); if (S.mode === "layout") drawLayout(); sync(); if (syncHalf.lost) { syncHalf.lost = false; toast("That change can't be mirrored from this half: make it on the other half of the symmetric unfold", 5000); } syncLinks(); S.seams = resolveRefs(S.pieces, S.seams); S.stitches = validStitches(S.stitches, S.pieces); S.puckers = validStitches(S.puckers || [], S.pieces); S.measures = validMeasures(S.measures, S.pieces); S.tacks = validTacks(S.tacks, S.pieces); S.buttons = validButtons(S.buttons, S.pieces); S.pipings = validPipings(S.pipings, S.seams); S.bindings = validBindings(S.bindings, S.pieces); S.glues = validGlues(S.glues, S.pieces, S.seams); for (const p of S.pieces) pruneGrade(p); ui(); drawSoon(); store(); if (typeof avEditSync === "function") avEditSync(); if (typeof garmentChanged === "function") garmentChanged(); }
+function commit() { handlesOut(); seamMirrors(); freeze3(); if (typeof renderTimeline === "function") renderTimeline(); if (S.mode === "layout") drawLayout(); sync(); if (syncHalf.lost) { syncHalf.lost = false; toast("That change can't be mirrored from this half: make it on the other half of the symmetric unfold", 5000); } syncLinks(); S.seams = resolveRefs(S.pieces, S.seams); S.stitches = validStitches(S.stitches, S.pieces); S.puckers = validStitches(S.puckers || [], S.pieces); S.measures = validMeasures(S.measures, S.pieces); S.tacks = validTacks(S.tacks, S.pieces); S.buttons = validButtons(S.buttons, S.pieces); S.pipings = validPipings(S.pipings, S.seams); S.bindings = validBindings(S.bindings, S.pieces); S.glues = validGlues(S.glues, S.pieces, S.seams); for (const p of S.pieces) pruneGrade(p); ui(); drawSoon(); store(); if (typeof avEditSync === "function") avEditSync(); if (typeof garmentChanged === "function") garmentChanged(); }
 function undo() {
   pushFlush();
   if (!S.undo.length) return;
@@ -1782,6 +1849,80 @@ function segEndAngles(sh, i) {
   };
   return [at(i, false), at(i, true)];
 }
+/* (Round r30 / 1) The angle at point k of any shape, outline or internal: { deg, kind } as segEndAngles() gives it, and for the
+   free end of an internal line that lies on its pattern's outline (p given) kind "edge": the angle between the line and the
+   outline there, the smaller of the two (90 square), with `raw` the angle from the outline line's own direction (0 to 180) and
+   `on` the outline's segment and parameter. null for a shape with no line at k. */
+const EDGE_TOL = 0.5;
+function pointAngle(sh, k, p) {
+  const m = sh.segs.length, closed = !!sh.closed || sh.pts.length === m;
+  if (!sh.pts[k] || !m) return null;
+  const a = k < m ? segEndAngles(sh, k)[0] : segEndAngles(sh, k - 1)[1];
+  if (a.kind !== "level" || !p || sh === p || closed) return a;
+  const on = outlineAt(p, sh.pts[k]);
+  if (!on) return a;
+  const u = k < m ? segTan(sh, k, 0) : mul(segTan(sh, k - 1, 1), -1), t = segTan(p, on.i, on.t);
+  const raw = Math.acos(Math.max(-1, Math.min(1, u.x*t.x + u.y*t.y)))*180/Math.PI;
+  return { deg: Math.min(raw, 180 - raw), kind: "edge", raw, on };
+}
+// the outline segment and parameter a point lies on (within EDGE_TOL mm), or null
+function outlineAt(p, q) {
+  let best = null, bd = EDGE_TOL;
+  for (let i = 0; i < nSeg(p); i++) {
+    const N = 64;
+    for (let j = 0; j < N; j++) {
+      const a = segPt(p, i, j/N), b = segPt(p, i, (j + 1)/N), ab = sub(b, a), L2 = ab.x*ab.x + ab.y*ab.y;
+      const f = L2 > 0 ? Math.max(0, Math.min(1, ((q.x - a.x)*ab.x + (q.y - a.y)*ab.y)/L2)) : 0, d = dist(q, add(a, mul(ab, f)));
+      if (d < bd) { bd = d; best = { i, t: (j + f)/N }; }
+    }
+  }
+  return best;
+}
+/* (Round r30 / 1) Where point k must go for its angle to be `deg`: the move dv, or null if no place gives it.
+   keep "1": Line 1 (the line ending at the point) keeps its length and turns round its other end; the point moves on that
+   circle and Line 2's other end stays where it is. keep "2": the same with Line 2 (the line starting at the point).
+   A free end (angle to level) turns round its one neighbour, keeping its line's length. An end on the outline (angle to the
+   outline) slides along the outline, its line's other end staying. Curves follow as a dragged point's do (movePt()). */
+function angleSolve(sh, k, deg, keep, p) {
+  const a0 = pointAngle(sh, k, p);
+  if (!a0 || !Number.isFinite(deg)) return null;
+  const m = sh.pts.length, closed = !!sh.closed || sh.segs.length === m, P = sh.pts[k];
+  const trial = (q) => { const c = { pts: sh.pts.map(cp), segs: clone(sh.segs), closed: sh.closed }; movePt(c, k, sub(q, P)); return c; };
+  const angAt = (q) => { const r = pointAngle(trial(q), k, null); return r ? r.deg : NaN; };
+  if (a0.kind === "edge") {
+    // the outline as a run of points; the end slides along it, its angle from the outline's own direction kept on its side
+    // along the outline segment the end lies on (the nearest place that gives the angle)
+    const want = a0.raw > 90 ? 180 - deg : deg, on = a0.on;
+    const f = (t) => { const q = segPt(p, on.i, t), r = trial(q), u = k < r.segs.length ? segTan(r, k, 0) : mul(segTan(r, k - 1, 1), -1), tn = segTan(p, on.i, t);
+      return Math.acos(Math.max(-1, Math.min(1, u.x*tn.x + u.y*tn.y)))*180/Math.PI - want; };
+    const root = rootNear(f, 0, 1, on.t, 200);
+    return root === null ? null : sub(segPt(p, on.i, root), P);
+  }
+  // the point turns round the far end C of the line that keeps its length
+  let C;
+  if (a0.kind === "level") C = k < sh.segs.length && (closed || k < m - 1) ? sh.pts[(k + 1) % m] : sh.pts[(k - 1 + m) % m];
+  else C = keep === "2" ? sh.pts[(k + 1) % m] : sh.pts[(k - 1 + m) % m];
+  const R = dist(P, C), phi0 = Math.atan2(P.y - C.y, P.x - C.x);
+  if (R < 1e-6) return null;
+  const at = (phi) => V(C.x + R*Math.cos(phi), C.y + R*Math.sin(phi));
+  const root = rootNear((phi) => angAt(at(phi)) - deg, phi0 - Math.PI, phi0 + Math.PI, phi0, 720);
+  return root === null ? null : sub(at(root), P);
+}
+// the root of f in [lo, hi] nearest x0: scanned in n steps for a change of sign (a jump of the angle is not a root), then halved
+function rootNear(f, lo, hi, x0, n) {
+  let best = null, bd = Infinity, xa = lo, fa = f(lo);
+  for (let j = 1; j <= n; j++) {
+    const xb = lo + (hi - lo)*j/n, fb = f(xb);
+    if (Number.isFinite(fa) && Number.isFinite(fb) && (fa === 0 || fa*fb < 0) && Math.abs(fa - fb) < 90) {
+      let a = xa, b = xb, va = fa;
+      for (let it = 0; it < 50; it++) { const c = (a + b)/2, vc = f(c); if (!Number.isFinite(vc)) break; if (va*vc <= 0) b = c; else { a = c; va = vc; } }
+      const x = (a + b)/2;
+      if (Math.abs(x - x0) < bd) { bd = Math.abs(x - x0); best = x; }
+    }
+    xa = xb; fa = fb;
+  }
+  return best;
+}
 // the inside angle of an outline at its point i, in degrees (90 on a square corner, over 180 on an inside corner)
 function cornerAngle(p, i) {
   const m = p.pts.length, uA = segTan(p, (i - 1 + m) % m, 1), uB = segTan(p, i, 0);
@@ -1883,7 +2024,7 @@ function setPrefs(o) { S.prefs = normPrefs({ ...S.prefs, ...o }); savePrefs(); a
    The status bar shows the state: SAVED (nothing unsaved), AUTOSAVED (unsaved work, kept
    for recovery). A failure (storage full, blocked, private mode) turns it red, toasts
    once, and asks before the tab closes. See THE DOCUMENT AND ITS FILE. */
-const AUTOSAVE_KEY = "pdraft:doc", FILE_VERSION = 27;      // 27 (Round r29): a document's render settings (render, only once changed; an older build would drop them, so it refuses the file)
+const AUTOSAVE_KEY = "pdraft:doc", FILE_VERSION = 28;      // 28 (Round r30): a seam's mirror on a symmetric pair (mir; an older build would drop it, so it refuses the file). 27 (Round r29): a document's render settings (render, only once changed; an older build would drop them, so it refuses the file)
 // 26 (Round r26): Simulation Shrinkage 1 to 1000, a glue's Strength up to 100, a pattern's foldStay (an older build would clamp or drop them, so it refuses the file); 25 (Round r25): a pattern's Grain Orientation (grainWay), a Slant corner's Distance A / B (a, b), a Pocket corner's Style 3, Solidify's Strength (solid3s), a notch's Point (Center) direction (dir: "point"), (r25 follow-up, before any release of 25) a glue switched off (off) (an older build would drop them, so it refuses the file); 24 (Round r20): an annotation's own angle, colour and line (angle, color, link: an older build would drop them, so it refuses the file); 23 (Round r19 follow-up): the document's lights for the render (lights) and each fabric's own roll in Print Layout (layout.rolls; an older build would drop them, so it refuses the file); 22 (Round r18): the document's avatar edits (avedit: the joints turned by hand, …; an older build would drop them, so it refuses the file); 21 (Round r17b): the background image (backdrop), the display settings kept with the file (display); 20 (Round build-1): a pattern's own Particle Distance (res3), Simulation Shrinkage (shrink3), Solidify (solid3), a glue's strength and thick (an older build would drop them, so it refuses the file); 19 (Round perf-2): the history saved as changes, a list's items each on its own (history v3)
 //      // 18 (Round r15): the seam allowance corner types are the reference's eight (perp, turn, slant, env, pocket, … with their own values; an older build would not know them, so it refuses the file; older files' corners are renamed as they open: cornerMigrate()); 17 (Round r14): an internal line's fold angle (foldAngle, foldStrength, foldVar), more in later batches of the round (an older build would drop them, so it refuses the file); 16 (Round r13): a notch may also have its own len and flip (an older build would drop them, so it refuses the file); 15 (Round r12): a notch may be { t, type, angle } (files of 14 have plain numbers, which still are); 14 (Round r11): piping, binding, gluing (files of 13 open with none); 13 (Round r9): a fabric's Max Stretch, tacks, a pattern's Fill, buttons; files of 12 open with defaults
 // where the autosave is kept: the browser's localStorage, or in the desktop app
@@ -2348,8 +2489,8 @@ const toolTitle = (t) => macKeys(t.n + (t.key ? "  (" + t.key + ")" : "") + "\n"
 const HINT = {
   transform_pattern: "Click or marquee to select (the box takes the patterns wholly inside it). Drag to move (nothing moves until you let go). A side handle scales with the opposite side kept still, a corner handle with the opposite corner; the handle on the stem turns. Double-click the center mark to switch the pivot on (the handles become filled squares), then drag the mark to turn about another place; Alt+drag does both at once. Right-click during a drag to type the distance, size or angle.",
   transform_point: "Click points or segments (Shift for more, or drag a box round them): a frame appears round just those. Drag inside it to move them, its handles to scale, the handle on the stem to turn. The rest of the pattern stays; the joining edges stretch. Right-click during a drag to type the amount.",
-  edit_pattern: "Drag points or segments. A line under the pointer shows its length and the angle at each end. Ctrl holds a point to a line through where it was. Right-click while dragging to type the distance moved (for a point also a line's length).",
-  edit_curve_point: "Click a line to put a curve point there and drag it: the curve runs through its curve points. Click a curve point to select it, drag to reshape, Delete removes it. Right-click while dragging to type the distance; right-click a curve point, or a line with none there, for Split Curve (curve points at exact lengths along the line).",
+  edit_pattern: "Drag points or segments. A line under the pointer shows its length and the angle at each end. Ctrl: a point or a line's end moves along its own line (a straight line's extension, a curve's direction at that end), so the line gets longer or shorter and keeps its angle; the line it follows is drawn thin. Right-click while dragging to type the distance moved (for a point also a line's length).",
+  edit_curve_point: "Click a line to put a curve point there and drag it: the curve runs through its curve points. Click a curve point to select it, drag to reshape, Delete removes it; Shift+click or a box on empty space selects several, and Delete removes them all. A curve handle dragged onto its own point, or selected and deleted, is taken away. Right-click while dragging to type the distance; right-click a curve point, or a line with none there, for Split Curve (curve points at exact lengths along the line).",
   edit_curvature: "Drag a segment to bend the whole of it into one curve with no curve points. Hold Shift to keep the handle angles. A right-click does nothing with this tool: a line's menu is on Edit Pattern (Z).",
   smooth_curve: "Click a start place and an end place on the outline, then the side between them to replace (usually the short way round a corner). Drag the new curve to shape it, or right-click to type its curvature or length. Enter makes it, Esc starts over.",
   fullness: "Click the start segment (the hinge, which stays where it is), then the end segment; click the side that turns, move the pointer to turn it with the spread shown, and click to make it. Right-click while turning to type the angle or the opening.",
@@ -2496,7 +2637,7 @@ function setTool(id) {
   if (CMD3[id]) { CMD3[id](); refreshRail(); return; }
   if (TOOL3[id] && !TOOL3[id].both) return setTool3(id);
   S.sticker = null; if (id !== "edit_zipper") S.zipTarget = null;      // (Round build-1) a sticker picked up, Edit Zipper's dot
-  S.tool = id; S.draft = null; S.place = null; S.rotAxis = null; S.pickPoly = null; S.bgMode = null; S.selMeas = []; S.marquee = null; S.walk = null; S.selPart = null; S.selNote = null; S.selCp = null; S.tps = null; S.selPunch = null; S.selStitch = null; S.selPucker = null; S.selGfx = null; S.selNotch = null;
+  S.tool = id; S.draft = null; S.place = null; S.rotAxis = null; S.pickPoly = null; S.bgMode = null; S.selMeas = []; S.marquee = null; S.walk = null; S.selPart = null; S.selNote = null; S.selCp = null; S.selCps = []; S.selHandle = null; S.tps = null; S.selPunch = null; S.selStitch = null; S.selPucker = null; S.selGfx = null; S.selNotch = null;
   if (id !== "transform_pattern") S.pivot = null;
   if (id === "edit_pom" && !S.show.measurements) setView("measurements", true);      // (Round r13 / 7) the measurements are what it edits
   if (id !== "trace" && S.selKind === "base") { S.selInt = S.selPt = S.selSeg = -1; S.selKind = "outline"; }
@@ -2569,8 +2710,19 @@ function hit(sx, sy, o) {
     const g = subShapes(pr).find(x => x.kind === S.selKind && x.j === S.selInt);
     const s = g && pickShape(g) && g.sh.segs[S.selSeg];
     if (s && s.curved && !isSpline(s)) for (const h of ["c1", "c2"]) {
+      if (!handleShown(g.sh, S.selSeg, h)) continue;
       const q = toS(s[h]);
       if (Math.hypot(q.x-sx, q.y-sy) < RH+1) return { k: "handle", p: pr, sh: g.sh, seg: S.selSeg, h };
+    }
+  }
+  // (Round r30 / 2) Edit Curve Point shows the handles of every handle curve (an older document's): each can be picked, to be
+  // dragged onto its point or deleted
+  if (T === "edit_curve_point") for (const p of close) if (S.sel.includes(p.id)) for (const g of subShapes(p)) {
+    if (!pickShape(g)) continue;
+    for (let i = 0; i < nSeg(g.sh); i++) for (const h of ["c1", "c2"]) {
+      if (!handleShown(g.sh, i, h)) continue;
+      const q = toS(g.sh.segs[i][h]);
+      if (Math.hypot(q.x-sx, q.y-sy) < RH+1) return { k: "handle", p, sh: g.sh, seg: i, h, kind: g.kind, int: g.j };
     }
   }
   // Add Point/Split Line: the middle of a line within MID_CATCH pixels is caught before anything else (Round CF / C3), so it
@@ -3202,7 +3354,7 @@ function drawPiece(p) {
     const q = lenLabelAt(p, p, i);
     lbl(fmt(segLen(p, i)), q, (i === S.selSeg && S.selKind === "outline") ? "#a08000" : "#4a4a4a", 10);
   }
-  if (anglesShown()) for (let i = 0; i < p.pts.length; i++) angleLabel(p, i);
+  if (anglesShown() && !(ANG_LIVE && ANG_LIVE === p)) pieceAngles(p);      // (Round r30 / 1) the pattern being dragged writes them live, after the ghost
   if (p.lock) return;                       // no point or curve handles on a locked pattern
   const showAll = S.tool === "edit_curve_point";
   for (const g of subShapes(p)) {
@@ -3213,13 +3365,15 @@ function drawPiece(p) {
       if (!s.curved || isSpline(s)) continue;
       if (!showAll && !(i === S.selSeg && g.kind === S.selKind && g.j === S.selInt)) continue;
       const [a, b] = sEnds(g.sh, i);
-      const sa2 = toS(a), sb = toS(b), c1 = toS(s.c1), c2 = toS(s.c2);
-      ctx.strokeStyle = C_CURVE; ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
-      ctx.beginPath(); ctx.moveTo(sa2.x, sa2.y); ctx.lineTo(c1.x, c1.y);
-      ctx.moveTo(sb.x, sb.y); ctx.lineTo(c2.x, c2.y); ctx.stroke(); ctx.setLineDash([]);
-      for (const q of [c1, c2]) {
-        ctx.fillStyle = "#ffffff"; ctx.strokeStyle = C_CURVE; ctx.lineWidth = 1.2;
-        ctx.beginPath(); ctx.arc(q.x, q.y, 3.2, 0, 7); ctx.fill(); ctx.stroke();
+      // (Round r30 / 2) a handle taken away (on its point) is not drawn; the selected one is larger and yellow, ringed dark
+      const hs = [["c1", a], ["c2", b]].filter(([h]) => handleShown(g.sh, i, h));
+      ctx.strokeStyle = C_CURVE; ctx.lineWidth = 1; ctx.setLineDash([2, 3]); ctx.beginPath();
+      for (const [h, e] of hs) { const se = toS(e), q = toS(s[h]); ctx.moveTo(se.x, se.y); ctx.lineTo(q.x, q.y); }
+      ctx.stroke(); ctx.setLineDash([]);
+      for (const [h] of hs) {
+        const q = toS(s[h]), on = handleSel(g.sh, i, h);
+        ctx.fillStyle = on ? C_SEL : "#ffffff"; ctx.strokeStyle = on ? "#1a1a1a" : C_CURVE; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(q.x, q.y, on ? 4.2 : 3.2, 0, 7); ctx.fill(); ctx.stroke();
       }
     }
     for (let i = 0; i < g.sh.pts.length; i++) {
@@ -3236,7 +3390,7 @@ function drawPiece(p) {
 function drawCps(p, g) {
   const sel = S.sel[0] === p.id && S.selCp && g.kind === S.selKind && g.j === S.selInt ? S.selCp : null, hv = S.hover;
   for (let i = 0; i < nSeg(g.sh); i++) (g.sh.segs[i].cps || []).forEach((c, ci) => {
-    const q = toS(c), isS = sel && sel.i === i && sel.c === ci, isH = hv && hv.k === "cp" && hv.sh === g.sh && hv.i === i && hv.c === ci;
+    const q = toS(c), isS = (sel && sel.i === i && sel.c === ci) || cpInSel(p, g, i, ci), isH = hv && hv.k === "cp" && hv.sh === g.sh && hv.i === i && hv.c === ci;
     ctx.beginPath(); ctx.arc(q.x, q.y, isS || isH ? 4 : 2.8, 0, 7);
     ctx.fillStyle = isS ? C_SEL : C_CURVE; ctx.fill();
     if (isS || isH) { ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = 1; ctx.stroke(); }
@@ -3245,15 +3399,47 @@ function drawCps(p, g) {
 // are all corner angles of the selected pattern written (the view switch, or Edit Curve Point)?
 const anglesShown = () => S.show.angle || S.tool === "edit_curve_point";
 // the inside angle at corner i of an outline, written just inside it (a straight-through point has none)
-function angleLabel(p, i) {
-  const m = p.pts.length, ang = cornerAngle(p, i);
-  if (Math.abs(ang - 180) < 0.5) return;
-  const uA = segTan(p, (i - 1 + m) % m, 1), uB = segTan(p, i, 0);
-  let d = V(uB.x - uA.x, uB.y - uA.y);
-  const L = Math.hypot(d.x, d.y) || 1, sgn = ang > 180 ? -1 : 1, c = toS(p.pts[i]);
-  d = V(d.x/L*sgn, d.y/L*sgn);
-  lbl("\u2220" + ang.toFixed(1) + "\u00b0", V(c.x + d.x*20, c.y + d.y*20), C_LBL_ANG, 9);
+function angleLabel(p, i) { pointAngleLabel(p, p, i); }
+/* (Round r30 / 1) The angle at point k of any shape of pattern p, written beside it in the angle style: a corner's just inside
+   it, along its middle; a free end's beside its line. An internal line's end on the outline gives the angle to the outline.
+   A label that would overlap one already written in this frame is left out (lblRoom()), the outline's first. */
+function pointAngleLabel(p, sh, k) {
+  const a = pointAngle(sh, k, p);
+  if (!a || (a.kind === "corner" && Math.abs(a.deg - 180) < 0.5)) return;
+  const m = sh.pts.length, nS = sh.segs.length, c = toS(sh.pts[k]), txt = "\u2220" + a.deg.toFixed(1) + "\u00b0" + (a.kind === "level" ? " to level" : "");
+  let at;
+  if (a.kind === "corner") {
+    const closed = !!sh.closed || m === nS, uA = segTan(sh, (k - 1 + m) % m, 1), uB = segTan(sh, k % nS, 0);
+    let d = V(uB.x - uA.x, uB.y - uA.y);
+    const L = Math.hypot(d.x, d.y) || 1, sgn = closed && a.deg > 180 ? -1 : 1;
+    d = V(d.x/L*sgn, d.y/L*sgn);
+    at = V(c.x + d.x*20, c.y + d.y*20);
+  } else {
+    // beside the line, 24 px in from the end and 11 px to its side
+    const u = k < nS ? segTan(sh, k, 0) : mul(segTan(sh, k - 1, 1), -1), n = V(u.y, -u.x);
+    at = V(c.x + u.x*24 - n.x*11, c.y + u.y*24 - n.y*11);
+  }
+  if (lblRoom(txt, at, 9)) lbl(txt, at, C_LBL_ANG, 9);
 }
+// every angle of a pattern: its outline's corners, then each internal line's and shape's points (Round r30 / 1)
+function pieceAngles(p) {
+  for (let i = 0; i < p.pts.length; i++) pointAngleLabel(p, p, i);
+  for (const it of p.internals) if (shapeShown("internal", it)) for (let k = 0; k < it.pts.length; k++) pointAngleLabel(p, it, k);
+}
+// the pattern a shape belongs to (the outline is its pattern), or null
+function shapeHost(sh) { return S.pieces.find(q => q === sh || q.internals.includes(sh) || q.bases.includes(sh)) || null; }
+/* (Round r30 / 1) Crowded small numbers: each label written in a frame takes its box (LBL_TAKEN, emptied at the frame's start);
+   one that would overlap a box taken already is left out. Only the angle labels ask, so a length is never hidden for one. */
+let LBL_TAKEN = [];
+function lblRoom(txt, at, px) {
+  ctx.save(); ctx.font = ((px || 9) + 2) + "px " + LBL_FACE; const w = ctx.measureText(txt).width || txt.length*6; ctx.restore();
+  const h = (px || 9) + 4, b = { x0: at.x - w/2 - 1, x1: at.x + w/2 + 1, y0: at.y - h/2, y1: at.y + h/2 };
+  if (LBL_TAKEN.some(o => o.x0 < b.x1 && b.x0 < o.x1 && o.y0 < b.y1 && b.y0 < o.y1)) return false;
+  LBL_TAKEN.push(b);
+  return true;
+}
+// the pattern whose angles are written live this frame (the ghost of a drag is painted where it was), or null
+let ANG_LIVE = null;
 /* The small numbers written beside lines (Round r17a / 1, the maintainer's own style): plain text with a thin halo of the canvas's grey
    behind it, no box. The style is the selected line's length beside its middle; every hover readout uses it too, a size
    smaller. Lengths are dark grey, angles dark blue with "\u2220" in front and stand beside their end: told apart by the sign and
@@ -3292,7 +3478,7 @@ function segLabels(p, sh, i, t) {
   if (!lenShown) out.push({ k: "len", txt: fmt(segLen(sh, i)), at: lenLabelAt(p, sh, i, t), col: C_LBL });
   const [a0, a1] = segEndAngles(sh, i), ends = sEnds(sh, i), side = outline ? pieceWind(p) : 1;
   [[a0, ends[0], segTan(sh, i, 0), 1], [a1, ends[1], segTan(sh, i, 1), -1]].forEach(([a, q, u, dir]) => {
-    if (a.kind === "corner" && outline && anglesShown() && S.sel.includes(p.id)) return;
+    if (a.kind === "corner" && !p.bases.includes(sh) && anglesShown() && S.sel.includes(p.id)) return;
     if (a.kind === "corner" && Math.abs(a.deg - 180) < 0.05) return;            // straight on: no corner to tell
     const s0 = toS(q), n = V(u.y*side, -u.x*side);
     out.push({ k: "ang", txt: "\u2220" + a.deg.toFixed(1) + "\u00b0" + (a.kind === "level" ? " to level" : ""), at: V(s0.x + dir*u.x*24 - n.x*11, s0.y + dir*u.y*24 - n.y*11), col: C_LBL_ANG });
@@ -3713,12 +3899,15 @@ function segSelected(sh, i) {
 const lineSelected = (sh, i) => segSelected(sh, i) || moreLines().some(x => x.sh === sh && x.i === i);
 function drawSelSeg() {
   const pr = primary();
-  if (!pr || !pr.on || S.selSeg < 0) return;
+  if (!pr || !pr.on) return;
   const g = subShapes(pr).find(x => x.kind === S.selKind && x.j === S.selInt);
+  // (Round r30 / 1) a selected point of an outline or an internal line writes its angle (all of them are written with Angle on)
+  if (S.selSeg < 0) { if (g && g.kind !== "base" && S.selPt >= 0 && g.sh.pts[S.selPt] && !anglesShown() && !pr.lock && S.tool === "edit_pattern" && !S.drag) pointAngleLabel(pr, g.sh, S.selPt); return; }
   if (!g || !g.sh.segs[S.selSeg]) return;
   ctx.strokeStyle = C_SEL; ctx.lineWidth = 3; segPath(g.sh, S.selSeg); ctx.stroke();
   for (const x of moreLines()) { segPath(x.sh, x.i); ctx.stroke(); }                 // the other selected lines (Shift+click), on any pattern
-  if (g.kind === "outline" && !anglesShown() && !pr.lock) { angleLabel(pr, S.selSeg); angleLabel(pr, (S.selSeg + 1) % pr.pts.length); }
+  // the angles at its two ends, an internal line's too (Round r30 / 1)
+  if (g.kind !== "base" && !anglesShown() && !pr.lock && !S.drag) { const m = g.sh.pts.length; pointAngleLabel(pr, g.sh, S.selSeg); pointAngleLabel(pr, g.sh, (S.selSeg + 1) % m); }
 }
 function drawHover() {
   const T = S.tool, hv = S.hover, sewing = SEW_TOOLS.includes(T) || T === "edit_sewing", selShown = T !== "transform_pattern" && !sewing;
@@ -3919,7 +4108,11 @@ function drawDragFeedback() {
   // from where it was to where it is: the point, the curve point, the handle, the place the curve was taken by, or a moved segment's two ends
   const moved = d.k === "pt" ? [[d.orig.pts[d.i], d.sh.pts[d.i]]] : d.k === "cp" ? [[d.from, d.sh.segs[d.i].cps[d.c]]] : d.k === "handle" ? [[d.h0, d.sh.segs[d.seg][d.h]]]
     : d.k === "bend" ? [[segPt(d.orig, d.i, d.t), segPt(d.sh, d.i, d.t)]] : sEnds(d.orig, d.i).map((q, k) => [q, sEnds(d.sh, d.i)[k]]);
-  if (d.k === "pt" && d.lines) {
+  if (d.k === "pt" && d.lines && d.ctrl) {
+    // (Round r30 / 6) Ctrl: the line the point follows, thin and solid, right across the window
+    const u = d.lines[d.onLine], o = d.orig.pts[d.i], R = (W + H)*2/S.view.s;
+    if (u) { const a = toS(add(o, mul(u, -R))), b = toS(add(o, mul(u, R))); ctx.strokeStyle = C_MOVE; ctx.lineWidth = 1; ctx.setLineDash([]); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+  } else if (d.k === "pt" && d.lines) {
     const R = (W + H)*2/S.view.s, o = d.orig.pts[d.i];
     d.lines.forEach((u, k) => {
       const a = toS(add(o, mul(u, -R))), b = toS(add(o, mul(u, R)));
@@ -3937,9 +4130,20 @@ function drawDragFeedback() {
     ctx.strokeStyle = C_MOVE; ctx.setLineDash([5, 4]);
   }
   ctx.restore(); ctx.setLineDash([]);
-  const own = S.pieces.find(q => q === d.sh);
-  if (own && !anglesShown()) for (const i of d.k === "pt" ? [d.i] : [si, (si + 1) % own.pts.length]) angleLabel(own, i);
+  dragAngles(d, si);
   if (d.k !== "pt") tag(fmt(segLen(d.sh, si)) + " " + S.unit, V(S.mouse.sx, S.mouse.sy));
+}
+/* (Round r30 / 1) While a point, a line, a curve point or a handle is dragged, the angles are written live, every frame, from the
+   shape as it is now: at the moved points and at their neighbours (whose angles change with them), on an outline or an internal
+   line. With Angle shown (or Edit Curve Point in hand) every angle of the pattern is written, as when it is not dragged. */
+function dragAngles(d, si) {
+  const p = ANG_LIVE, sh = d.sh;
+  if (!p || p.lock || !sh || !sh.pts || p.bases.includes(sh)) return;
+  if (anglesShown() && S.sel.includes(p.id)) return pieceAngles(p);
+  const m = sh.pts.length, closed = !!sh.closed || sh.segs.length === m, ks = new Set();
+  const moved = d.k === "pt" ? [d.i] : [si, si + 1];
+  for (const k of moved) for (const j of [k - 1, k, k + 1]) { const q = closed ? (j + m) % m : j; if (q >= 0 && q < m) ks.add(q); }
+  for (const k of ks) pointAngleLabel(p, sh, k);
 }
 /* Edit Pattern + Shift while dragging (Round r9 / 1b): the motion is held to a line's own direction, so a line is made
    longer or shorter without changing its angle. A dragged segment moves along itself or along a line meeting it at an end.
@@ -3985,6 +4189,20 @@ function dragLines(sh, i) {
     if (d2) out.push(d2);
   }
   return out;
+}
+/* (Round r30 / 6, the maintainer's user test) Ctrl while a point or a line's end is dragged: it moves along one of its own lines only,
+   a straight line's extension or a curve's direction at that end (the lines' directions where they meet the point, as it was
+   pressed: the first one or two of d.lines, never the diagonals between them), so that line keeps its angle and only its length
+   changes. Of the point's two lines, the one whose direction is nearest the pointer's motion from where the point was; chosen
+   again as the pointer moves, so turning the drag goes over to the other line. d.onLine is the line followed (drawn thin). */
+function ctrlAlong(d, want) {
+  const o = d.orig.pts[d.i], own = (d.lines || []).slice(0, Math.min(2, edgeDirs(d.orig, d.i).length)), v = sub(want, o);
+  if (!own.length) { d.onLine = -1; return want; }
+  let best = 0, bc = -1;
+  own.forEach((u, k) => { const c = Math.abs(u.x*v.x + u.y*v.y)/(vlen(v) || 1); if (c > bc) { bc = c; best = k; } });
+  const u = own[best], k = v.x*u.x + v.y*u.y;
+  d.onLine = best;
+  return V(o.x + u.x*k, o.y + u.y*k);
 }
 // where a dragged point goes: q is where the cursor puts it. Ctrl holds it to the nearest of its
 // lines; otherwise it catches an edge extension (the first one or two lines) when it is within 6 px.
@@ -4090,6 +4308,7 @@ function drawAll() {
   drawBackdrop();                                            // (Round r17b / 1) under everything but the grid
   // a point being dragged: the patterns are painted with that shape as it was, the new shape is the ghost
   const gd = ghostDrag();
+  LBL_TAKEN = []; ANG_LIVE = S.drag && S.drag.sh && S.drag.sh.pts ? shapeHost(S.drag.sh) : null;
   if (gd) ghostSwap(gd);
   try {
     if (S.show.links !== false) { drawLinks(); drawLineLinks(); }
@@ -4416,7 +4635,11 @@ function cvDown(e) {
   }
   if (T === "transform_point") return tpsDown(sx, sy, w, e);
 
-  S.selCp = null;
+  // (Round r30 / 2) Edit Curve Point: Shift+click on a curve point adds it to the selection or takes it out; a press on empty
+  // space starts a box (Shift: added to the selection)
+  if (T === "edit_curve_point" && h && h.k === "cp" && e.shiftKey && !ro) { cpToggle(h); ui(); drawSoon(); return; }
+  if (T === "edit_curve_point" && !h) { if (!e.shiftKey) { S.selCp = null; S.selCps = []; } S.selHandle = null; S.marquee = { a: V(sx, sy), b: V(sx, sy) }; S.drag = { k: "marquee", cps: true, add: !!e.shiftKey }; drawSoon(); return; }
+  S.selCp = null; S.selCps = []; S.selHandle = h && h.k === "handle" ? { sh: h.sh, sid: h.sh.segs[h.seg].id, h: h.h } : null;
   if (!h && T === "edit_pattern" && grabGuide(sx, sy, w)) return;
   if (!h) { S.sel = []; S.selPt = S.selSeg = S.selInt = -1; S.selMore = []; ui(); drawSoon(); return; }
   // Shift+click on a line with Edit Pattern: it joins the selected lines (on any pattern) or leaves them
@@ -4558,8 +4781,10 @@ function cvMove(e) {
     else {
       d.along = null;
       q = ctrl ? want : d.sh === d.p ? snapW(want, ref, false, d.sh.pts[d.i]) : internalSnap(want, d.p, ref);
-      if (ctrl || dist(q, want) < 1e-9) q = dragOnLines(d, want, ctrl); else d.onLine = -1;
+      if (ctrl) q = ctrlAlong(d, want);
+      else if (dist(q, want) < 1e-9) q = dragOnLines(d, want, false); else d.onLine = -1;
     }
+    d.ctrl = !!ctrl && !shiftAlong(d, e);
     const dv = sub(q, d.sh.pts[d.i]);
     if (vlen(dv) > 1e-9) d.moved = true;
     d.sh.pts[d.i] = q;
@@ -4638,12 +4863,19 @@ function cvUp(e) {
   if (d && d.k === "move" && vlen(d.dv) > 0) { push(); for (const p of freeSel()) mapPiece(p, (q) => add(q, d.dv)); if (S.pivot) S.pivot = add(S.pivot, d.dv); }
   if (d && d.k === "marquee" && S.tool === "transform_point") { S.drag = null; return tpsMarquee(); }
   if (d && d.k === "tps" && !d.moved && d.narrow && S.tps) S.tps.idx = d.narrow;
+  if (d && d.k === "bend" && d.moved && d.sh.segs[d.i]) { cpsOnly(d.sh, [d.sh.segs[d.i]]); sync(); }      // (Round r30 / 2) no handles left behind
+  // (Round r30 / 2) a curve handle let go on its own point (within the catch of a point) is taken away
+  if (d && d.k === "handle" && d.sh.segs[d.seg]) {
+    const at = sEnds(d.sh, d.seg)[d.h === "c1" ? 0 : 1], q = d.sh.segs[d.seg][d.h];
+    if (q && dist(q, d.h0) > 1e-9 && dist(q, at)*S.view.s <= SNAP_PX) { dropHandle(d.sh, d.seg, d.h); S.selHandle = null; sync(); }
+  }
   if (d && ["pt", "seg", "cp", "handle", "bend", "tps"].includes(d.k) && d.sh && d.sh.closed && S.pieces.includes(d.sh) && (d.moved !== false)) {
     const why = outlineProblem(d.sh);
     if (why) { S.drag = null; undo(); return toast("Taken back: the outline would not be a pattern any more (" + why + ")"); }
   }
   if (d && d.k === "box") finishBox();
-  if (d && d.k === "marquee" && d.sew) {                                   // (Round r20 / 4) Edit Sewing's box: the seams inside it
+  if (d && d.k === "marquee" && d.cps) { cpMarquee(d.add); S.marquee = null; }
+  else if (d && d.k === "marquee" && d.sew) {                                   // (Round r20 / 4) Edit Sewing's box: the seams inside it
     const got = seamsInBox(S.marquee);
     seamSelSet(d.add ? [...d.keep, ...got] : got);
     S.marquee = null;
@@ -4834,7 +5066,7 @@ function splitBez(p0, c1, c2, p3, t) {
 // halves reproduce it; notches and darts move to the half they sit on with their t
 // re-parameterised exactly (u/t and (u−t)/(1−t) — linear on both lines and subdivided cubics).
 function addPoint(sh, i, t) {
-  const old = sh.segs[i], sa = old.sa || 0, [a, b] = sEnds(sh, i);
+  const old = sh.segs[i], sa = old.sa || 0, [a, b] = sEnds(sh, i), wasCps = isSpline(old);
   const k = Math.min(Math.max(t, 1e-6), 1 - 1e-6);
   const nw = { id: newSegId(), curved: false, c1: null, c2: null, sa,
     notches: old.notches.filter(u => nT(u) > k).map(u => nAt(u, (nT(u)-k)/(1-k))) };
@@ -4884,6 +5116,15 @@ function addPoint(sh, i, t) {
   // (curve points added where it would leave it), and what sits on it goes to the same place on it
   if (ref && isSpline(old)) holdShape(sh, i, (u) => ref(k*u), held[0], held[1], true);
   if (ref && isSpline(nw)) holdShape(sh, i + 1, (u) => ref(k + (1 - k)*u), held[2], true, held[3]);
+  // (Round r30 / 2) a half of a curve-point curve left with no curve point is a handle curve: made curve points at the next
+  // commit(), when what split it has done its work on the halves' parameters
+  if (ref && wasCps) for (const g of [old, nw]) if (g.curved && !isSpline(g)) HANDLE_NEW.add(g);
+}
+/* (Round r30 / 2) Segments a command made into handle curves (HANDLE_NEW, the segment objects): each is made a curve-point curve
+   of the same shape by commit(), so no new curve handle is left in the document. */
+const HANDLE_NEW = new WeakSet();
+function handlesOut() {
+  for (const p of S.pieces) for (const sh of [p, ...p.internals, ...p.bases]) sh.segs.forEach((g, i) => { if (HANDLE_NEW.has(g)) { HANDLE_NEW.delete(g); if (g.curved && !isSpline(g) && g.c1 && g.c2) toCurvePoints(sh, i); } });
 }
 // darts sitting on segment `sid` of this shape and of any linked mirror of it
 // (a mirror keeps its own darts, but sync() gives it the source's segment ids)
@@ -5009,6 +5250,7 @@ function smoothPoint(sh, i) {
   setCurve(sh, iPrev, true); setCurve(sh, i, true);
   if (isSpline(sh.segs[iPrev])) setEndHandle(sh, iPrev, 1, mul(u, h)); else sh.segs[iPrev].c2 = add(p, mul(u, -h));
   if (isSpline(sh.segs[i])) setEndHandle(sh, i, 0, mul(u, h)); else sh.segs[i].c1 = add(p, mul(u, h));
+  cpsOnly(sh, [sh.segs[iPrev], sh.segs[i]]);                 // (Round r30 / 2) as curve points, no handles
   return true;
 }
 
@@ -5992,6 +6234,7 @@ function smoothApply(p, a, b, side, k) {
   const sg = p.segs[p.pts.indexOf(PS)];
   delete sg.cps; delete sg.e0; delete sg.e1;
   sg.curved = true; sg.c1 = c.c1; sg.c2 = c.c2;
+  cpsOnly(p, [sg]);                                          // (Round r30 / 2) as curve points, no handles
   return true;
 }
 /* Fullness: slash pattern p from place a (the hinge) to place b and turn one side about
@@ -6012,6 +6255,7 @@ function fullnessTurn(p, a, b, moveSide, ang, both) {
   const gi = p.segs.indexOf(r.b.seg), P0 = p.pts[gi], P1 = p.pts[(gi + 1) % p.pts.length];
   const v0 = sub(P0, H), v1 = sub(P1, H), phi = Math.atan2(cross(v0, v1), dot(v0, v1)), kk = 4/3*Math.tan(phi/4);
   Object.assign(r.b.seg, { curved: true, c1: V(P0.x - v0.y*kk, P0.y + v0.x*kk), c2: V(P1.x + v1.y*kk, P1.y - v1.x*kk) });
+  cpsOnly(p, [r.b.seg]);                                     // (Round r30 / 2) as curve points, no handles
   // the slash line stays as two internal lines from the hinge: where the far end was and where it went
   const moved = r.T(F);
   addChild(p, "internals", mkShape([cp(H), cp(F)], false));
@@ -6686,7 +6930,7 @@ function offsetSeg(sh, i, d) {
   for (const Pc of segCurve(sh, i).B) go(Pc, 0);
   const out = mkShape([parts[0][0], ...parts.map(Q => Q[3])], false);
   parts.forEach((Q, k) => Object.assign(out.segs[k], { curved: true, c1: Q[1], c2: Q[2] }));
-  return out;
+  return cpsOnly(out);                                       // (Round r30 / 2) as curve points, no handles
 }
 /* Offset as Internal Line for one segment: `count` parallel lines, `d` apart, as new
    open shapes (not yet added to the piece). On an outline segment they go inward, on an
@@ -6807,6 +7051,7 @@ function distributeLines(shA, iA, shB, iB, n, opt) {
       if (!opt.straight) {
         const L = dist(QA, QB)/3;
         Object.assign(ln.segs[0], { curved: true, c1: add(QA, mul(square(shA, iA, tA, QA, QB), L)), c2: add(QB, mul(square(shB, iB, tB, QB, QA), L)) });
+        cpsOnly(ln);                                         // (Round r30 / 2) as curve points, no handles
       }
       out.push(ln);
     }
@@ -8551,7 +8796,7 @@ function polyToShape(pts, closed, turns, optimise) {
   if (!closed) outP.push(P[m-1]);
   const sh = mkShape(outP, closed);
   sh.segs.forEach((x, q) => { if (outS[q].cps) Object.assign(x, { curved: true, cps: outS[q].cps }); else if (outS[q].curved) Object.assign(x, { curved: true, c1: outS[q].c1, c2: outS[q].c2 }); });
-  return sh;
+  return cpsOnly(sh);                                        // (Round r30 / 2) a curve read as one cubic: curve points, no handles
 }
 /* The curve points of a curve-point curve through a run of points that no single cubic fits: the run's own points,
    thinned while the curve stays within DXF_TOL of every one of them. The first and last stay, so the curve leaves its
@@ -9186,7 +9431,7 @@ function rigidFit(A, B) {
 }
 // shift: what the patterns were moved by in 2D as they came in (beside the patterns there)
 function zprj3D(res, pieces, rep, shift) {
-  const zat = new Map(((res && res.pieces) || []).map(z => [z.index, z])), fit = zprjFit3(res), RES = S.cloth.res;
+  const zat = new Map(((res && res.pieces) || []).map(z => [z.index, z])), fit = zprjFit3(res), RES = clothRes();
   for (const p of pieces) {
     const cl = (zat.get(p._zi) || {}).cloth;
     if (!cl) continue;
@@ -11029,6 +11274,104 @@ function makeSeam(seams, a, b, rev) {
   const id = seams.reduce((m, sm) => Math.max(m, sm.id), 0) + 1;
   return { id, a: A, b: B };
 }
+/* (Round r30 / 4, the maintainer's user test) SYMMETRIC SEWING. On a symmetric pair (a pattern and its Symmetric Pattern copy, which
+   share their segments' ids) and on a symmetric unfold (whose mirrored half's segments are half.map's), a seam made on one side
+   is made on the other too, and the two are tied: seam.mir is the other's id, on both. A part is mirrored onto the partner pattern
+   with the same segments, or onto the unfold's other half through half.map, run the other way (sids reversed, t0 / t1 turned
+   round, rev flipped), so the mirrored seam is the mirror image sewn in the same sense. A seam is mirrored only when each of its
+   parts can be; one that is its own mirror is not. One that is equal to an existing seam is tied to that one instead.
+   seamMirrors() runs in commit() after a step (pushCount moved), not after undo, redo or opening:
+     made     a seam new since the last commit, made with a sewing tool in hand, gets its mirror (no zipper)
+     changed  of a tied pair, the one that changed since the last commit hands its parts and line type to the other
+     deleted  a tied seam deleted (its patterns still there) takes its mirror with it; one whose pattern went is untied
+   Unlink Symmetric Sewing (Edit Sewing's menu) unties a pair: each stays as it is. A file from before has no tie and nothing
+   changes in it until a seam is made or edited. One undo step: what the pass does belongs to the step that caused it. */
+const MIR_KEYS = ["off", "hide", "turned", "foldAngle", "foldStrength"];
+let mirSeen = new Map(), mirPush = -1;
+// the partner of pattern p in a symmetric pair, or null (one copy only: with several the mirror is not known)
+function symPartner(p) {
+  if (!p) return null;
+  if (p.link) return p.link.kind === "symmetric" ? byId(p.link.of) || null : null;
+  const cs = S.pieces.filter(q => q.link && q.link.kind === "symmetric" && q.link.of === p.id);
+  return cs.length === 1 ? cs[0] : null;
+}
+// a part mirrored, or null if it can't be
+function mirrorPart(part) {
+  const p = byId(part.piece);
+  if (!p) return null;
+  const q = symPartner(p);
+  if (q) {
+    const shapeOk = !part.shape || q.internals.some(x => x.id === part.shape) || q.bases.some(x => x.id === part.shape);
+    return shapeOk ? { ...clone(part), piece: q.id } : null;
+  }
+  if (p.half && !part.shape && p.half.map) {
+    const map = p.half.map, inv = {};
+    for (const k of Object.keys(map)) inv[map[k]] = +k;
+    const to = part.sids.every(id => map[id] !== undefined) ? map : part.sids.every(id => inv[id] !== undefined) ? inv : null;
+    if (!to) return null;
+    return { ...clone(part), sids: part.sids.slice().reverse().map(id => to[id]), t0: 1 - (part.t1 < 1 ? part.t1 : 1), t1: 1 - (part.t0 > 0 ? part.t0 : 0), rev: !part.rev };
+  }
+  return null;
+}
+// a seam's mirror (its sides and line type, no id), or null
+function mirrorSeam(sm) {
+  const a = sm.a.map(mirrorPart), b = sm.b.map(mirrorPart);
+  if (a.some(x => !x) || b.some(x => !x)) return null;
+  const out = { a, b };
+  for (const k of MIR_KEYS) if (sm[k] !== undefined) out[k] = sm[k];
+  return out;
+}
+// what a seam is, for comparing: its sides (either way round) and its line type
+const seamText = (sm) => canonJSON({ a: sm.a, b: sm.b, ...Object.fromEntries(MIR_KEYS.filter(k => sm[k] !== undefined).map(k => [k, sm[k]])) });
+const sameSides = (x, y) => { const t = (p) => canonJSON(p.map(q => ({ ...q, t0: +(+q.t0 || 0).toFixed(6), t1: +(q.t1 === undefined ? 1 : +q.t1).toFixed(6) }))); return (t(x.a) === t(y.a) && t(x.b) === t(y.b)) || (t(x.a) === t(y.b) && t(x.b) === t(y.a)); };
+function seamMirrors() {
+  const user = pushCount !== mirPush;
+  mirPush = pushCount;
+  if (user && mirSeen.size + S.seams.length) {
+    const byIdS = new Map(S.seams.map(x => [x.id, x])), made = [];
+    // deleted: a tied seam gone takes its mirror with it, unless a pattern of it went (then the mirror is only untied)
+    for (const [id, was] of mirSeen) {
+      if (byIdS.has(id) || !was.mir) continue;
+      const other = byIdS.get(was.mir);
+      if (!other) continue;
+      if (was.pieces.every(pid => byId(pid))) { S.seams = S.seams.filter(x => x !== other); byIdS.delete(other.id); }
+      else delete other.mir;
+    }
+    for (const sm of S.seams.slice()) {
+      const was = mirSeen.get(sm.id);
+      if (sm.mir !== undefined && !byIdS.has(sm.mir)) { delete sm.mir; continue; }
+      if (sm.mir !== undefined) {
+        // changed: the one that changed hands itself to the other
+        const other = byIdS.get(sm.mir), wasO = mirSeen.get(other.id);
+        const mine = !was || was.text !== seamText(sm), theirs = !wasO || wasO.text !== seamText(other);
+        if (mine && !theirs) {
+          const m = mirrorSeam(sm);
+          if (m) { other.a = m.a; other.b = m.b; for (const k of MIR_KEYS) { if (m[k] !== undefined) other[k] = m[k]; else delete other[k]; } }
+        }
+        continue;
+      }
+      // made: new since the last commit, with a sewing tool
+      if (was || sm.zip || !SEW_TOOLS.includes(S.tool) || S.tool === "zipper") continue;
+      const m = mirrorSeam(sm);
+      if (!m || sameSides(m, sm)) continue;
+      const twin = S.seams.find(x => x !== sm && x.mir === undefined && sameSides(x, m));
+      if (twin) { twin.mir = sm.id; sm.mir = twin.id; continue; }
+      const c = makeSeam(S.seams, m.a, m.b);
+      if (!c) continue;
+      for (const k of MIR_KEYS) if (m[k] !== undefined) c[k] = m[k];
+      c.mir = sm.id; sm.mir = c.id; S.seams.push(c); byIdS.set(c.id, c); made.push(c);
+    }
+    if (made.length) toast(made.length === 1 ? "Sewn on the symmetric side too: the two follow each other (Edit Sewing ▸ More ▸ Unlink Symmetric Sewing to sew one side only)" : made.length + " seams sewn on the symmetric side too", 4500);
+  }
+  mirSeen = new Map(S.seams.map(x => [x.id, { text: seamText(x), mir: x.mir, pieces: [...new Set(seamParts(x).map(q => q.piece))] }]));
+}
+// Unlink Symmetric Sewing: the pair is untied, both stay
+function unlinkSymSewing(sm) {
+  const other = S.seams.find(x => x.id === sm.mir);
+  if (sm.mir === undefined) return toast("This sewing line is not tied to a symmetric one");
+  push("Unlink Symmetric Sewing"); delete sm.mir; if (other) delete other.mir; commit();
+  toast("Unlinked: each side's sewing is its own now");
+}
 // turn the whole seam over: side b is sewn from its other end
 function flipSeam(sm) { sm.b.reverse(); for (const part of sm.b) part.rev = !part.rev; }
 // is side b sewn against side a? (what the one `rev` flag used to say, for a 1:1 seam)
@@ -11054,7 +11397,9 @@ function loadSeams(list, pieces) {
     .map(sm => ({ id: sm.id, a: side(sm.a, false), b: side(sm.b, !!sm.rev), ...(sm.zip ? { zip: normZip(sm.zip) } : {}), ...(sm.off === true ? { off: true } : {}), ...(sm.hide === true ? { hide: true } : {}),
       // (Round r14 / 5) its sewing line type and fold, each kept only when not the default
       ...(sm.turned === true ? { turned: true } : {}), ...(Number.isFinite(sm.foldAngle) && sm.foldAngle !== 180 ? { foldAngle: Math.max(0, Math.min(360, sm.foldAngle)) } : {}),
-      ...(Number.isFinite(sm.foldStrength) && sm.foldStrength >= 0 && sm.foldStrength !== FOLD_STRENGTH ? { foldStrength: Math.min(100, sm.foldStrength) } : {}) }))
+      ...(Number.isFinite(sm.foldStrength) && sm.foldStrength >= 0 && sm.foldStrength !== FOLD_STRENGTH ? { foldStrength: Math.min(100, sm.foldStrength) } : {}),
+      // (Round r30 / 4) the seam it is mirrored with on the other side of a symmetric pair
+      ...(Number.isInteger(sm.mir) && sm.mir !== sm.id ? { mir: sm.mir } : {}) }))
     .filter(sm => sm.a.length && sm.b.length), pieces);
 }
 
@@ -11615,7 +11960,8 @@ function editSewMenu(x, y, sx, sy) {
       { n: "Hide Sewing (Selected)", f: () => hideSewing(sm) },
       S.seams.some(x => x.hide) ? { n: "Show Sewing (All)", f: showAllSewing } : { n: "Show Sewing (All)", off: true, note: "none hidden", f: () => toast("No sewing line is hidden") }, { sep: 1 },
       ctxNb("Link Line"),
-      ...ctxMore([sm.a.length + sm.b.length > 2 && { n: "Unlink M:N Sewing", f: () => unlinkSewing(sm) }, ...checks]));
+      ...ctxMore([sm.a.length + sm.b.length > 2 && { n: "Unlink M:N Sewing", f: () => unlinkSewing(sm) },
+        sm.mir !== undefined && { n: "Unlink Symmetric Sewing", h: "Unlink Symmetric Sewing", f: () => unlinkSymSewing(sm) }, ...checks]));      // (Round r30 / 4)
   } else I.push(...(S.seams.some(x => x.hide) ? [{ n: "Show Sewing (All)", f: showAllSewing }, { sep: 1 }] : []), ...checks);
   listMenu(I, x, y);
   ui(); draw();
@@ -12021,7 +12367,7 @@ function finishBox() {
     return draw();
   }
   const x0 = Math.min(d.a.x,d.b.x), y0 = Math.min(d.a.y,d.b.y);
-  const sh = d.kind === "rect" ? rectShape(x0, y0, w, h) : ellipseShape(x0+w/2, y0+h/2, w/2, h/2);
+  const sh = d.kind === "rect" ? rectShape(x0, y0, w, h) : cpsOnly(ellipseShape(x0+w/2, y0+h/2, w/2, h/2));      // (Round r30 / 2) the Ellipse tools make curve points, no handles
   push();
   if (d.internal) { S.selInt = addChild(d.host, "internals", sh); S.sel = [d.host.id]; S.selKind = "internal"; }
   else if (d.base) { S.selInt = addChild(d.host, "bases", sh); S.sel = [d.host.id]; S.selKind = "base"; }
@@ -12093,8 +12439,9 @@ function keyTable() {
   // (Round r14 / 6) the 3D pattern states, on the keys the sources give (B1 p.18, A10 p.62)
   row("off3", "Ctrl+J", "Deactivate (Pattern Only) (selected)", "3D window", () => deactivate3("pattern"));
   row("size3", "F9", "Show 3D Garment Window Size", "3D window", () => setShow3("size3", !show3On("size3")));      // (Round r20 / 11: it was kept for it)
-  row("superOver", "Ctrl+[", "Superimpose (Over) (selected)", "3D window", () => superimpose3("over"));      // (Round r20 / 9: they were kept for it)
-  row("superUnder", "Ctrl+]", "Superimpose (Under) (selected)", "3D window", () => superimpose3("under"));
+  // (Round r30 / 3) with the pointer over the 3D window only: over the 2D window the same keys are Order
+  row("superOver", "Ctrl+[", "Superimpose (Over) (selected)", OVER, () => superimpose3("over"), { w: "3d" });      // (Round r20 / 9: they were kept for it)
+  row("superUnder", "Ctrl+]", "Superimpose (Under) (selected)", OVER, () => superimpose3("under"), { w: "3d" });
   row("strong3", "Ctrl+H", "Strengthen (selected)", "3D window", () => state3Toggle("strong3"));
   row("solid3", "Ctrl+E", "Solidify (selected)", "3D window", () => state3Toggle("solid3"));
   row("freeze3", "Ctrl+K", "Freeze (selected)", "3D window", () => state3Toggle("freeze3"));
@@ -12134,6 +12481,12 @@ function keyTable() {
   row("reverse", "Ctrl+Shift+B", "Reverse Sewing", "Edit", reverse);                                     // kept as it was: the maintainer is checking this key
   for (const [deg, n, k] of ROTATE) row("turn:" + deg, "Ctrl+" + k, "Transform Pattern: turn " + n.charAt(0).toLowerCase() + n.slice(1), "Edit", () => (S.tool === "edit_gluing" ? glueTurn(selGlueArea(), deg) : turnSel(deg, n)),
     { when: () => (S.tool === "transform_pattern" && freeSel().length > 0) || (S.tool === "edit_gluing" && !!selGlueArea()) });
+  // (Round r30 / 3, the maintainer's keys) the selected patterns' order, by the keys' place on the keyboard (keyCombo() reads the
+  // bracket keys by their code: on a German keyboard they are Ü and +); with the pointer over the 3D window they are Superimpose
+  row("order:forward", "Ctrl+]", "Bring Forward (the selected patterns, one step)", "Edit", () => orderSel("forward"), { hist: "Bring Forward" });
+  row("order:backward", "Ctrl+[", "Send Backward (the selected patterns, one step)", "Edit", () => orderSel("backward"), { hist: "Send Backward" });
+  row("order:front", "Ctrl+Shift+]", "Bring to Front (the selected patterns)", "Edit", () => orderSel("front"), { hist: "Bring to Front" });
+  row("order:back", "Ctrl+Shift+[", "Send to Back (the selected patterns)", "Edit", () => orderSel("back"), { hist: "Send to Back" });
   row("linkLines", "U", "Edit Pattern: link the selected lines", "Edit", () => linkSelected(), { when: () => !KEYMAP.U && S.tool === "edit_pattern", pass: 1 });
   // View
   row("zoomSel", "F", "Zoom to the selection, or to fit (in 3D: Focus Zoom on the selected patterns)", "View", () => (S.over3d && sel3(true).length ? focusZoom3() : focusZoom()), { pass: 1 });
@@ -12209,8 +12562,12 @@ const keyHere = (k) => (!MAC || !/^Ctrl\+/.test(k) || MAC_CTRL.includes(k) ? k :
 function keyCombo(e) {
   let k = e.code === "Space" ? "Space" : String(e.key || "");
   if (MAC && e.altKey && /^(Key[A-Z]|Digit[0-9])$/.test(e.code || "")) k = e.code.slice(-1);
+  // (Round r30 / 3) with Ctrl the bracket keys by their place, whatever sign the keyboard gives (Ü and + on a German one, { and }
+  // with Shift), and Shift is named with them
+  const br = (e.ctrlKey || e.metaKey) && (e.code === "BracketLeft" || e.code === "BracketRight" || k === "[" || k === "]");
+  if (br) k = e.code === "BracketLeft" ? "[" : e.code === "BracketRight" ? "]" : k;
   if (k.length === 1) k = k.toUpperCase();
-  const shift = e.shiftKey && (k.length > 1 || /[A-Z]/.test(k));
+  const shift = e.shiftKey && (k.length > 1 || /[A-Z]/.test(k) || br);
   return (MAC ? (e.metaKey ? "Cmd+" : "") + (e.ctrlKey ? "Ctrl+" : "") : e.ctrlKey || e.metaKey ? "Ctrl+" : "") + (e.altKey ? "Alt+" : "") + (shift ? "Shift+" : "") + k;
 }
 const in3d = () => !!S.over3d || S.ui.layout === "3d";
@@ -12441,7 +12798,45 @@ function selectAllWith(kind, ids) {
   toast(S.sel.length + (S.sel.length === 1 ? " pattern" : " patterns") + " selected");
 }
 // a pattern's Particle Distance in 3D: its own (Property Editor ▸ Simulation Properties), or the document's
-function particleOf(p) { return (p && p.res3 >= 5 && p.res3 <= 60 && p.res3) || (S.cloth && S.cloth.res) || 20; }
+/* (Round r32) THE BROWSER'S LIMITS. What can make a browser tab freeze or crash is the desktop app's only: a Particle Distance under BROWSER_LIMIT.res
+   (measured on the T-shirt example, the solver on the page: 0.29 s a frame at 10 mm, 0.42 at 8, 1.0 at 5 on a fast machine, four times that on a weak one,
+   and more for a larger garment), a picture over BROWSER_LIMIT.px a side (past the card's own limit, 8192 here, the 3D picture was drawn wrong), and
+   Path Traced. Shown, with a lock; asked for, deskOnly() says why. A file that holds such a value keeps it: only this session runs the limit
+   (resHere(), clothRes(), renderHere()), and a one-line notice says so (browserHeldNote()). The desktop app has no limits. */
+const BROWSER_LIMIT = { res: 10, px: 4096 };
+// the desktop app, or no page at all (the geometry alone, as the tests load it): no limits
+function noLimits() { return typeof window === "undefined" || !!window.desktop; }
+function resHere(r) { return noLimits() ? r : Math.max(BROWSER_LIMIT.res, r); }
+const clothRes = () => resHere((S.cloth && S.cloth.res) || 20);
+const pxMax = () => (noLimits() ? SNAP_MAXPX : BROWSER_LIMIT.px);
+/* (1.0.0-beta.3) THE GRAPHICS CARD'S LIMIT. A 3D picture (a render, a 3D snapshot) larger than the card can draw into came out wrong without a word
+   (Round r32, known bug 1: past 8192 a side here), in the desktop app too. The largest side the card takes: the least of its texture, renderbuffer and
+   viewport sizes, asked once of the 3D window's own context, else of a throwaway one. No WebGL (the tests): no limit of its own. */
+var CARD_PX;
+function cardPx() {
+  if (CARD_PX !== undefined) return CARD_PX;
+  CARD_PX = Infinity;
+  try {
+    const R = typeof view3d !== "undefined" && view3d.ready() && view3d.renderer(), own = R && R.getContext && R.getContext();
+    const gl = own && own.getParameter ? own : typeof document !== "undefined" && document.createElement ? (() => { const c = document.createElement("canvas"); return c.getContext && (c.getContext("webgl2") || c.getContext("webgl")); })() : null;
+    if (gl && gl.getParameter) {
+      const v = gl.getParameter(gl.MAX_VIEWPORT_DIMS) || [], m = Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE), gl.getParameter(gl.MAX_RENDERBUFFER_SIZE), v[0] || Infinity, v[1] || Infinity);
+      if (m >= 64) CARD_PX = m;
+      if (gl !== own) { const lose = gl.getExtension && gl.getExtension("WEBGL_lose_context"); if (lose) lose.loseContext(); }
+    }
+  } catch (e) {}
+  return CARD_PX;
+}
+// the largest side of a 3D picture here: the browser's limit, and the card's
+const pxMax3 = () => Math.min(pxMax(), cardPx());
+// what holds it: "card" when the graphics card is the lower limit (the desktop app would not help), else "browser" or "" (the desktop app's own)
+const pxWhy3 = () => (cardPx() <= pxMax() ? "card" : noLimits() ? "" : "browser");
+// the line beside a picture's size fields: the lock in a browser, the card's limit wherever it holds
+function pxLimitHint() {
+  const why = pxWhy3(), most = pxMax3();
+  return why === "card" ? '<div class="hint">At most ' + most + ' pixels a side: this graphics card\'s limit.</div>' : why === "browser" ? lockLine("At most " + most + " pixels a side in a browser; more in the desktop app.") : "";
+}
+function particleOf(p) { return resHere((p && p.res3 >= 5 && p.res3 <= 60 && p.res3) || (S.cloth && S.cloth.res) || 20); }
 const selAllRows = (ids) => () => [{ n: "Sewn", k: keyOf("selectSewn"), f: () => selectAllWith("sewn", ids) }, { n: "Particle Distance", f: () => selectAllWith("particle", ids) },
   { n: "Fabric", f: () => selectAllWith("fabric", ids) }, { n: "Layer", f: () => selectAllWith("layer", ids) }];
 function keyEnter() {
@@ -12471,7 +12866,7 @@ function keyDelete() {
   if (S.tool === "edit_topstitch") { if (S.stitches.some(s => s.id === S.selStitch)) { push(); S.stitches = S.stitches.filter(s => s.id !== S.selStitch); S.selStitch = null; commit(); } return; }
   if (d && d.pts) { d.pts.pop(); d.hs.pop(); if (d.auto) d.auto.length = d.pts.length; if (!d.pts.length) S.draft = null; S.drag = null; draw(); return; }
   // with Edit Pattern and lines selected it deletes those lines (a pattern picked by its body is deleted whole, as before)
-  if (S.tool === "edit_pattern" && !selCp() && selLines().length) { deleteLines(selLines()); return; }
+  if (S.tool === "edit_pattern" && !selCp() && !selHandle() && selLines().length) { deleteLines(selLines()); return; }
   del();
 }
 // the arrow keys: the grading of a point (Edit Pattern, a size picked), else the selection is nudged
@@ -12761,7 +13156,7 @@ function foldLine(it, res) {
 const meshLine = (it) => !it.hole && (foldSet(it) || it.segs.some(s => s.elastic));
 // a pattern's fold lines as the solver takes them (SIM3D.clothBuild's pieces[k].folds), sampled as its cloth is meshed
 function foldsOf(p, res) {
-  res = res || (S.cloth && S.cloth.res) || 20;
+  res = res || clothRes();
   return (p.internals || []).filter(foldSet).map(it => {
     const f = foldOf(it);
     // (Round r26, the fourth check session Number 13a) Flip Normal shows the back and leaves a fold alone: foldStay says so. A pattern flipped
@@ -12913,10 +13308,17 @@ function del() {
     if (sp.p.lock) return toast("Locked — unlock the pattern to change it");
     push(); sp.p.punches.splice(sp.ni, 1); S.selPunch = null; return commit();
   }
-  const sc = selCp();
-  if (sc) {
-    if (sc.p.lock) return toast("Locked — unlock the pattern to change it");
-    push(); deleteCp(sc.sh, sc.i, sc.c); S.selCp = null; return commit();
+  // (Round r30 / 2) every selected curve point (Shift+click, the box), in one step
+  const many = cpSelList();
+  if (many.length) {
+    const free = many.filter(x => !x.p.lock);
+    if (!free.length) return toast("Locked — unlock the pattern to change it");
+    push(free.length > 1 ? "Delete Curve Points" : undefined); cpDeleteAll(free); S.selCp = null; S.selCps = []; return commit();
+  }
+  const sh0 = selHandle();
+  if (sh0) {
+    if (sh0.p.lock) return toast("Locked — unlock the pattern to change it");
+    push("Delete Curve Handle"); dropHandle(sh0.sh, sh0.i, sh0.h); S.selHandle = null; return commit();
   }
   const p = primary(); if (!p) return;
   // a locked pattern keeps its points, its internal shapes and itself
@@ -13738,6 +14140,24 @@ function traceMenuItems() {
     { sep: 1 },
     { n: "Trace as Point of Measure", f: () => traceMeasures(lines) }];
 }
+/* (Round r30 / 5, the maintainer's user test) Trace, Shape mode: a right-click on an internal line or a closed internal shape also
+   gives what the cut tools do with it, as its own menu has them: an open line Cut and Cut & Sew (cutCommand()); a closed shape
+   Convert to Hole (convertHole(): a real hole, no cloth in 2D or 3D, its edge a cut line) or back to an internal shape, and
+   Cut / Cut & Sew greyed (they go along an open line; Slice, under More, cuts along a closed shape). h: what hit() found under
+   the pointer, t: the shape traceShapeAt() found */
+function traceCutRows(h, t) {
+  let p = null, j = -1;
+  if (h && h.k === "seg" && h.kind === "internal" && h.p.internals[h.int]) { p = h.p; j = h.int; }
+  else if (t && t.id && !t.base) { p = byId(t.pid); j = p ? p.internals.findIndex(it => it.id === t.id) : -1; }
+  const ln = p && j >= 0 ? p.internals[j] : null;
+  if (!ln) return [];
+  const rows = [{ sep: 1 }, { hd: ln.closed ? (ln.hole ? "This hole" : "This internal shape") : "This internal line" }];
+  if (!ln.closed) rows.push({ n: "Cut", f: () => cutCommand(p, j, false) }, { n: "Cut & Sew", f: () => cutCommand(p, j, true) });
+  else rows.push({ n: "Cut", off: true, note: "an open line", f: () => toast("Cut works along an open internal line: Slice (More) cuts along a closed shape") },
+    { n: "Cut & Sew", off: true, note: "an open line", f: () => toast("Cut & Sew works along an open internal line") },
+    ln.hole ? { n: "Convert to Internal Shape", f: () => convertHole(p, j, false) } : { n: "Convert to Hole", f: () => convertHole(p, j, true) });
+  return rows;
+}
 // the panel (W70): shown while Trace is in hand
 function tracePanel() {
   const stage = document.getElementById("stage");
@@ -13897,6 +14317,18 @@ function aboutDialog() {
 const APP_CONFIG = typeof PDRAFT_CONFIG === "object" && PDRAFT_CONFIG ? PDRAFT_CONFIG : {};
 const APP_VERSION = String(APP_CONFIG.version || "");
 const FEEDBACK_URL = String(APP_CONFIG.feedbackUrl || "");
+// (Round r32) the website's download page (config.js): where a browser's "Only in the desktop app" box sends
+const DOWNLOAD_URL = String(APP_CONFIG.downloadUrl || "");
+const LOCK_SVG = '<svg class="lock" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><rect x="3" y="7" width="10" height="7.5" rx="1.2" fill="currentColor"/><path d="M5.2 7V5a2.8 2.8 0 0 1 5.6 0v2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+// a lock and its words, never colour alone; empty in the desktop app
+const lockLine = (text) => (DESK ? "" : '<div class="hint locked">' + LOCK_SVG + " " + text + "</div>");
+const resLockHint = () => lockLine("Under " + BROWSER_LIMIT.res + " mm: only in the desktop app.");
+/* (Round r32) What a browser asks for that is the desktop app's only: a short box, the lock, why, and the way to the download page. Returns true */
+function deskOnly(what) {
+  askModal("Only in the desktop app", '<p class="locked">' + LOCK_SVG + " <b>" + esc(what) + "</b></p><p>Only in the desktop app: this is too heavy for a browser and could crash the tab. The desktop app is free:</p>",
+    [...(DOWNLOAD_URL ? [{ k: "get", n: "Get the Desktop App", primary: true, f: () => window.open(DOWNLOAD_URL, "_blank", "noopener") }] : []), { k: "ok", n: "OK", esc: true, f: () => {} }]);
+  return true;
+}
 const WELCOME_KEY = "pdraft:welcome", ERR_KEEP = 20, STEPS_KEPT = 10;
 const ERRLOG = [];
 // a message with the user's own folders, e-mail addresses and the like taken out
@@ -14293,7 +14725,7 @@ function histPack(max) {
 }
 // the file versions whose saved history this build can replay: a step holds whole patterns, and 12 to 15 changed nothing in them
 // that can't be read with its defaults
-const HIST_FV = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27];
+const HIST_FV = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28];
 // a file's timeline as the undo and redo stacks: { undo, un, redo, rn }, or null if it has none or it is not usable
 function histUnpack(h, fv) {
   try {
@@ -15458,7 +15890,7 @@ function shapeCopies(isRect, w0, size, rep) {
   const n = Math.max(1, Math.min(200, Math.round(rep.n || 1))), r = (rep.ang || 0)*Math.PI/180, u = V(Math.sin(r), -Math.cos(r)), out = [];
   for (let k = 0; k < n; k++) {
     const o = V(w0.x + u.x*rep.step*k, w0.y + u.y*rep.step*k);
-    out.push(isRect ? rectShape(o.x, o.y, size.w, size.h) : ellipseShape(o.x + size.w/2, o.y + size.h/2, size.w/2, size.h/2));
+    out.push(isRect ? rectShape(o.x, o.y, size.w, size.h) : cpsOnly(ellipseShape(o.x + size.w/2, o.y + size.h/2, size.w/2, size.h/2)));      // (Round r30 / 2) curve points, no handles
   }
   return out;
 }
@@ -15825,18 +16257,40 @@ function ptMoveNumeric(at, sh, k, dv, line) {
   // the length shown is what the line will be once the move so far is carried out
   const after = (() => { const c = { pts: sh.pts.map(cp), segs: clone(sh.segs), closed: sh.closed }; movePt(c, k, dv); return c; })();
   const seg = line === "1" ? ip : k, len0 = +toDisp(segLen(after, seg)).toFixed(3);
+  // (Round r30 / 1) the angle at the point once the move so far is carried out: typed, the point moves to give it
+  const host = shapeHost(sh), a0 = pointAngle(after, k, host), ang0 = a0 ? +a0.deg.toFixed(2) : null;
   return moveDistDialog(at, dv, (mv, v) => {
     if (v.len !== len0) {
       push(); if (mv) movePt(sh, k, mv);
       if (!setSegLength(sh, seg, fromDisp(v.len), line === "1" ? 1 : 0, false)) { unpush(); commit(); return toast("That length can't be reached"); }
       return commit();
     }
+    if (ang0 !== null && Number.isFinite(v.ang) && v.ang !== ang0) {
+      push(); if (mv) movePt(sh, k, mv);
+      const da = angleSolve(sh, k, v.ang, line, host);
+      if (!da) { unpush(); commit(); return toast("No place of the point gives an angle of " + v.ang + "°"); }
+      movePt(sh, k, da); return commit();
+    }
     if (!mv) return;
     push(); movePt(sh, k, mv); commit();
-  }, { fields: [{ k: "len", label: "Length", val: len0, unit: S.unit }],
+  }, { fields: [{ k: "len", label: "Length", val: len0, unit: S.unit }, ...(ang0 !== null ? [{ k: "ang", label: a0.kind === "level" ? "Angle to level" : a0.kind === "edge" ? "Angle to outline" : "Angle", val: ang0, unit: "°", step: 1 }] : [])],
     selects: [{ k: "line", label: "Length of", val: line, options: lines }],
     onSelect: (v) => ptMoveNumeric(at, sh, k, dv, v.line),
-    hint: "Distance, X and Y move the point. Length sets the chosen line's length: the point slides along it." });
+    hint: "Distance, X and Y move the point. Length sets the chosen line's length: the point slides along it. Angle moves the point so the angle at it is that: " + angleKeepText(a0) });
+}
+// (Round r30 / 1) which line stays as it is when an angle is typed, in words
+function angleKeepText(a) {
+  if (!a) return "";
+  if (a.kind === "level") return "its line keeps its length and turns round its other end.";
+  if (a.kind === "edge") return "the end slides along the outline; the line's other end stays.";
+  return "the chosen line (Length of) keeps its length and turns round its far point; the other line's far point stays.";
+}
+// (Round r30 / 1) the angle at point k typed (the Property Editor): the point moves to give it, one step
+function setPointAngle(sh, k, deg, keep) {
+  const host = shapeHost(sh), da = angleSolve(sh, k, deg, keep, host);
+  if (!da) return toast("No place of the point gives an angle of " + deg + "°"), false;
+  push("Point Angle"); movePt(sh, k, da); commit();
+  return true;
 }
 // move point k of a shape by dv; handle curves that end at it bring their near handle along
 function movePt(sh, k, dv) {
@@ -16150,6 +16604,7 @@ function toSegPointOnly(sh, i, c) {
   };
   set(sh.segs[i], before, e0, null);
   set(sh.segs[i + 1], after, null, e1);
+  cpsOnly(sh, [sh.segs[i], sh.segs[i + 1]]);                 // (Round r30 / 2) a side left with no curve point but a direction: curve points, no handles
   return true;
 }
 /* ---- Offset Pattern Outline for the whole pattern (Round E / E6, W2) ----
@@ -16322,7 +16777,7 @@ function showMenu(e) {
   if (S.tool === "trace" && S.traceMode === "shape") {
     const t = traceShapeAt(sx, sy);
     if (t && !t.base && !(S.traceShapes || []).some(r => r.pid === t.pid && r.id === t.id)) traceShapeClick(sx, sy, false);
-    draw(); return listMenu(traceMenuItems(), e.clientX, e.clientY);
+    draw(); return listMenu([...traceMenuItems(), ...traceCutRows(h, t)], e.clientX, e.clientY);
   }
   if (S.tool === "trace" && (S.traceMode || "line") === "line") {
     if (h && h.k === "seg" && !traceLines().some(c => sameLine(c, h))) traceClick(h, false);
@@ -16451,7 +16906,7 @@ function showMenu(e) {
       I.push(...ctxMore([
         lines.some(linkOf) && { n: "Unlink Lines", f: () => { push("Unlink Lines"); unlinkLines(lines); commit(); toast("Unlinked"); } },
         !many && s.curved && !isSpline(s) && { n: "Convert to Curve Points", f: () => { push(); toCurvePoints(sh, h.i); commit(); toast("Now a curve through " + s.cps.length + " curve points, the same shape to within " + CURVE_FIT + " mm"); } },
-        !many && isSpline(s) && { n: "Convert to Handle Curve", f: () => { push(); toHandles(sh, h.i); commit(); } },
+        !many && isSpline(s) && { n: "Convert to Handle Curve", f: () => { push(); toHandles(sh, h.i); commit(); } },      // (Round r30 / 2: kept, asked for by name; Curve Grading needs it)
         !many && s.curved && !isSpline(s) && !p.link && { n: "Curve Grading…", f: () => curveGradeNumeric(at, p, sh, h.i) },
         { n: "Distribute Internal Lines between Segments…", f: two(distributeNumeric) },
         { n: "Fullness (Line)…", f: two(fullnessLineNumeric) },
@@ -16988,7 +17443,7 @@ function contextMenuRows() {
 }
 // Order ▸, Rotate ▸ and Flip ▸ of a pattern's menu (and an internal line's): they act on the selected patterns
 function arrangeRows() {
-  return [{ n: "Order", menu: () => ORDER.map(([k, name]) => ({ n: name, f: () => orderSel(k) })) },
+  return [{ n: "Order", menu: () => ORDER.map(([k, name]) => ({ n: name, k: keyOf("order:" + k), f: () => orderSel(k) })) },
     { n: "Rotate", menu: () => [{ n: "Reset Along Grain Direction", f: grainReset }, { sep: 1 }, ...ROTATE.map(([deg, name]) => ({ n: name, k: keyOf("turn:" + deg), f: () => turnSel(deg, name) })),
       { sep: 1 }, { n: "X-Axis", f: () => rotAxisStart("x") }, { n: "Y-Axis", f: () => rotAxisStart("y") }, { n: "Parallel to…", f: () => rotAxisStart("par") }] },
     { n: "Flip", menu: () => [{ n: "Horizontally", f: () => flipSel(true, false) }, { n: "Horizontally (Each)", f: () => flipSel(true, true) }, { n: "Vertically", f: () => flipSel(false, false) }, { n: "Vertically (Each)", f: () => flipSel(false, true) }] }];
@@ -17194,6 +17649,13 @@ function ui() {
     '<div class="row"><label title="Sets the corner at both ends of this line">Intersection</label>' + cornerSel("sl-cx", ct(sg) === ct(nx) ? ct(sg) : "ext", [si, (si + 1) % p.segs.length]) + '</div>') : '';
   // (Round r15 / 3) an outline point selected: its corner, as the reference's Corner Type ▸ Intersection and Intersection Properties
   const cpi = S.selKind === "outline" && S.selPt >= 0 && S.selSeg < 0 && p.segs[S.selPt] ? S.selPt : -1;
+  // (Round r30 / 1) a point selected with Edit Pattern, on the outline or an internal line: the angle at it, typed to move it
+  const spG = S.tool === "edit_pattern" && S.selPt >= 0 && S.selSeg < 0 && S.selKind !== "base" ? subShapes(p).find(x => x.kind === S.selKind && x.j === S.selInt) : null;
+  const spA = spG && spG.sh.pts[S.selPt] ? pointAngle(spG.sh, S.selPt, p) : null;
+  const ptSec = spA ? sec("Selected Point",
+    '<div class="row"><label title="' + esc(angleKeepText(spA)) + '">' + (spA.kind === "level" ? "Angle to level" : spA.kind === "edge" ? "Angle to outline" : "Angle") + ' (\u00b0)</label><input type="text" inputmode="decimal" data-num="1" id="sp-a" step="1" value="' + +spA.deg.toFixed(2) + '"' + dis + '></div>' +
+    (spA.kind === "corner" ? '<div class="row"><label title="The line that keeps its length when an angle is typed: the point turns round its far point, and the other line\'s far point stays">Keeps its length</label><select class="w" id="sp-k"' + dis + '><option value="1"' + (S.angKeep === "2" ? '' : ' selected') + '>Line 1 (ends at the point)</option><option value="2"' + (S.angKeep === "2" ? ' selected' : '') + '>Line 2 (starts at the point)</option></select></div>' : '') +
+    '<div class="note" style="margin-bottom:6px">' + esc("Typed, the point moves: " + angleKeepText(spA)) + '</div>') : '';
   const cornerSec = cpi >= 0 ? sec("Corner Type", '<div class="row"><label title="The seam allowance\'s corner at this point">Intersection</label>' + cornerSel("cx-t", ct(p.segs[cpi]), [cpi]) + '</div>') +
     (cornerPropsHTML(p, cpi, dis) ? sec("Intersection Properties", cornerPropsHTML(p, cpi, dis)) : '') : '';
   // (Round r12 / 2) the notch selected with the Notch tool: its own type and angle (or the document's)
@@ -17288,7 +17750,7 @@ function ui() {
       '<div class="row"><label title="Stacking order: higher is drawn on top and clicked first">Layer</label><input type="text" inputmode="decimal" data-num="1" id="pp-lay" step="1" value="' + p.layer + '"' + dis + '></div>' +
       '<div class="row"><label for="pp-lock" title="A locked pattern can\'t be edited, moved or deleted on the canvas">Lock</label><input type="checkbox" id="pp-lock"' + (p.lock ? ' checked' : '') + '></div>' +
       '<div class="btns"><button class="btn" id="p-dup">Duplicate</button><button class="btn warn" id="p-del"' + dis + '>Delete</button></div>') +
-    stitchSec + seamSec + notchSec + lineSec + cornerSec + foldSec + elSec +
+    stitchSec + seamSec + notchSec + lineSec + ptSec + cornerSec + foldSec + elSec +
     sec("Fabric",
       '<div class="row"><label>Fabric</label><select class="w" id="pp-fab"' + dis + '>' + fabrics.map(f => '<option value="' + f.id + '"' + (fab && f.id === fab.id ? ' selected' : '') + '>' + esc(f.name) + '</option>').join("") + '</select></div>' +
       '<div class="row"><label title="0 is straight up and down; positive leans to the left at the top">Grain Direction (\u00b0)</label><input type="text" inputmode="decimal" data-num="1" id="pp-grain" step="1" value="' + +grainAngle(gr).toFixed(2) + '"' + dis + ' title="The Up and Down arrows step it by 45° (One Way) or 90° (Two or Four Way)"></div>' +
@@ -17300,7 +17762,7 @@ function ui() {
     // Fill (Round r9 / 7, provisional name and place): how full of filling the pattern is in the simulation
     sec("Simulation",
       // (Round build-1) Simulation Properties (B1 p.45): this pattern's own Particle Distance and Simulation Shrinkage
-      '<div class="row"><label for="pp-res3" title="The distance between the cloth\'s points for this pattern; empty = the document\'s (' + ((S.cloth && S.cloth.res) || 20) + ' mm). 20 normal, 5 for a small part">Particle Distance (mm)</label><input type="text" inputmode="decimal" data-num="1" class="s" id="pp-res3" value="' + (p.res3 || "") + '" placeholder="' + ((S.cloth && S.cloth.res) || 20) + '"' + dis + '></div>' +
+      '<div class="row"><label for="pp-res3" title="The distance between the cloth\'s points for this pattern; empty = the document\'s (' + ((S.cloth && S.cloth.res) || 20) + ' mm). 20 normal, 5 for a small part">Particle Distance (mm)</label><input type="text" inputmode="decimal" data-num="1" class="s" id="pp-res3" value="' + (p.res3 || "") + '" placeholder="' + ((S.cloth && S.cloth.res) || 20) + '"' + dis + '></div>' + resLockHint() +
       '<div class="row"><label title="How much the cloth draws in (below 100) or out (above) in the simulation, across the grain (Weft) and along it (Warp), 1 to 1000. Not the print shrinkage">Shrinkage Weft / Warp %</label>' +
         '<input type="text" inputmode="decimal" data-num="1" class="s" id="pp-weft" value="' + ((p.shrink3 || {}).weft || 100) + '"' + dis + '><input type="text" inputmode="decimal" data-num="1" class="s" id="pp-warp" value="' + ((p.shrink3 || {}).warp || 100) + '"' + dis + '></div>' +
       // (Round r25 / 6) Solidify's Strength, shown while the pattern is solidified
@@ -17359,6 +17821,11 @@ function ui() {
     wireCorners(p, { "sl-c0": [si], "sl-c1": [ni], "sl-cx": [si, ni] });
   }
   if (cpi >= 0 && !p.lock) { wireCorners(p, { "cx-t": [cpi] }); wireCornerProps(p, cpi); }
+  if (spA && !p.lock) {
+    const g = (id) => document.getElementById(id);
+    if (g("sp-k")) g("sp-k").onchange = (e) => { S.angKeep = e.target.value; };
+    g("sp-a").onchange = (e) => { const a = numOf(e.target.value); if (Number.isFinite(a) && Math.abs(a - spA.deg) > 1e-6) setPointAngle(spG.sh, S.selPt, a, S.angKeep || "1"); else ui(); };
+  }
   if (sst && !p.lock) {
     const g = (id) => document.getElementById(id), grp = () => ssl ? S.stitches.filter(x => x.group === sst.group && x.seam === sst.seam) : [sst];
     const set = (f) => { push("Topstitch"); for (const x of grp()) f(x); commit(); };
@@ -17393,7 +17860,7 @@ function ui() {
   prop("pp-fill", (el) => { p.fill = el.value; });
   prop("pp-fill-r", (el) => { p.fill = el.value; });
   prop("pp-sw", (el) => { p.shrink.w = el.value; });
-  prop("pp-res3", (el) => { const v = numOf(el.value); if (isFinite(v) && v >= 5 && v <= 60) p.res3 = v; else { delete p.res3; if (String(el.value).trim()) toast("A particle distance of 5 to 60 mm (empty: the document's)"); } });
+  prop("pp-res3", (el) => { const v = numOf(el.value); if (isFinite(v) && v >= 5 && v < BROWSER_LIMIT.res && !DESK) { el.value = p.res3 || ""; deskOnly("A particle distance under " + BROWSER_LIMIT.res + " mm"); } else if (isFinite(v) && v >= 5 && v <= 60) p.res3 = v; else { delete p.res3; if (String(el.value).trim()) toast("A particle distance of 5 to 60 mm (empty: the document's)"); } });
   prop("pp-thick3", (el) => { p.thick3 = { ...(p.thick3 || {}), t: numOf(el.value) }; });
   prop("pp-extr", (el) => { p.thick3 = { ...(p.thick3 || {}), dir: el.value }; });
   for (const id of ["pp-thick3", "pp-extr"]) { const el = document.getElementById(id), was = el && el.onchange; if (was) el.onchange = (e) => { was(e); extrasAll3(); }; }
@@ -17589,7 +18056,7 @@ document.getElementById("ex-svg").onclick = () => {
      history.json       the saved history timeline (histPack()), when there is one
      images/<id>.<ext>  each picture a pattern uses, as a file of its own
      drape.bin          every draped cloth's points one pattern after the other: 32-bit floats, x y z, low byte first
-     avatar/<name>      the avatar's own file, only when its owner chose to keep it in the document (avatarEmbed())
+     avatar/<name>      the avatar's own file, whenever the document is on one's own avatar (Round r31; before, only when its owner chose to)
    Entries are packed with the platform's own deflate (CompressionStream "deflate-raw": browsers, the desktop
    app, Node) and stored as they are where that is missing; pictures are always stored as they are. Names,
    order and dates are fixed, so the same document gives the same bytes every time it is saved.
@@ -17964,7 +18431,9 @@ function openLoaded(name, d, path, sure) {
     S.sel = []; S.selPt = S.selSeg = S.selInt = -1; S.selMore = []; S.hover = null; S.draft = null;
     commit(); fitAll(); markClean();
     const n = S.undo.length + S.redo.length;
-    toast("Opened " + name + (n ? " with " + n + (n === 1 ? " history step" : " history steps") : "") + curveNote(), curveNote() ? 8000 : undefined);
+    // (Round r32) in a browser, what of it only the desktop app runs, in the same line (browserHeld())
+    const held = browserHeld(), heldText = held.length ? ". Only in the desktop app: " + held.join(", ") + ". The file keeps its own settings." : "";
+    toast("Opened " + name + (n ? " with " + n + (n === 1 ? " history step" : " history steps") : "") + curveNote() + heldText + (cardHeld() && " " + cardHeld()), curveNote() || heldText || cardHeld() ? 10000 : undefined);      // (1.0.0-beta.3: and a render larger than this graphics card draws)
     if (DESK) setFile(path);
     avatarCheck();
     try { grainOffer(name, d.v || 0); } catch (e) { console.error(e); }      // (r25 follow-up) a file from before version 25 with imported grainlines: never in the way of opening it
@@ -19442,7 +19911,8 @@ function snap2Job(o) {
   const wmm = wd*k, hmm = ht*k;
   let ppi = o.ppi;
   const px = (v) => Math.max(1, Math.round(v/25.4*ppi));
-  while (ppi > 10 && (px(wmm) > SNAP_MAXPX || px(hmm) > SNAP_MAXPX || px(wmm)*px(hmm) > SNAP_MAXAREA)) ppi = Math.floor(ppi*0.9);
+  const most = pxMax(), area = DESK ? SNAP_MAXAREA : most*most;      // (Round r32: in a browser, the browser's limit)
+  while (ppi > 10 && (px(wmm) > most || px(hmm) > most || px(wmm)*px(hmm) > area)) ppi = Math.floor(ppi*0.9);
   const inner = printInner(pieces, st, S.unit), f = (v) => +v.toFixed(3);
   const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + f(wmm) + 'mm" height="' + f(hmm) + 'mm" viewBox="0 0 ' + f(wd) + ' ' + f(ht) + '">' +
     '<g transform="translate(' + f(-x0) + ' ' + f(-y0) + ')">' + inner + '</g><\/svg>';
@@ -19492,7 +19962,7 @@ function snap2Save(o) {
   }
   const job = snap2Job(o);
   if (!job) return toast("Nothing to take a snapshot of");
-  const lower = job.ppi < o.ppi ? " (at " + job.ppi + " ppi: a picture can be at most " + SNAP_MAXPX + " pixels across)" : "";
+  const lower = job.ppi < o.ppi ? " (at " + job.ppi + " ppi: a picture can be at most " + pxMax() + " pixels across" + (DESK ? "" : " in a browser; more in the desktop app") + ")" : "";
   if (o.fmt === "pdf" && DESK && DESK.pdf) {
     const plan = { pw: job.wmm, ph: job.hmm, m: 0, iw: job.wmm, ih: job.hmm, scale: job.scale, cols: 1, rows: 1, tiles: [{ col: 0, row: 0, x: job.x0, y: job.y0, w: job.wd, h: job.ht }] };
     return void DESK.pdf(name + ".pdf", printHTML(plan, plan.tiles, printInner(job.pieces, job.st, S.unit), job.st, "Snapshot")).then((fl) => { if (fl) toast("2D snapshot saved as " + fl.name + " (" + sizeTxt(job) + ")", 7000); }).catch((e) => toast("Couldn't save: " + deskErr(e), 6000));
@@ -19697,6 +20167,7 @@ function loadRender() {
   let n;
   if (S.render) n = normRender(S.render);
   else { let o = null; try { o = JSON.parse(localStorage.getItem(RENDER_KEY) || "{}"); } catch (e) {} n = normRender(o ? { ...o, views: [], view: o.view === "custom" ? "now" : o.view, fov: null, near: null, far: null, camName: null } : null); }
+  n = renderHere(n);
   // (Round r29b) where the path tracer failed to get ready: Quick, until Path Traced is chosen again; (Round r29c) on software WebGL: Quick, until Path Traced is chosen and confirmed
   if (n.mode === "quality" && (ptFailedHere() || (ptSoftware() && !PT_SOFT_YES))) n.mode = "quick";
   return n;
@@ -19725,20 +20196,40 @@ const PT_SOFT_NAMES = /swiftshader|llvmpipe|softpipe|basic render|software/i;
 const ptSoftware = () => PT_SOFT_NAMES.test(ptCard());
 const ptSoftAllow = () => { PT_SOFT_YES = true; };
 /* What it costs, measured on one machine's processor with SwiftShader (r29c: 160 × 200, 640 × 800 and 1280 × 1600 at 16 samples took 48, 64 and 129 s): preparing about 48 s whatever the
-   size, in which the page may not answer for up to 45 s where the parallel compile is missing; then about 2.5 µs a pixel and sample. An estimate for another machine's processor. */
+   size (Round r32: the page answers meanwhile, ptLinkAsk(); before, it could not for up to 45 s); then about 2.5 µs a pixel and sample. An estimate for another machine's processor. */
 const PT_SOFT_PREP = 48, PT_SOFT_PX = 2.5e-6;
 const ptSoftSecs = (w, h, samples) => PT_SOFT_PREP + w*h*samples*PT_SOFT_PX;
 const ptSoftTime = (s) => (s < 90 ? "about " + Math.max(10, Math.round(s/10)*10) + " seconds" : s < 5400 ? "about " + Math.round(s/60) + " minutes" : "about " + Math.round(s/3600) + " hours");
 function ptSoftAsk() {
   const o = loadRender(), { w, h } = renderSize(o), all = ptSoftSecs(w, h, o.samples), capped = o.maxMin > 0 && all > o.maxMin*60;
-  const first = PT_PARALLEL ? "Preparing takes about a minute the first time after each start." : "The program may stop answering for up to about a minute while it prepares, once after each start.";
+  // (Round r32) without the parallel compile the card links it before the page asks (ptLinkAsk()): the page answers, the 3D window, drawn by the same processor, waits
+  const first = "Preparing takes about a minute the first time after each start" + (PT_PARALLEL ? "." : ", and the 3D window does not redraw meanwhile.");
   askModal("Path Traced without a graphics card", "This computer draws 3D with its processor (" + esc(ptCard()) + "). " + first + "<br><br>This picture, " + w + " \u00d7 " + h + " at " + o.samples + " samples, would take " + ptSoftTime(all) + " in all" + (capped ? "; Max. Render Time stops it at " + o.maxMin + " minutes" : "") + ". Fewer pixels or samples take less.",
     [{ k: "go", n: "Use Path Traced", f: () => { PT_SOFT_YES = true; rwinSet("mode", { value: "quality", dataset: {} }); } }, { k: "no", n: "Stay on Quick", primary: true, esc: true, f: () => rwinSide() }]);
 }
 function ptFailSet(why) { PT_FAIL = { card: ptCard(), why }; PT_AGAIN = false; try { localStorage.setItem(PT_FAIL_KEY, JSON.stringify(PT_FAIL)); } catch (e) {} }
 function ptFailClear() { PT_FAIL = null; PT_AGAIN = true; try { localStorage.removeItem(PT_FAIL_KEY); } catch (e) {} }
+/* (Round r32) In a browser the session renders with Quick and at most BROWSER_LIMIT.px a side (THE BROWSER'S LIMITS); what the document asked for beyond
+   that is held (RENDER_HELD) and written back as it was, unless it was changed here: Path Traced stays the document's Engine while Quick is shown, a size
+   shown at the limit stays the document's size. (1.0.0-beta.3) The size is held the same way wherever the graphics card's limit is lower (pxMax3()), in the
+   desktop app too; a preset larger than the card is shown as a custom size at the limit. */
+var RENDER_HELD = {};
+function renderHere(n) {
+  RENDER_HELD = {};
+  if (!DESK && n.mode === "quality") { RENDER_HELD.mode = n.mode; n = { ...n, mode: "quick" }; }
+  const most = pxMax3(), s = renderSize(n);
+  if (Math.max(s.w, s.h) > most) {
+    const shown = { w: Math.min(most, s.w), h: Math.min(most, s.h) };
+    if (n.size !== "custom") { RENDER_HELD.preset = { size: n.size, w: n.w, h: n.h, shown }; return { ...n, size: "custom", ...shown }; }
+    for (const k of ["w", "h"]) if (n[k] > most) { RENDER_HELD[k] = n[k]; n = { ...n, [k]: most }; }
+  }
+  return n;
+}
 function saveRender(o) {
-  const n = normRender(o);
+  const n = normRender(o), h = RENDER_HELD, most = pxMax3(), p = h.preset;
+  if (!DESK && h.mode && n.mode === "quick") n.mode = h.mode;
+  if (p && n.size === "custom" && n.w === p.shown.w && n.h === p.shown.h) Object.assign(n, { size: p.size, w: p.w, h: p.h });
+  for (const k of ["w", "h"]) if (h[k] && n[k] === most) n[k] = h[k];
   try { localStorage.setItem(RENDER_KEY, JSON.stringify(n)); } catch (e) {}
   S.render = n; S.dirty = true; store();
 }
@@ -19762,6 +20253,11 @@ function renderOnBack(c, w, h, o) {
   const out = document.createElement("canvas"); out.width = w; out.height = h;
   const g = out.getContext && out.getContext("2d"); if (g) { renderPaintBack(g, w, h, o); g.drawImage(c, 0, 0, w, h); }
   return out;
+}
+// (1.0.0-beta.3) why the last 3D picture was not made, when the graphics card gave a smaller drawing buffer than asked (view3d.shot())
+function shotWhy() {
+  const s = typeof view3d !== "undefined" && view3d.shotShort && view3d.shotShort();
+  return s ? ": the graphics card gave " + s.gw + " × " + s.gh + " pixels for " + s.w + " × " + s.h + ". From now on pictures are at most " + s.most + " pixels a side here: try again." : "";
 }
 // the render as a canvas, or null where the 3D window cannot make one
 function renderShot(o, size, spec) {
@@ -19920,7 +20416,7 @@ function rwinImageHTML(o) {
     '<div class="df"><label>Resolution</label><select data-r="size">' + rwOpt(RENDER_SIZES.map(r => [r[0], r[1]]), o.size) + '</select></div>' +
     rwSel(o, "orient", "Orientation", [["landscape", "Landscape"], ["portrait", "Portrait"]]) +
     '<div class="df"><label>Width</label><input type="text" inputmode="decimal" data-num="1" data-r="w" value="' + w + '"><span class="u">Pixels</span></div>' +
-    '<div class="df"><label>Height</label><input type="text" inputmode="decimal" data-num="1" data-r="h" value="' + h + '"><span class="u">Pixels</span></div>' + rwChk(o, "ratio", "Maintain Ratio") +
+    '<div class="df"><label>Height</label><input type="text" inputmode="decimal" data-num="1" data-r="h" value="' + h + '"><span class="u">Pixels</span></div>' + pxLimitHint() + rwChk(o, "ratio", "Maintain Ratio") +
     '<h3>Background</h3>' +
     '<div class="df"><label>Color</label><select data-r="bg">' + rwOpt(RENDER_BG, o.bg) + '</select>' + (o.bg === "color" ? '<input type="color" data-r="bgColor" value="' + o.bgColor + '">' : '') + '</div>' +
     rwSel(o, "bgTex", "Texture", [["", "None"], ["vignette", "Vignette"]]) + rwNb("Crop (Final Render Only)") +
@@ -19965,7 +20461,9 @@ const RW_LQ = [["low", "Low", 4], ["medium", "Medium", 10], ["high", "High", 16]
 function rwinRenderHTML(o) {
   o = o || loadRender();
   const quick = o.mode === "quick";
-  return '<div class="df"><label>Engine</label><select data-r="mode">' + rwOpt(RENDER_MODES, o.mode) + '</select></div>' +
+  // (Round r32) in a browser Path Traced is shown, with the lock, and asking for it says why not (rwinSet())
+  const modes = DESK ? RENDER_MODES : RENDER_MODES.map(m => (m[0] === "quality" ? [m[0], "🔒 Path Traced (desktop app only)"] : m));
+  return '<div class="df"><label>Engine</label><select data-r="mode">' + rwOpt(modes, o.mode) + '</select></div>' + lockLine("Path Traced: only in the desktop app.") +
     rwinModeHTML(o) +
     (quick ? '<div class="df"><label>Anti-aliasing</label><select data-r="ss">' + rwOpt([[1, "Off"], [2, "2× supersampling"], [4, "4× supersampling"]], o.ss) + '</select></div>' +
       '<label class="lk"><input type="checkbox" data-r="shadows"' + (o.shadows ? ' checked' : '') + '> Soft shadows</label>' +
@@ -20032,20 +20530,25 @@ function lightsDialog() { return renderWindow({ lights: true }); }
 /* A setting changed: kept (the document's, saveRender()), and Interactive shows it at once. A run going on goes on with what it was
    started with, and a picture stopped or finished stays: the maintainer's stopped window takes no input. */
 function rwinSet(k, t) {
+  if (k === "mode" && t.value === "quality" && !DESK) { deskOnly("Path Traced rendering"); return rwinSide(); }      // (Round r32: the browser's limits)
   if (k === "mode" && t.value === "quality" && ptSoftware() && !PT_SOFT_YES) return ptSoftAsk();
   if (k === "mode" && t.value !== "quality") PT_SOFT_YES = false;
   const o = loadRender(), was = renderSize(o);
   let v = t.type === "checkbox" ? t.checked : t.dataset && t.dataset.num ? numOf(t.value) : k === "ss" ? +t.value : t.value;
   if (k === "w" || k === "h") {
     // a size typed is a custom size, the other side kept, or (Maintain Ratio) following
-    v = Math.max(64, Math.min(SNAP_MAXPX, Math.round(v) || 64));
+    const most = pxMax3();
+    if (Math.round(v) > most) { if (pxWhy3() === "browser") deskOnly("A picture over " + most + " pixels a side"); else toast("This graphics card draws pictures of at most " + most + " pixels a side: set at " + most, 6000); }      // (Round r32, 1.0.0-beta.3: set at the limit)
+    v = Math.max(64, Math.min(most, Math.round(v) || 64));
     const other = k === "w" ? "h" : "w", r = was[other]/was[k];
-    o.size = "custom"; o[other] = o.ratio ? Math.max(64, Math.round(v*r)) : was[other];
+    o.size = "custom"; o[other] = o.ratio ? Math.max(64, Math.min(most, Math.round(v*r))) : was[other];
   }
   // a custom size has its own sides: its Orientation turns it
   if (k === "orient" && o.size === "custom" && v !== o.orient) [o.w, o.h] = [o.h, o.w];
   if (k === "size" && v === "custom") { o.w = was.w; o.h = was.h; }
   o[k] = v;
+  delete RENDER_HELD[k]; if ((k === "w" || k === "h") && o.ratio) delete RENDER_HELD[k === "w" ? "h" : "w"];      // (Round r32: changed here, so no longer the file's)
+  if (["w", "h", "size", "orient"].includes(k)) delete RENDER_HELD.preset;
   if (k === "mode" && v === "quality" && ptFailMark()) ptFailClear();
   const n = normRender(o);
   if (!rwinFormats(n).some(f => f[0] === n.fmt)) n.fmt = "png";
@@ -20162,7 +20665,7 @@ function rwinRender() {
   const spec = shots[0];
   if (rwinRenderMode(o, spec)) return;
   const { w, h } = renderSize(o), c = renderShot(o, null, spec);
-  if (!c) return toast("The render could not be made here");
+  if (!c) return toast("The render could not be made here" + shotWhy(), 8000);
   rwinResult(c, w, h, o);
 }
 function rwinResult(c, w, h, o, n) {
@@ -20250,7 +20753,7 @@ function rwinSeqNext() {
   rwinProgress({ samples: q.k, target: q.shots.length }, "Image " + (q.k + 1) + " of " + q.shots.length);
   if (o.mode === "quality") return ptStart(o, q.w, q.h, false, spec);
   const c = o.mode === "schematic" ? withCam(spec, () => schematicShot(o, q.w, q.h)) : renderShot(o, { w: q.w, h: q.h }, spec);
-  if (!c) { q.stop = true; toast("The render could not be made here"); return rwinSeqEnd(); }
+  if (!c) { q.stop = true; toast("The render could not be made here" + shotWhy(), 8000); return rwinSeqEnd(); }
   rwinSeqGot(c);
 }
 // a picture of the series is done: its bytes kept, shown, the next one a frame later
@@ -20347,7 +20850,8 @@ function rwinModeHTML(o) {
     '<div class="df"><label>Color Mapping</label><select data-r="tone">' + PT_TONES.map(([k, n]) => '<option value="' + k + '"' + (o.tone === k ? ' selected' : '') + '>' + n + '</option>').join("") + '</select></div>' +
     '<div class="df"><label title="How many times light bounces">Quality: Light</label><select data-r="lightQ">' + rwOpt(RW_LQ.map(q => [q[0], q[1]]), o.lightQ) + '</select></div>' +
     (why ? '<div class="hint">Not here: ' + esc(why) + '.</div><div class="da"><button class="btn" data-act="use-quick">Use Quick</button></div>'
-      : '<div class="hint">Light bounces between the garment, the avatar and the floor: soft shadows, the fabric\u2019s color and picture. Slow: more samples, a cleaner picture.</div>');
+      : (!ptParallel() && !(PTCTX && PTCTX.ready) ? '<div class="hint">This graphics card prepares the path tracer only when Final Render is clicked (it can take a minute; Cancel stops it). Until then Interactive shows Quick.</div>' : '') +
+      '<div class="hint">Light bounces between the garment, the avatar and the floor: soft shadows, the fabric\u2019s color and picture. Slow: more samples, a cleaner picture.</div>');
 }
 // the progress bar: run null hides it
 function rwinProgress(run, text) {
@@ -20405,10 +20909,42 @@ function ptContext() {
   ctx.R2 = new THREE.WebGLRenderer({ canvas: cvs, antialias: false, alpha: true, preserveDrawingBuffer: true });
   THREE.ShaderChunk.tonemapping_pars_fragment = THREE.ShaderChunk.tonemapping_pars_fragment.replace(PT_TONE_FROM, ptToneGLSL());
   ctx.R2.setPixelRatio(1); ctx.R2.toneMapping = THREE.ACESFilmicToneMapping;
-  if (ctx.R2.debug) ctx.R2.debug.onShaderError = () => { ctx.bad = true; };      // (a shader refused: three.js's first draw says so, ptStep() reads it)
+  // (a shader refused: ptCompile() asks once the compile is over, ptLinked(), and ptStep() reads it. Round r32: three.js's own check at every first
+  // draw read each program's log and status at once, holding the page until the card had linked it, 0.2 s and more)
+  if (ctx.R2.debug) ctx.R2.debug.checkShaderErrors = false;
   ctx.mat = new P.PhysicalPathTracingMaterial(); ctx.pt = new P.PathTracingRenderer(ctx.R2); ctx.pt.material = ctx.mat;
   ctx.quad = new P.FullScreenQuad(new THREE.MeshBasicMaterial({ map: ctx.pt.target.texture, blending: THREE.CustomBlending }));
   return (PTCTX = ctx);
+}
+/* (Round r32) The sky (top to bottom) and the plain background as pictures of PT_ENV_RES pixels, kept in the context per pair of colours: at the
+   library's own 512 each was filled pixel by pixel and copied twice (about 0.3 s of the page's time at every build, the 64-pixel preparing too).
+   A gradient from top to bottom needs no more: the light it gives is the same. */
+const PT_ENV_RES = 64;
+function ptGradient(ctx, k, top, bottom) {
+  const key = top + "/" + bottom, had = ctx[k];
+  if (had && had.key === key) return had.tex;
+  const tex = new THREE_PATHTRACER.GradientEquirectTexture(PT_ENV_RES); tex.topColor.set(top); tex.bottomColor.set(bottom); tex.update();
+  if (had) { try { had.tex.dispose(); } catch (e) {} }
+  ctx[k] = { key, tex };
+  return tex;
+}
+// (Round r32) the path tracer's own shader linked? Asked once its compile is over (the parallel compile says so, or a fence), so the answer does not hold the page
+function ptLinked(R2, mat) {
+  try {
+    const gl = R2.getContext(), p = R2.properties.get(mat).currentProgram;
+    return !(p && p.program && gl.getProgramParameter(p.program, gl.LINK_STATUS) === false);
+  } catch (e) { return true; }
+}
+/* (Round r32) Without the parallel compile the program is linked when it is first used or asked about: asked by the page (its status, its uniforms), the
+   page waits the whole compile (38 s found, Direct3D; 54 s on software WebGL). Used here by the card first (useProgram, nothing asked back), so the fence
+   after it (ptFence()) passes only once the card has linked it, and what the page asks then is answered at once. three.js's own record of the bound program is
+   reset after. */
+function ptLinkAsk(R2, mat) {
+  try {
+    const gl = R2.getContext(), p = R2.properties.get(mat).currentProgram;
+    if (!(p && p.program)) return;
+    gl.useProgram(p.program); gl.useProgram(null); R2.resetState();
+  } catch (e) {}
 }
 // a run's scene, size and camera, in the session's context
 function ptBuild(run) {
@@ -20438,12 +20974,10 @@ function ptBuild(run) {
   mat.textures.setTextures(R2, 2048, 2048, textures);
   mat.materials.updateFrom(materials, textures);
   mat.lights.updateFrom(lights);
-  const env = new P.GradientEquirectTexture(); env.topColor.set(lit.dome.color); env.bottomColor.set(ptBack(o)); env.update();
+  const env = ptGradient(ctx, "env", lit.dome.color, ptBack(o));
   mat.envMapInfo.updateFrom(env); mat.environmentIntensity = lit.dome.k;
-  const back = new P.GradientEquirectTexture(); back.topColor.set(ptBack(o)); back.bottomColor.set(ptBack(o)); back.update();
-  if (ctx.back && ctx.back !== back) { try { ctx.back.dispose(); } catch (e) {} }
-  mat.backgroundMap = ctx.back = back; mat.backgroundAlpha = see ? 0 : 1;
-  Object.assign(run, { R2, pt, mat, quad: ctx.quad, env, floor, geo, cvs: ctx.cvs, tiles: pt.tiles.x*pt.tiles.y });
+  mat.backgroundMap = ptGradient(ctx, "back", ptBack(o), ptBack(o)); mat.backgroundAlpha = see ? 0 : 1;
+  Object.assign(run, { R2, pt, mat, quad: ctx.quad, floor, geo, cvs: ctx.cvs, tiles: pt.tiles.x*pt.tiles.y });
   run.shapes = run.warm ? null : ptShapes(run, box, pt.camera);
   pt.reset();
 }
@@ -20466,7 +21000,6 @@ function ptShapes(run, box, cam) {
 function ptFree(run) {
   if (!run) return;
   const safe = (f) => { try { f(); } catch (e) {} };
-  if (run.env) safe(() => run.env.dispose());
   if (run.floor) safe(() => { run.floor.geometry.dispose(); run.floor.material.dispose(); });
   if (run.geo) safe(() => run.geo.dispose());
   if (run.shapes) safe(() => { run.shapes.rt.dispose(); run.shapes.quad.material.dispose(); run.shapes.quad.dispose(); });
@@ -20516,9 +21049,12 @@ function ptPrepEnd(run) { if (run && run.prep) { if (PTPREP === run.prep) { clea
 const ptReady = () => { if (PTCTX) PTCTX.ready = true; PT_PREP_T0 = null; };
 /* (Round r29c) The shader prepared in the background from the moment the workspace opens (only with Path Traced the Engine, and never on software WebGL, where it could
    hold the page): the first render does not wait, or waits only what is left. A small scene of its own: the compiled program does not depend on the scene (its defines:
-   depth of field, the background, fog, the camera's type), and a garment's BVH would hold the page on opening. Ready after one pass: some drivers compile at the first draw. */
+   depth of field, the background, fog, the camera's type), and a garment's BVH would hold the page on opening. Ready after one pass: some drivers compile at the first draw.
+   (Round r32) Only where the card compiles beside the page (KHR_parallel_shader_compile, ptParallel()): without it the compile may hold the page, or the card's
+   one queue and the 3D window drawn on it, for most of a minute, so there it is prepared only when Final Render is clicked, with the bar's words and Cancel. */
+const ptParallel = () => { ptCard(); return PT_PARALLEL; };
 function ptWarm() {
-  if (PT_WARM_OFF || WARM || PTRUN || !RWIN.open || (PTCTX && PTCTX.ready) || !view3d.ready() || loadRender().mode !== "quality" || ptSupport() || ptSoftware()) return;
+  if (PT_WARM_OFF || WARM || PTRUN || !RWIN.open || (PTCTX && PTCTX.ready) || !view3d.ready() || loadRender().mode !== "quality" || ptSupport() || ptSoftware() || !ptParallel()) return;
   const run = WARM = { warm: true, w: 64, h: 64, o: loadRender(), samples: 0, target: 1, t0: ptNow() };
   ptPrepStart(run);
   ptLoad((err) => {
@@ -20565,9 +21101,9 @@ function ptCompile(run, go) {
     if (run.mat.onBeforeRender) run.mat.onBeforeRender();
     const sc = new THREE.Scene(), q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), run.mat), cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1); sc.add(q);
     R2.setRenderTarget(run.pt.target);
-    const done = () => { q.geometry.dispose(); all(); };
+    const done = () => { q.geometry.dispose(); if (!ptLinked(R2, run.mat)) ctx.bad = true; all(); };
     if (R2.extensions && R2.extensions.has && R2.extensions.has("KHR_parallel_shader_compile")) R2.compileAsync(sc, cam).then(done, (e) => { console.error(e); done(); });
-    else { R2.compile(sc, cam); ptFence(R2, done); }
+    else { R2.compile(sc, cam); ptLinkAsk(R2, run.mat); ptFence(R2, done); }
     R2.setRenderTarget(null);
   } catch (e) { console.error(e); all(); }
 }
@@ -20661,6 +21197,7 @@ function rwinPreviewMode(o, f) {
   if (o.mode !== "quality") { if (PTRUN && PTRUN.preview) ptHalt(); return false; }
   if (ptSupport()) { rwinNoPT(ptSupport()); return false; }
   if (PTRUN && PTRUN.preview) ptHalt();
+  if (!ptParallel() && !(PTCTX && PTCTX.ready)) return false;      // (Round r32: Quick's picture until a Final Render has prepared the path tracer, ptWarm())
   const coarse = renderShot({ ...o, ss: 1, shadows: false }, { w: Math.max(16, Math.round(f.w/3)), h: Math.max(16, Math.round(f.h/3)) });
   rwinShow(coarse, f.w, f.h, ""); rwinTitle("Render \u00b7 Interactive (path traced when still)");
   clearTimeout(RWIN.sharp);
@@ -21067,7 +21604,7 @@ function snap3Size(o) {
   if (pr[0] === "custom") { const k = o.unit === "mm" ? o.ppi/25.4 : o.unit === "in" ? o.ppi : 1; w = o.w*k; h = o.h*k; }
   else if (pr[4] === "mm") { w = pr[2]/25.4*o.ppi; h = pr[3]/25.4*o.ppi; if (o.orient === "landscape") [w, h] = [h, w]; }
   else { w = pr[2]; h = pr[3]; if (o.orient === "portrait") [w, h] = [Math.min(w, h), Math.max(w, h)]; }
-  return { w: Math.max(16, Math.min(SNAP_MAXPX, Math.round(w))), h: Math.max(16, Math.min(SNAP_MAXPX, Math.round(h))) };
+  return { w: Math.max(16, Math.min(pxMax3(), Math.round(w))), h: Math.max(16, Math.min(pxMax3(), Math.round(h))) };
 }
 /* What a 3D snapshot is made of: { w, h (each view's size), views: [{ view, x, y }], W, H (the whole picture), separate } */
 function snap3Plan(o) {
@@ -21095,7 +21632,7 @@ function snap3Preview(o) {
 function snap3Save(o) {
   if (!view3d.ready() || !view3d.shot) return toast("The 3D window is not up: show it first (the 2D / 3D buttons at the bottom)", 6000);
   const plan = snap3Plan(o), box = S.av ? avatarBox(S.av) : garmentBox3(), shots = [];
-  for (const v of plan.views) { const c = snap3Shot(plan.w, plan.h, v.view, box, o); if (!c) return toast("The 3D picture could not be made here"); shots.push(c); }
+  for (const v of plan.views) { const c = snap3Shot(plan.w, plan.h, v.view, box, o); if (!c) return toast("The 3D picture could not be made here" + shotWhy(), 8000); shots.push(c); }
   const urlOf = (c) => { try { return c.toDataURL("image/png"); } catch (e) { return ""; } };
   if (plan.separate) { shots.forEach((c, k) => dlURL("snapshot-3d-" + (k + 1) + "-" + plan.views[k].view + ".png", urlOf(c), () => {})); return toast(shots.length + " pictures saved, " + plan.w + " \u00d7 " + plan.h + " px each"); }
   let out = shots[0];
@@ -21130,7 +21667,7 @@ function snap3Dialog(at) {
     (custom ? num("w", "Width", { px: "Pixels", mm: "mm", in: "in" }[o.unit]) + num("h", "Height", { px: "Pixels", mm: "mm", in: "in" }[o.unit]) :
       '<div class="df"><label>Width</label><input type="text" disabled value="' + sz.w + '"><span class="u">Pixels</span></div><div class="df"><label>Height</label><input type="text" disabled value="' + sz.h + '"><span class="u">Pixels</span></div>') +
     '<div class="df"><label>Unit</label><select data-s="unit"' + (custom ? '' : ' disabled') + '>' + opt([["px", "Pixels"], ["mm", "Millimeters"], ["in", "Inches"]], o.unit) + '</select></div>' +
-    num("ppi", "Resolution", "ppi") + '</div><div>' +
+    num("ppi", "Resolution", "ppi") + pxLimitHint() + '</div><div>' +
     (multi ? '<h3>Layout</h3><div class="df"><label>View Count</label><select data-s="count">' + opt([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(k => [String(k), String(k)]), String(n)) + '</select></div>' +
       '<div class="df"><label>Layout</label><select data-s="layout">' + opt([["horizontal", "Horizontal"], ["vertical", "Vertical"], ["box", "Box"]], o.layout) + '</select></div>' : '') +
     (S.ui && S.ui.unbuilt ? '<h3>Colorway</h3><div class="df"><label>Colorway</label><select disabled><option>Current (not built yet)</option></select></div>' : '') +
@@ -22029,18 +22566,30 @@ const view3d = (() => {
      (4): true, the map shown and its legend drawn in; false, the map left out) }. All of it is put
      back afterwards: the window's own frame never has shadows or the render's lights. */
   // (Round r23 / 6) a picture is being drawn: the frame hooks then see its camera, not the window's (the Render window's watch keeps out)
-  let shooting = false, marksOnly = null;
+  let shooting = false, marksOnly = null, shotShort = null;
   function shot(w, h, name, box, transparent, ro) {
     if (!R || !scene || typeof R.getSize !== "function") return null;
     shooting = true;
     const keep = { ...o }, bg = scene.background, pr = R.getPixelRatio ? R.getPixelRatio() : 1, size = R.getSize(new THREE.Vector2());
-    const max = Math.min(8192, (R.capabilities && R.capabilities.maxTextureSize) || 8192), ss = ro ? Math.max(1, Math.min(ro.ss || 1, Math.floor(max/Math.max(w, h)) || 1)) : 1;
+    const max = Math.min(8192, cardPx(), (R.capabilities && R.capabilities.maxTextureSize) || 8192);
+    let ss = ro ? Math.max(1, Math.min(ro.ss || 1, Math.floor(max/Math.max(w, h)) || 1)) : 1;
     const undo = [];                                          // what the render changed, put back in finally
     let out = null;
     try {
       if (name) view(name, box);
       if (R.setPixelRatio) R.setPixelRatio(1);
       R.setSize(w*ss, h*ss, false);
+      /* (1.0.0-beta.3) the browser gives a smaller drawing buffer than asked where the card cannot hold it (its limit, or its memory): without
+         supersampling, and if that is still too large, no picture and why (shotShort), never a picture drawn wrong */
+      const gl = R.getContext && R.getContext(), fits = () => !(gl && gl.drawingBufferWidth > 0) || (gl.drawingBufferWidth >= w*ss && gl.drawingBufferHeight >= h*ss);
+      shotShort = null;
+      if (!fits() && ss > 1) { ss = 1; R.setSize(w, h, false); }
+      if (!fits()) {
+        // what the card really holds is then the limit for the session (cardPx()): the size fields and the next picture keep under it
+        const gw = gl.drawingBufferWidth, gh = gl.drawingBufferHeight, most = Math.max(64, Math.floor(Math.max(w, h)*Math.min(gw/w, gh/h)));
+        CARD_PX = Math.min(cardPx(), most); shotShort = { w, h, gw, gh, most: CARD_PX };
+        return null;
+      }
       cam.aspect = w/h; cam.updateProjectionMatrix(); place();
       if (transparent) { scene.background = null; R.setClearColor(0x000000, 0); }
       else if (ro && ro.bg) scene.background = new THREE.Color(ro.bg);
@@ -22130,7 +22679,7 @@ const view3d = (() => {
     Object.assign(o, keep);
     return c;
   }
-  return { start, cam: o, home: HOME, ready: () => !!R, renderer: () => R, render, ask, group, shot, camFor, shooting: () => shooting, mouse: { press, move, release, wheel, drive }, scene: () => build(), ray, project, projector, wpp, before: (f) => { pre.push(f); }, marksOnly: (f) => { marksOnly = f; }, view, camera: () => cam,
+  return { start, cam: o, home: HOME, ready: () => !!R, renderer: () => R, render, ask, group, shot, shotShort: () => shotShort, camFor, shooting: () => shooting, mouse: { press, move, release, wheel, drive }, scene: () => build(), ray, project, projector, wpp, before: (f) => { pre.push(f); }, marksOnly: (f) => { marksOnly = f; }, view, camera: () => cam,
     tool: (t) => { if (tool && tool.off) tool.off(); tool = t || null; if (R) R.domElement.style.cursor = (t && t.cursor) || ""; ask(); }, toolNow: () => tool,
     loop: (f) => { loop = f || null; ask(); }, looping: () => !!loop, canvas: () => R && R.domElement };
 })();
@@ -24247,8 +24796,10 @@ function avatarLoaded(buf, file, path, quiet, own) {
    When a file is opened, avatarCheck() compares that with the avatar that is here: the same one is stood and posed
    as it was left; a built-in one that is not loaded is loaded; and where the file's bytes differ (another version
    of the same avatar) a note says so and the saved drape is kept as it is.
-   One's own avatar travels in the file only if its owner says so (Avatar > Keep This Avatar in the Pattern File):
-   S.avEmbed holds the hash of the one avatar that was said for, so no other avatar is ever put in by that choice. */
+   (Round r31 / 1, the maintainer's decision of 4 Nov: "always embed, no question") One's own avatar always travels in the file: its
+   own file (mesh and rig) as avatar/<name>, beside the record (height, pose) and the document's avatar edits (joints, size,
+   measurements: S.avedit), so a file reopens on the same avatar, posed as it was, with its drape. A built-in one is noted by its
+   id only. Until Round r31 this was the owner's choice (Avatar > Keep This Avatar in the Pattern File, S.avEmbed). */
 const avPresetId = (file) => { const base = String(file || "").replace(/^.*[\\/]/, "").replace(/\.[^.]*$/, "").toLowerCase(), p = AV_PRESETS.find(x => x.file === base); return p ? p.file : null; };
 // a key of a file's bytes: its length, its CRC-32 and an FNV-1a hash. Enough to tell two versions of an avatar apart; no secret.
 function fileHash(b) {
@@ -24266,27 +24817,23 @@ function normAvRec(o) {
 // what the document notes of the avatar: the one that is loaded, or with none loaded what its file noted
 function avatarRecord() {
   const av = S.av;
-  if (!av || !av.hash) return S.docAv ? { ...S.docAv, ...(S.docAvFile && S.avEmbed === S.docAv.hash ? { embed: true } : {}) } : null;
+  if (!av || !av.hash) return S.docAv ? { ...S.docAv, ...(S.docAvFile ? { embed: true } : {}) } : null;
   const rec = { ...(av.preset ? { preset: av.preset } : {}), name: av.name, hash: av.hash, height: Math.round(av.height*10)/10, pose: clone(S.avSet.pose) };
   if (S.avSet.base) rec.base = S.avSet.base;
-  if (!av.preset && av.file && S.avEmbed === av.hash) rec.embed = true;
+  if (!av.preset && av.file) rec.embed = true;
   return rec;
 }
 // the avatar's own file, if its owner chose to keep it in the document: { name, bytes }, or null
 function avatarEmbedded() {
   const av = S.av;
-  if (av && av.hash) return !av.preset && av.file && S.avEmbed === av.hash ? { name: av.file.name, bytes: new Uint8Array(av.file.buf) } : null;
-  return S.docAv && S.docAvFile && S.avEmbed === S.docAv.hash ? S.docAvFile : null;
+  if (av && av.hash) return !av.preset && av.file ? { name: av.file.name, bytes: new Uint8Array(av.file.buf) } : null;
+  return S.docAv && S.docAvFile ? S.docAvFile : null;
 }
-function avatarEmbed(on) {
+// (Round r31 / 1) one's own avatar is always kept in the pattern file now: what the old command said, for a script that still calls it
+function avatarEmbed() {
   const av = S.av;
-  if (!av || av.preset || !av.file) return toast("Only an avatar of your own can be kept in a pattern file: a built-in one is found by its name");
-  if (!on) { S.avEmbed = null; store(); return toast(av.name + " is no longer kept in the pattern file: the next Save leaves it out", 5000); }
-  const mb = av.file.buf.byteLength/1048576;
-  askModal("Keep this avatar in the pattern file?", "The avatar’s own file (" + esc(av.file.name) + ", " + (mb >= 0.1 ? mb.toFixed(1) + " MB" : Math.ceil(av.file.buf.byteLength/1024) + " kB") +
-    ") will be saved inside this pattern file and goes wherever the file goes: whoever gets the pattern file gets the avatar. Without this the file only notes the avatar’s name, height and pose.", [
-    { k: "embed", n: "Keep It in the File", f: () => { S.avEmbed = av.hash; store(); toast(av.name + " will be saved inside this pattern file", 5000); } },
-    { k: "cancel", n: "Cancel", primary: true, esc: true, f: () => {} }]);
+  if (!av || av.preset || !av.file) return toast("Only an avatar of your own is kept in a pattern file: a built-in one is found by its name");
+  toast(av.name + " is kept in the pattern file whenever it is saved", 4000);
 }
 function avatarCheck() {
   const rec = S.docAv;
@@ -24432,7 +24979,6 @@ function avatarMenu() {
   else {
     I.push({ hd: esc(av.name) + " · " + Math.round(av.height) + " mm" });
     I.push({ n: "Avatar Editor", on: !!S.aved, f: () => avEditor(!S.aved) }, { n: "Scale to Height…", f: () => scaleAvatarDialog(mid) }, { n: "Remove Avatar", f: () => removeAvatar() });
-    if (!av.preset) I.push({ n: "Keep This Avatar in the Pattern File…", on: !!av.hash && S.avEmbed === av.hash, f: () => avatarEmbed(S.avEmbed !== av.hash) });
     I.push({ hd: "Display" }, ...AV_DISPLAY.map(([k, n]) => ({ n, on: st.display === k, f: () => setAvatar({ display: k }) })));
     I.push({ n: "Show Collision Mesh", on: !!st.showCol, f: () => { setAvatar({ showCol: !st.showCol }); if (S.avSet.showCol) toast("Collision mesh: " + av.colTris + " triangles, closed, sampled every " + st.cell + " mm"); } }, { n: "Collision Detail…", f: () => collisionDialog(mid) });
     I.push({ hd: "Pose" }, { n: "Pose Panel", on: !!st.panel, f: () => posePanel(!st.panel) }, ...POSE_PRESETS.map(([k, n]) => ({ n, f: () => setPosePreset(k) })),
@@ -24669,15 +25215,43 @@ function makeItem(p, res, sig) {
 }
 // a pattern's outline as it is (its points and curves), to tell a new mesh of the same outline from one of a changed outline
 const outlineSig = (p) => JSON.stringify([p.pts, p.segs.map(s => [s.curved ? 1 : 0, s.c1, s.c2, s.cps, s.e0, s.e1])]);
-// the old cloth's drape put on a new mesh of the same pattern: each new point where the same spot of the old cloth hangs (its
-// triangle's corners, weighted); false (nothing changed) if a point has no such spot
-function drapeOnto(it, was) {
+/* The old cloth's drape put on a new mesh of the same pattern: each new point where the same spot of the old cloth hangs (its
+   triangle's corners, weighted); false (nothing changed) if it can't be.
+   (Round r31 / 2, the maintainer's user test: a draped shirt whose neckline was changed in 2D went back to its arrangement.) Also when
+   the outline changed: a new point is taken to the old pattern's 2D place through the two placements (was.C, was.q, and the new
+   pattern's), so a pattern moved or turned in 2D maps onto itself; a point inside the old cloth hangs where that spot hangs, one
+   outside it (fabric added) is carried on from the old triangle nearest it (its corners' weights, not clamped: the triangle's own
+   stretch and turn, continued). More than half the new cloth outside the old, or a turn that is not in the pattern's plane: false,
+   and it goes to its arrangement as before. The simulation settles it from there when it next runs. */
+const DRAPE_NEW_MAX = 0.5;
+function drapeOnto(it, was, p) {
   const xy = it.mesh.xy, n = xy.length/2, X = new Float32Array(3*n);
-  for (let v = 0; v < n; v++) {
-    const a = SIM3D.triAnchor(was.xy, was.tri, xy[2*v], xy[2*v+1], 0);
-    if (!a) return false;
-    for (let c = 0; c < 3; c++) X[3*v + c] = a.w[0]*was.X[3*a.i[0] + c] + a.w[1]*was.X[3*a.i[1] + c] + a.w[2]*was.X[3*a.i[2] + c];
+  // the new pattern's 2D place -> the old one's: the same spot of the pattern in both placements
+  let map = (x, y) => [x, y];
+  if (p && was.C && was.q) {
+    const Cn = p3C(p, it.mesh.c), qn = pieceP3(p, it.mesh.c).q, qo = was.q, inv = [-qo[0], -qo[1], -qo[2], qo[3]], o = [0, 0, 0];
+    const same = Cn[0] === was.C[0] && Cn[1] === was.C[1] && qn.every((v, k) => v === qo[k]);
+    if (!same) {
+      // the turn between the two in the pattern's own axes; one out of its plane is no 2D move
+      const chk = SIM3D.qRot(inv, ...SIM3D.qRot(qn, 1, 0, 0, [0, 0, 0]), o);
+      if (Math.abs(chk[2]) > 1e-3) return false;
+      map = (x, y) => { const w = SIM3D.qRot(inv, ...SIM3D.qRot(qn, x - Cn[0], -(y - Cn[1]), 0, [0, 0, 0]), o); return [was.C[0] + w[0], was.C[1] - w[1]]; };
+    }
   }
+  let outside = 0;
+  for (let v = 0; v < n; v++) {
+    const [x, y] = map(xy[2*v], xy[2*v+1]), a = SIM3D.triAnchor(was.xy, was.tri, x, y, 0);
+    if (!a) return false;
+    let w = a.w;
+    // outside the old cloth: the nearest triangle's weights as they are (they go below 0), so the triangle is carried on
+    const [i0, i1, i2] = a.i, ax = was.xy[2*i0], ay = was.xy[2*i0+1], bx = was.xy[2*i1] - ax, by = was.xy[2*i1+1] - ay, cx = was.xy[2*i2] - ax, cy = was.xy[2*i2+1] - ay, d = bx*cy - by*cx;
+    if (Math.abs(d) > 1e-12) {
+      const u = ((x - ax)*cy - (y - ay)*cx)/d, vv = (bx*(y - ay) - by*(x - ax))/d;
+      if (Math.min(u, vv, 1 - u - vv) < -1e-6) { outside++; w = [1 - u - vv, u, vv]; }
+    }
+    for (let c = 0; c < 3; c++) X[3*v + c] = w[0]*was.X[3*i0 + c] + w[1]*was.X[3*i1 + c] + w[2]*was.X[3*i2 + c];
+  }
+  if (outside > n*DRAPE_NEW_MAX) return false;
   it.X.set(X); it.draped = true; itemMoved(it);
   return true;
 }
@@ -24795,12 +25369,18 @@ function garmentSync(force) {
       // (Round r15 / 8, the check videos S07: a fold set on a draped pattern folds it from where it hangs.) A draped cloth that is
       // meshed again while its outline stayed as it was (a fold or an elastic line set, an internal line moved) keeps its drape:
       // every point of the new cloth goes where the same spot of the old one hangs (drapeOnto())
-      const was = it && !force && it.draped && it.osig === outlineSig(p) ? { xy: it.mesh.xy, tri: it.mesh.tri, X: it.X.slice(), placed: it.placed, own: it.own } : null;
+      // (Round r31 / 2) and so does one whose outline changed or that was moved in 2D: the new cloth is put on the old drape
+      // through the pattern's own 2D place (drapeOnto()); only a reset of the arrangement takes it back to its arrangement
+      const same = it && it.osig === outlineSig(p);
+      const was = it && !force && it.draped ? { xy: it.mesh.xy, tri: it.mesh.tri, X: it.X.slice(), placed: it.placed, own: it.own, C: it.C, q: it.q } : null;
       if (it) { dropItem(it); G3.items.delete(p.id); }
       it = makeItem(p, res, sig);
       if (!it) continue;
       G3.items.set(p.id, it); grp.add(it.obj, it.line); remade++;
-      if (was && drapeOnto(it, was)) { it.placed = was.placed; it.own = was.own; }
+      if (was && drapeOnto(it, was, same ? null : p)) {
+        if (same) { it.placed = was.placed; it.own = was.own; }
+        else { it.placed = placeSig(p, it.mesh.c); it.own = placeOwn(p, it.mesh.c); }
+      }
     }
     const fresh = !it.placed;
     const where = placeSig(p, it.mesh.c);
@@ -24810,6 +25390,7 @@ function garmentSync(force) {
       else { placeItem(it, p); remade++; }
     }
     if (fresh) drapeTake(it, p);
+    it.C = p3C(p, it.mesh.c).slice(); it.q = pieceP3(p, it.mesh.c).q.slice();      // (Round r31 / 2) the placement it hangs by now
     paintItem(it, p); state3Look(it, p);
   }
   for (const [id, it] of G3.items) if (!seen.has(id)) { dropItem(it); G3.items.delete(id); remade++; }
@@ -24959,7 +25540,7 @@ function flatRun(sh, i, t0, t1, res) {
 // a hit of hit() as items, drawn in a colour and weight
 function ov3Hit(h, col, w) {
   if (!h || !h.p) return [];
-  const res = (S.cloth && S.cloth.res) || 20;
+  const res = clothRes();
   if ((h.k === "seg" || h.k === "handle") && h.sh) { const i = h.k === "seg" ? h.i : h.seg; return [{ pid: h.p.id, pts: flatRun(h.sh, i, 0, 1, res), w, col }]; }
   if (h.k === "pt" && h.sh && h.sh.pts[h.i]) return [{ pid: h.p.id, at: [h.sh.pts[h.i].x, h.sh.pts[h.i].y], dot: w === "thick" ? 11 : 8, col }];
   if (h.k === "cp" && h.sh) { const c = h.sh.segs[h.i].cps[h.c]; return c ? [{ pid: h.p.id, at: [c.x, c.y], dot: w === "thick" ? 10 : 7, col }] : []; }
@@ -25074,7 +25655,7 @@ const shapeOwner = (sh) => S.pieces.find(p => p === sh || p.internals.includes(s
 function partItem(part, col, w, dash, xray) {
   const X = seamSide(part, S.pieces);
   if (!X || !X.p.on) return null;
-  const res = (S.cloth && S.cloth.res) || 20, pts = [];
+  const res = clothRes(), pts = [];
   for (const sp of partSpans(X, part)) pts.push(...flatRun(X.sh, sp.i, sp.u, sp.v, res));
   return { pid: X.p.id, pts, w, col, dash: dash || null, xray: xray !== false };
 }
@@ -25101,7 +25682,7 @@ function ov3Tool() {
 }
 // a straight flat line cut up so that it follows the cloth
 function flatLine(a, b, res) {
-  const n = Math.max(1, Math.min(200, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1])/Math.max(2, (res || (S.cloth && S.cloth.res) || 20)/2)))), out = [];
+  const n = Math.max(1, Math.min(200, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1])/Math.max(2, (res || clothRes())/2)))), out = [];
   for (let k = 0; k <= n; k++) out.push([a[0] + (b[0] - a[0])*k/n, a[1] + (b[1] - a[1])*k/n]);
   return out;
 }
@@ -26285,7 +26866,7 @@ function placementDialog(p, at) {
 }
 function densityDialog(at) {
   numDialog("Cloth Density", [{ k: "res", label: "Particle distance", val: S.cloth.res, unit: "mm", step: 1 }], at || { x: window.innerWidth/2 - 110, y: 120 }, (v) => setDensity(v.res),
-    { hint: "How far apart the cloth's points are. 20 is quick, 10 drapes finer and takes about four times as long, 5 is the finest." });
+    { hint: "How far apart the cloth's points are. 20 is quick, 10 drapes finer and takes about four times as long, 5 is the finest." + resLockHint() });
 }
 /* Hi-Res Properties (Round F / 9; W14, decision Q20): the Hi-Res Garment button opens it. Only what this program's solver
    has is a field: Particle Distance, the distance between the cloth's points (8 mm offered, Hi-Res's own). Tolerance, Add'l
@@ -26301,10 +26882,11 @@ function hiResDialog(at) {
     { k: "skin", head: "Avatar", label: "Skin Offset" + NB, val: 0, unit: "mm", ro: true },
     { k: "quality", head: "Simulation", label: "Simulation Quality" + NB, val: "normal", ro: true, options: [["normal", "Normal (Default)"], ["animation", "Animation (Stable)"], ["fitting", "Fitting (Accurate Fabric)"], ["custom", "Custom"]] });
   numDialog("Hi-Res Properties", fields, at || { x: window.innerWidth/2 - 140, y: 120 }, (v) => setDensity(v.res),
-    { reset: { res: HIRES }, hint: "Entering a Particle Distance lower than 7 mm will slow the simulation down. Now: " + S.cloth.res + " mm." });
+    { reset: { res: HIRES }, hint: "Entering a Particle Distance lower than 7 mm will slow the simulation down. Now: " + S.cloth.res + " mm." + resLockHint() });
 }
 function setDensity(res) {
   if (!(res >= 5 && res <= 60)) return toast("A particle distance between 5 and 60 mm");
+  if (!DESK && res < BROWSER_LIMIT.res) return deskOnly("A particle distance under " + BROWSER_LIMIT.res + " mm");
   if (typeof simStop === "function") simStop();
   S.cloth = normCloth({ ...S.cloth, res }); store();
   garmentChanged();
@@ -26496,7 +27078,7 @@ function sidePath(parts, order) {
 /* Every seam of the document, and every cut-out dart, as matched places on the cloth:
    [{ id, zip, dart, k, pairs, la, lb, bad, col }]. order = the pattern ids that have cloth. */
 function simSeams(order) {
-  const out = [], sp = S.cloth.res;
+  const out = [], sp = clothRes();
   for (const sm of S.seams) {
     const A = sidePath(sm.a, order), B = sidePath(sm.b, order);
     if (!A || !B || !(A.len > 0) || !(B.len > 0)) continue;
@@ -27202,7 +27784,7 @@ function simSettingsDialog(at) {
     const res = S.cloth.res;
     S.cloth = normCloth({ ...S.cloth, substeps: Math.round(v.sub), self: v.self, worker: v.worker }); store();
     if (v.res !== res) setDensity(v.res); else if (SIM.on) simBuild();
-  }, { hint: "More steps per frame make the cloth stiffer and steadier and each frame slower: with fewer than about 15 a waistband stretches and slides down. Self-collision keeps layers of cloth apart; it is basic (point against point).",
+  }, { hint: "More steps per frame make the cloth stiffer and steadier and each frame slower: with fewer than about 15 a waistband stretches and slides down. Self-collision keeps layers of cloth apart; it is basic (point against point)." + resLockHint(),
        checks: [{ k: "self", label: "Self-collision (cloth against cloth)", val: S.cloth.self }, { k: "worker", label: "Simulate in the background (keeps the window responsive)", val: S.cloth.worker !== false }] });
 }
 CMD3.simulate = simToggle;
@@ -27794,7 +28376,7 @@ function anchorNormal(a, order, q) {
 function trimRun(parts, order, f0, f1) {
   const P = sidePath(parts, order);
   if (!P || !(P.len > 0)) return null;
-  const s0 = P.len*f0, s1 = P.len*f1, n = Math.max(2, Math.ceil((s1 - s0)/((S.cloth && S.cloth.res) || 20)*1.5));
+  const s0 = P.len*f0, s1 = P.len*f1, n = Math.max(2, Math.ceil((s1 - s0)/clothRes()*1.5));
   const out = { a: [], s: [], pos: [], len: s1 - s0, path: P };
   for (let k = 0; k <= n; k++) { const s = s0 + (s1 - s0)*k/n, a = SIM3D.pathAt(P, s); out.a.push(a); out.s.push(s); out.pos.push(anchorFlat(a, order)); }
   return out;
@@ -28917,7 +29499,7 @@ function zipList(order) {
     const A = sidePath(sm.a, order), B = sidePath(sm.b, order);
     if (!A || !B || !(A.len > 0) || !(B.len > 0)) continue;
     const ty = zipType(sm), len = (A.len + B.len)/2;
-    out.push({ id: sm.id, name: sm.zip.name, w: ty && ty.tapeW > 0 ? ty.tapeW : 11, col: (ty && ty.color) || "#333333", n: Math.max(2, Math.ceil(len/Math.max(8, S.cloth.res/2))), len, A, B });
+    out.push({ id: sm.id, name: sm.zip.name, w: ty && ty.tapeW > 0 ? ty.tapeW : 11, col: (ty && ty.color) || "#333333", n: Math.max(2, Math.ceil(len/Math.max(8, clothRes()/2))), len, A, B });
   }
   return out;
 }
@@ -29716,9 +30298,47 @@ function perfInstall() {
 }
 perfInstall();
 // for looking inside from the browser console (and for the desktop check): drafterDebug().S is the state
-window.drafterDebug = () => ({ layoutCmd, setMode, layoutFit, setQuality3, setSchem3, lightAdd, lightPreset, ptRun: () => PTRUN, ptCtx: () => PTCTX, RWIN, renderWindow, rwinClose, loadRender, saveRender, normRender, schematicShot, shippedExamples, openExample, S, G3, SIM, ZW, simStart, simStop, view3d, showMeasures, addGirth, avatarHit, pinPoints, TOOL3, CMD3, byId, commit, push, undo, garmentSync, arrList, arrangeAt, setTool, setTool3, setLayout, setArrPoints, toast,
+window.drafterDebug = () => ({ cardPx, pxLimitHint, layoutCmd, setMode, layoutFit, setQuality3, setSchem3, lightAdd, lightPreset, ptRun: () => PTRUN, ptCtx: () => PTCTX, RWIN, renderWindow, rwinClose, loadRender, saveRender, normRender, schematicShot, shippedExamples, openExample, S, G3, SIM, ZW, simStart, simStop, view3d, showMeasures, addGirth, avatarHit, pinPoints, TOOL3, CMD3, byId, commit, push, undo, garmentSync, arrList, arrangeAt, setTool, setTool3, setLayout, setArrPoints, toast,
   run: (name, ...args) => eval(name)(...args) });
+/* (Round r32) Fully ready, for the start: the 2D window drawn, the 3D window drawn once (where it is shown), the unsaved work's check answered (the box
+   offering it may be up: that is ready too). Asked on a timer, not on screen frames: the desktop app's window is hidden until then. done() a frame later,
+   so what was drawn is on the screen; after START_WAIT whatever is not ready (the desktop app's own limit, SPLASH_LATE in its main.js, says so). */
+const START_WAIT = 30000;
+function startReady(done) {
+  const t0 = Date.now(), drawn3 = () => { const R = typeof view3d !== "undefined" && view3d.ready() && view3d.renderer(), i = R && R.info && R.info.render; return !!R && (!i || i.frame > 0); };
+  const ready = () => recoverPending !== "reading" && geomGen > 0 && cv.width > 0 && (S.ui.layout === "2d" || drawn3());
+  // (the next screen frame, or 100 ms where a hidden window gets none)
+  const fin = () => { let once = false; const go = () => { if (!once) { once = true; done(); } }; if (typeof requestAnimationFrame === "function") requestAnimationFrame(go); setTimeout(go, 100); };
+  const look = () => { if (ready() || Date.now() - t0 > START_WAIT) return fin(); setTimeout(look, 16); };
+  look();
+}
+/* (Round r32) A document shown in a browser that asks for what only the desktop app runs (THE BROWSER'S LIMITS): one line, after the line that says
+   it opened. Nothing in the document changes. */
+function browserHeld() {
+  if (DESK) return [];
+  const held = [], r = (S.cloth && S.cloth.res) || 20, small = Math.min(r, ...S.pieces.map(p => (p.res3 >= 5 && p.res3 <= 60 ? p.res3 : Infinity))), o = S.render;
+  if (small < BROWSER_LIMIT.res) held.push("a particle distance of " + small + " mm (here " + BROWSER_LIMIT.res + " mm)");
+  if (o && o.mode === "quality") held.push("Path Traced (here Quick)");
+  if (o && o.size === "custom" && Math.max(o.w, o.h) > BROWSER_LIMIT.px && pxWhy3() === "browser") held.push("a " + o.w + " × " + o.h + " picture (here at most " + BROWSER_LIMIT.px + " a side)");
+  return held;
+}
+function browserHeldNote() {
+  const held = browserHeld();
+  if (held.length) setTimeout(() => toast("Only in the desktop app: " + held.join(", ") + ". The file keeps its own settings.", 10000), 0);
+  const card = cardHeld();
+  if (card) setTimeout(() => toast(card, 10000), 0);
+}
+/* (1.0.0-beta.3) A document whose render is larger than this graphics card draws (THE GRAPHICS CARD'S LIMIT), in the desktop app and a browser alike:
+   one sentence; it renders at the limit and the file keeps its size (renderHere()). */
+function cardHeld() {
+  const o = S.render;
+  if (!o) return "";
+  const s = renderSize(o);
+  if (Math.max(s.w, s.h) <= Math.min(BROWSER_LIMIT.px, 2048) || pxWhy3() !== "card" || Math.max(s.w, s.h) <= pxMax3()) return "";
+  return "Its " + s.w + " × " + s.h + " render is made at most " + pxMax3() + " pixels a side here: this graphics card's limit. The file keeps its own size.";
+}
 function showDoc() {
+  browserHeldNote();
   S.sel = S.pieces.length ? [S.pieces[0].id] : []; S.selSeam = null; S.selPt = S.selSeg = S.selInt = -1;
   sync();                                                    // what follows what agrees from the start, so the first edit on either side is seen as one
   freeze3();                                                 // every state of a document has its patterns' places in 3D, its first too
@@ -29755,12 +30375,18 @@ function showDoc() {
   if (DESK) DESK.onOpenFile((f) => { if (recoverPending) waiting = f; else openGot(f); });
   // (Round desk-2) the Mac's own first menu in the desktop app: its About and Settings… are the page's
   if (DESK && DESK.onAppMenu) DESK.onAppMenu((what) => { if (what === "about") aboutDialog(); else if (what === "settings") settingsDialog({ x: window.innerWidth/2 - 190, y: 60 }); });
-  // (Round r24) started: once three.js has loaded too (the page's load). The browser's splash goes then (the page's own script)
+  // (Round r24) started: once three.js has loaded too (the page's load). (Round r32) The browser's splash goes, and the desktop app shows its window
+  // and closes its splash, once the page is fully ready (startReady(), the mark gusset-usable)
   const started = () => {
     try { performance.mark("gusset-ready"); } catch (e) {}
-    if (typeof window.gussetSplashEnd === "function") window.gussetSplashEnd();
+    startReady(() => {
+      try { performance.mark("gusset-usable"); } catch (e) {}
+      if (typeof window.gussetSplashEnd === "function") window.gussetSplashEnd();
+      if (DESK && DESK.ready) DESK.ready();
+    });
     if (DESK && DESK.updates && S.prefs.updateCheck) setTimeout(() => checkUpdates(false), UPD_DELAY);      // (Round r24) the update check at the start
   };
+  if (DESK && DESK.onStartLate) DESK.onStartLate((s) => toast("Gusset took more than " + s + " s to get ready, so its window is shown now. If something does not work, restart it.", 10000));
   { const ub = document.getElementById("s-upd"); if (ub) ub.onclick = updClick; }
   if (DESK && DESK.updates && DESK.updates.onProgress) DESK.updates.onProgress((p) => { UPD.pct = Math.max(0, Math.min(100, Math.round(+p.percent || 0))); updButton(); });
   if (document.readyState === "complete") started(); else window.addEventListener("load", started);

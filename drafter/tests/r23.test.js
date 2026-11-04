@@ -348,6 +348,7 @@ test("r23 / 6, r29: Final Render draws the full resolution and shows it (the tit
 
 /* ---- batch 7: the quality render ---- */
 // a stand-in for the path tracing library (the fake page has no WebGL 2): it counts its passes, a pass taking about a millisecond
+// (Round r32) the path-traced render is the desktop app's only (the browser's limits): the tests that run it boot as the desktop app (desktop: true)
 const PT_STUB = `
   globalThis.__pt = { objs: null, built: 0 };
   const upd = { updateFrom() {}, setTextures() {} };
@@ -361,7 +362,7 @@ const PT_STUB = `
   app.ev("ptSupport = () => null");
 `;
 test("r23 / 7: nothing of the quality render is loaded or asked for until Quality is chosen; where WebGL 2 is missing the window says so and offers Quick", () => {
-  const o = boot({ blank: true, three: true, script: LIT + NOW + `
+  const o = boot({ blank: true, three: true, desktop: true, script: LIT + NOW + `
     return app.wait(() => v3.ready(), "the 3D window").then(() => {
       const scripts = () => app.el("body").children.filter(c => /three-pathtracer/.test(c.src || "")).length;
       app.ev("saveRender")(app.ev("normRender")({ mode: "quick" }));
@@ -382,7 +383,7 @@ test("r23 / 7: nothing of the quality render is loaded or asked for until Qualit
 });
 
 test("r23 / 7: a quality render runs pass by pass up to Samples with a progress bar, from the garment, the avatar's and the floor's meshes and the lights (not the working marks or the grid), and is kept as the window's result; Stop keeps it as far as it got", () => {
-  const o = boot({ blank: true, three: true, script: LIT + PT_STUB + `
+  const o = boot({ blank: true, three: true, desktop: true, script: LIT + PT_STUB + `
     return app.wait(() => v3.ready(), "the 3D window").then(() => {
       app.ev("setShow3")("lights3", true); app.ev("env3Frame")();
       app.ev("renderWindow")(); app.ev("saveRender")(app.ev("normRender")({ mode: "quality", samples: 20, size: "custom", w: 300, h: 200 }));
@@ -411,9 +412,10 @@ test("r23 / 7: a quality render runs pass by pass up to Samples with a progress 
 });
 
 test("r23 / 7: in Quality the preview is a quick coarse picture at once, then path traced at the preview's size once still; a change starts it again; closing the window ends it", () => {
-  const o = boot({ blank: true, three: true, script: LIT + PT_STUB + `
+  const o = boot({ blank: true, three: true, desktop: true, script: LIT + PT_STUB + `
     return app.wait(() => v3.ready(), "the 3D window").then(() => {
       const later = []; app.ev("globalThis").setTimeout = (f) => { later.push(f); return later.length; };
+      app.ev("ptCard(); PT_PARALLEL = true");      // (Round r32: a card without the parallel compile shows Quick until a Final Render has prepared it; this is a card with it)
       app.ev("saveRender")(app.ev("normRender")({ mode: "quality", samples: 16 }));
       app.ev("renderWindow")(); app.ev("rwinInteractive")();
       out.first = [app.ev("PTRUN"), later.length > 0];

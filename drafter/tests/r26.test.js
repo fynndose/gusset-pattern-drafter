@@ -140,7 +140,7 @@ test("r26 / 2: Flip Normal leaves a fold alone; a version 25 file's flipped patt
   assert.deepStrictEqual(o.walk.filter(a => a !== null).every(a => a === 90), true, "stored angles: " + o.walk);
   assert.deepStrictEqual(o.glue, [1]); assert.deepStrictEqual(o.shrink, { weft: 50, warp: 300 }); assert.deepStrictEqual(o.corner, { t: "slant", a: 10, b: 10 });
   assert.deepStrictEqual(o.off, [true, true, 90]); assert.deepStrictEqual(o.on, [true, true, 90, 90]);
-  assert.deepStrictEqual(o.saved, [27, true]);      // (Round r29: this build's version)
+  assert.deepStrictEqual(o.saved, [28, true]);      // (Round r30: 28; Round r29: 27)
   assert.deepStrictEqual(o.again, [true, 90]);
 });
 

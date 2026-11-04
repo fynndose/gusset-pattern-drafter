@@ -100,6 +100,9 @@ nav a[aria-current="page"] { border-bottom-color: var(--text); font-weight: 700;
 
 /* the download page */
 .tag { display: inline-block; background: var(--text); color: var(--ground); font-weight: 700; font-size: .875rem; padding: .05em .55em; margin-right: .4em; }
+#dl-other h2 { font-size: 1.125rem; margin: 1.4em 0 .4em; }
+.other { margin: 0 0 1.2em; padding-left: 1.2em; }
+.other li { margin-bottom: .6em; }
 .note { border-left: 3px dashed var(--quiet); padding: .2em 0 .2em 1em; }
 .files { width: 100%; border-collapse: collapse; font-size: .9375rem; margin-bottom: 1.2em; }
 .files th, .files td { text-align: left; padding: .6em .8em .6em 0; border-bottom: 1px solid var(--raised-2); vertical-align: top; }

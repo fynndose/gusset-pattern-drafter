@@ -1,5 +1,6 @@
 /* The download page: reads downloads.json (written by the release workflow), works out the visitor's system and offers its
-   file first. The pure parts (osOf, primaryOf, filesFor, sizeText, versionText) are tested in drafter/tests/r28.test.js. */
+   file first; the system's other files are listed under it, each with a line on when to choose it. The pure parts (osOf,
+   primaryOf, filesFor, buttonsFor, othersFor, sizeText, versionText) are tested in drafter/tests/r28.test.js and beta3.test.js. */
 "use strict";
 (function (root) {
   var SYSTEMS = { windows: "Windows", mac: "Mac", linux: "Linux" };
@@ -33,13 +34,32 @@
     });
   }
 
+  // when to choose a file that is not the big button (1.0.0-beta.3: the portable starts slower, so the installer is the one offered)
+  var WHY = {
+    portable: "Starts slower (it unpacks itself each time). Use it if you can't install.",
+    zip: "The same app as the disk image, in a .zip archive."
+  };
+
+  // the big buttons: the system's best file, and on a Mac the Intel disk image as well (a Mac's browser does not say which chip it has)
+  function buttonsFor(rel, os) {
+    var files = filesFor(rel, os), out = files.slice(0, 1);
+    if (os === "mac") out = out.concat(files.filter(function (f) { return f.arch === "x64" && f.kind === "dmg" && out.indexOf(f) < 0; }).slice(0, 1));
+    return out;
+  }
+
+  // the system's other files, each with its line
+  function othersFor(rel, os) {
+    var big = buttonsFor(rel, os);
+    return filesFor(rel, os).filter(function (f) { return big.indexOf(f) < 0; }).map(function (f) { return { file: f, why: WHY[f.kind] || "" }; });
+  }
+
   function sizeText(bytes) { return bytes ? Math.round(bytes / 1048576) + " MB" : ""; }
   function versionText(v) { return String(v || "").replace(/-(alpha|beta|rc)\.(\d+)$/, " $1 $2"); }
   function fileLabel(f) {
     return KIND[f.kind] + (f.os === "mac" ? (f.arch === "arm64" ? ", Apple chip" : ", Intel") : "");
   }
 
-  if (typeof module === "object" && module.exports) { module.exports = { osOf: osOf, primaryOf: primaryOf, filesFor: filesFor, sizeText: sizeText, versionText: versionText }; return; }
+  if (typeof module === "object" && module.exports) { module.exports = { osOf: osOf, primaryOf: primaryOf, filesFor: filesFor, buttonsFor: buttonsFor, othersFor: othersFor, sizeText: sizeText, versionText: versionText }; return; }
 
   var el = function (id) { return root.document.getElementById(id); };
   var make = function (tag, props, kids) {
@@ -55,19 +75,25 @@
   }
 
   function showMain(rel, os, data) {
-    var main = el("dl-primary"), notes = el("dl-notes");
-    main.textContent = ""; notes.textContent = "";
+    var main = el("dl-primary"), notes = el("dl-notes"), other = el("dl-other");
+    main.textContent = ""; notes.textContent = ""; other.textContent = ""; other.hidden = true;
     var files = filesFor(rel, os);
     if (os === "phone") {
       main.append(make("p", {}, ["Gusset needs a computer with a mouse and a larger screen. Open this page on a Windows, Mac or Linux computer to download it."]));
     } else if (!os || !files.length) {
       main.append(make("p", {}, [os ? "There is no " + SYSTEMS[os] + " version of this release. The list below has what there is, and Gusset also runs in a browser." : "Pick your system from the list below."]));
     } else {
-      main.append(bigButton(files[0], rel));
-      if (files[1] && os !== "mac") main.append(make("a", { cls: "btn quiet", href: files[1].url }, [KIND[files[1].kind], make("small", {}, [sizeText(files[1].size)])]));
+      var big = buttonsFor(rel, os);
+      main.append(bigButton(big[0], rel));
       // (a Mac's browser does not say which chip it has: both are offered, by name)
-      var intel = os === "mac" && files.filter(function (f) { return f.arch === "x64" && f.kind === "dmg"; })[0];
-      if (intel) main.append(make("a", { cls: "btn quiet", href: intel.url }, ["Download for Mac with Intel", make("small", {}, [sizeText(intel.size)])]));
+      if (big[1]) main.append(make("a", { cls: "btn quiet", href: big[1].url }, ["Download for Mac with Intel", make("small", {}, [sizeText(big[1].size)])]));
+      var rest = othersFor(rel, os);
+      if (rest.length) {
+        other.append(make("h2", {}, ["Other downloads for " + SYSTEMS[os]]), make("ul", { cls: "other" }, rest.map(function (o) {
+          return make("li", {}, [make("a", { href: o.file.url }, [fileLabel(o.file)]), " (" + sizeText(o.file.size) + ")", o.why ? make("br") : "", o.why]);
+        })));
+        other.hidden = false;
+      }
     }
     if (os === "mac" && files.some(function (f) { return f.arch === "x64"; }))
       notes.append(make("p", {}, ["Not sure which you have? The Apple menu, About This Mac, tells you."]));

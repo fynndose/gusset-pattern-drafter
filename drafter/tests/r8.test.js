@@ -27,7 +27,9 @@ const DOC = `
   S.pieces.push(sq("A", 100, 100), sq("B", 150, 150), sq("C", 200, 200), sq("D", 700, 100)); app.commit(); S.undo.length = 0;
   const at = (q) => app.toS(q), out = {}, byName = (n) => S.pieces.find(p => p.name === n), names = () => S.pieces.map(p => p.name).join("");
   const pts = (n) => byName(n).pts.map(q => [+q.x.toFixed(6), +q.y.toFixed(6)]);
-  const menu = (n, item) => { const p = byName(n); S.sel = [p.id]; const s = at({ x: p.pts[0].x + 20, y: p.pts[0].y + 20 }); app.menuClick(s.x, s.y, item); };
+  // (Round r30 / 3: a selected pattern is no longer drawn on top, so the right-click goes to a corner of it that no other covers)
+  const free = (p) => { const c = [[20, 20], [-20, 20], [-20, -20], [20, -20]].map(([dx, dy], k) => at({ x: p.pts[k].x + dx, y: p.pts[k].y + dy })); return c.find(s => { const h = app.hit(s.x, s.y); return h && h.p === p; }) || c[0]; };
+  const menu = (n, item) => { const p = byName(n); S.sel = [p.id]; const s = free(p); app.menuClick(s.x, s.y, item); };
   const rowsOf = (el) => el.children.map(c => c.className === "hd" ? "# " + (c.textContent || c.innerHTML) : c.className === "sep" ? "-" : c.innerHTML.replace(/<span class="k">(.*?)<.span>/, " [$1]").replace(/<[^>]*>/g, "").replace(/ \\[\\]$/, ""));
   const items = (n) => { const p = byName(n); S.sel = [p.id]; const s = at({ x: p.pts[0].x + 20, y: p.pts[0].y + 20 }); app.menu.children.length = 0; app.showMenu({ clientX: s.x, clientY: s.y }); return rowsOf(app.menu); };
   // (Round G1: Order, Rotate and the clones are submenus of the pattern's menu, as in W1) the rows of one, with its name as their title
@@ -71,7 +73,8 @@ test("Order on the pattern's menu: four commands under their title, each one und
     return out;` });
   assert.deepStrictEqual(r.errors, []);
   const o = r.result;
-  assert.deepStrictEqual(o.items, ["# Order", "Bring Forward", "Bring to Front", "Send Backward", "Send to Back"]);
+  // (Round r30 / 3: the rows show their keys, the maintainer's Ctrl+] / Ctrl+Shift+] / Ctrl+[ / Ctrl+Shift+[)
+  assert.deepStrictEqual(o.items, ["# Order", "Bring Forward [Ctrl+]]", "Bring to Front [Ctrl+Shift+]]", "Send Backward [Ctrl+[]", "Send to Back [Ctrl+Shift+[]"]);
   assert.strictEqual(o.back[0], "CABD"); assert.strictEqual(o.back[1], 1); assert.ok(/^Sent back/.test(o.back[2]), o.back[2]);
   assert.strictEqual(o.top, "B", "C went under: B is on top where all three overlap");
   assert.strictEqual(o.fwd, "ACBD"); assert.strictEqual(o.front, "CBDA");

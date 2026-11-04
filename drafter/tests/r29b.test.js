@@ -87,6 +87,7 @@ test("r29b / 1: a light's shape: the rectangle and the sphere that are on, not a
 
 /* ---- batch 2: getting ready, on weak hardware ---- */
 // two sewn rectangles, the workspace, a stand-in for the path tracing library, a clock and timers the test moves itself; a compile that does not end until go() is called
+// (Round r32) Path Traced is the desktop app's only (the browser's limits): the tests that render with it boot as the desktop app (desktop: true)
 const PREP = `
   const out = {}, v3 = app.view3d, G3 = app.G3, RW = app.ev("RWIN"), G = app.ev("globalThis");
   app.setLayout("both");
@@ -104,6 +105,7 @@ const PREP = `
       FullScreenQuad: class { constructor(m) { this.material = m; } render() {} dispose() {} },
     };
     app.ev("ptSupport = () => null");
+    app.ev("ptCard(); PT_PARALLEL = true");      // (Round r32: a graphics card that compiles beside the page, as these tests' cards are; ptParallel())
     app.el("rw-prog").classList = { set: new Set(), add(k) { this.set.add(k); }, remove(k) { this.set.delete(k); }, contains(k) { return this.set.has(k); } };
   };
   let clock = 1000; G.performance = { now: () => clock };
@@ -120,7 +122,7 @@ const PREP = `
   const mark = () => app.storage.get("pdraft:ptfail");
 `;
 test("r29b / 2: while it prepares: the words, the moving bar and its seconds; then samples, with the bar's own width; a second render does not prepare again", () => {
-  const o = boot({ blank: true, three: true, script: PREP + `
+  const o = boot({ blank: true, three: true, desktop: true, script: PREP + `
     return app.wait(() => v3.ready(), "the 3D window").then(() => {
       start(); quality(); app.ev("renderWindow")(); app.ev("rwinRender")();
       out.prep = [prepping(), app.el("rw-pt").textContent, RW.busy, ticks.size];
@@ -145,7 +147,7 @@ test("r29b / 2: Cancel (the same as Stop) ends preparing at once: nothing runnin
   const html = fs.readFileSync(path.join(__dirname, "..", "pattern-drafter.html"), "utf8");
   assert.ok(/id="rw-prog">.*?<\/div>\s*<button[^>]*id="rw-cancel"[^>]*data-act="stop"/.test(html), "the Cancel button follows the bar, with Stop's action");
   assert.ok(/\.rw-prog\.prep \+ #rw-cancel \{ display: inline-block; \}/.test(html) && /#rw-cancel \{ display: none; \}/.test(html), "seen only while preparing");
-  const o = boot({ blank: true, three: true, script: PREP + `
+  const o = boot({ blank: true, three: true, desktop: true, script: PREP + `
     return app.wait(() => v3.ready(), "the 3D window").then(() => {
       start(); quality(); app.ev("renderWindow")(); app.ev("rwinRender")();
       app.ev("rwinAct")("stop");
@@ -168,7 +170,7 @@ test("r29b / 2: Cancel (the same as Stop) ends preparing at once: nothing runnin
 });
 
 test("r29b / 2: past the limit: Quick's picture with one line, the machine's mark; Final Render stays on Quick and the pane says why; Path Traced chosen again takes the mark off and has the longer limit; another graphics card is not held to the mark", () => {
-  const o = boot({ blank: true, three: true, script: PREP + `
+  const o = boot({ blank: true, three: true, desktop: true, script: PREP + `
     return app.wait(() => v3.ready(), "the 3D window").then(() => {
       start(); quality(); app.ev("renderWindow")(); app.ev("rwinRender")();
       wait(119); out.before = [RW.busy, !mark()];
@@ -199,7 +201,7 @@ test("r29b / 2: past the limit: Quick's picture with one line, the machine's mar
 });
 
 test("r29b / 2: a shader refused, a context lost or an error while preparing fall back the same way; a series goes on with Quick from where it was; the Interactive preview falls back too; Cancel leaves no mark", () => {
-  const o = boot({ blank: true, three: true, script: PREP + `
+  const o = boot({ blank: true, three: true, desktop: true, script: PREP + `
     return app.wait(() => v3.ready(), "the 3D window").then(() => {
       start(); quality(); app.ev("renderWindow")();
       const reset = () => { app.storage.delete("pdraft:ptfail"); app.ev("PT_FAIL = undefined"); app.ev("PT_PREP_T0 = null"); RW.result = null; };      // (Round r29c: the clock counts from when the card was first asked)
@@ -241,7 +243,7 @@ const WARM = PREP.replace('app.ev("ptCompile = (run, go) => { globalThis.__go = 
   const settle = () => new Promise((res) => setImmediate(res));
 `;
 test("r29c / 1: preparing begins when the workspace opens, with its words and Cancel; a Final Render clicked before it is ready goes on from it: the same compile, the same clock; nothing of the avatar's scene is built for it", () => {
-  const o = boot({ blank: true, three: true, script: WARM + `
+  const o = boot({ blank: true, three: true, desktop: true, script: WARM + `
     return app.wait(() => v3.ready(), "the 3D window").then(async () => {
       warmUp(); app.ev("renderWindow")(); app.ev("ptWarm")();
       out.opened = [prepping(), G.__compiles, !!app.ev("WARM"), app.ev("PTRUN"), !!RW.busy, /^Preparing the quality renderer/.test(app.el("rw-pt").textContent)];
@@ -265,7 +267,7 @@ test("r29c / 1: preparing begins when the workspace opens, with its words and Ca
 });
 
 test("r29c / 1: left alone it finishes by itself and the first render does not prepare; Cancel stops the bar and it is not begun again by itself, yet Final Render and choosing Path Traced still work; closing the workspace lets it go; Quick begins nothing; past the limit: the mark and one line, no picture", () => {
-  const o = boot({ blank: true, three: true, script: WARM + `
+  const o = boot({ blank: true, three: true, desktop: true, script: WARM + `
     return app.wait(() => v3.ready(), "the 3D window").then(async () => {
       warmUp(); app.ev("renderWindow")(); app.ev("ptWarm")();
       G.__done(); await settle();
@@ -302,10 +304,10 @@ test("r29c / 1: left alone it finishes by itself and the first render does not p
 });
 
 test("r29c / 2: on software WebGL Final Render defaults to Quick and nothing prepares; choosing Path Traced asks first, naming the card, the wait and this picture's time; Stay on Quick stays; Use Path Traced takes it, for the session; a graphics card is not asked; the names", () => {
-  const o = boot({ blank: true, three: true, script: WARM + `
+  const o = boot({ blank: true, three: true, desktop: true, script: WARM + `
     return app.wait(() => v3.ready(), "the 3D window").then(async () => {
       warmUp();
-      app.ev('PT_CARD = "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"');
+      app.ev('PT_CARD = "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"'); app.ev("PT_PARALLEL = false");      // (software WebGL has no parallel compile)
       let asked = null; app.ev("globalThis").__ask = (t, x, b) => { asked = { t, x, b }; }; app.ev("askModal = (t, x, b, o) => globalThis.__ask(t, x, b)");
       out.mode = app.ev("loadRender")().mode;
       app.ev("renderWindow")(); app.ev("ptWarm")(); out.warm = [app.ev("WARM"), G.__compiles];
@@ -331,7 +333,8 @@ test("r29c / 2: on software WebGL Final Render defaults to Quick and nothing pre
   assert.ok(/without a graphics card/.test(o.hint) && /SwiftShader/.test(o.hint), o.hint);
   assert.deepStrictEqual(o.final, [false, "quick", null]);
   assert.strictEqual(o.title, "Path Traced without a graphics card");
-  assert.ok(/SwiftShader/.test(o.small) && /may stop answering for up to about a minute/.test(o.small), o.small);
+  // (Round r32: the card links the shader before the page asks about it, ptLinkAsk(): the page answers meanwhile (1 s at most, measured), the 3D window waits)
+  assert.ok(/SwiftShader/.test(o.small) && /the 3D window does not redraw meanwhile/.test(o.small) && !/stop answering/.test(o.small), o.small);
   assert.ok(/640 × 800 at 16 samples, would take about 70 seconds in all/.test(o.small), o.small);
   assert.strictEqual(o.kept, "quick", "only asked so far"); assert.strictEqual(o.stayed, "quick");
   assert.ok(/1920 × 1080 at 256 samples, would take about 23 minutes in all; Max. Render Time stops it at 20 minutes/.test(o.large), o.large);

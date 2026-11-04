@@ -217,7 +217,8 @@ test("Smooth Curve carried out: the corner goes, one curved segment takes its pl
   assert.strictEqual(p.pts.length, 5, "two new points, the corner gone");
   assert.ok(!p.pts.some(v => dist(v, V(0, 0)) < 1e-6), "the corner point is gone");
   const i = p.segs.findIndex(s => s.curved), s = p.segs[i];
-  assert.ok(s.c1 && s.c2 && !isSpline(s), "one handle curve");
+  // (Round r30 / 2, the maintainer's decision: no curve handles; it was one handle curve) one curve, through curve points, its ends held as before
+  assert.ok(isSpline(s) && s.c1 == null && s.c2 == null, "one curve through curve points");
   samePt(segPt(p, i, 0), V(0, 80), 1e-9); samePt(segPt(p, i, 1), V(100, 0), 1e-9);
   samePt(segTan(p, i, 0), V(0, -1), 1e-9, "tangent to the left edge"); samePt(segTan(p, i, 1), V(1, 0), 1e-9, "and to the top edge");
   const cut = area - Math.abs(signedArea(flatten(p, 40)));

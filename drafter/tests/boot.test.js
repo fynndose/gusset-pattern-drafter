@@ -48,7 +48,7 @@ test("fresh start: starter pattern, autosaved", () => {
   const r = boot();
   assertUp(r, "fresh");
   assert.deepStrictEqual(r.names, [STARTER]);
-  assert.strictEqual(JSON.parse(r.storage["pdraft:doc"]).v, 27);      // (version 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
+  assert.strictEqual(JSON.parse(r.storage["pdraft:doc"]).v, 28);      // (version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
   assert.deepStrictEqual(r.toasts, []);
 });
 
@@ -197,7 +197,10 @@ test("Phase 3 commands run in the booted app: distribute, fullness, pleats, slas
 
     select(1); app.answer = (t, f, o) => { out.pleatOpts = [o.selects[0].options.map(x => x[0]), o.checks.map(c => c.k)]; return { n: 2, d: 10, d2: 10, sa: 0, sb: 0, lines: 0, type: "box", notch: "both", rev: false }; };
     const hemNow = P().segs.findIndex((x, i) => i > 3 && x.curved);
-    s = onSeg(hemNow, 0.4); app.menuClick(s.x, s.y, "More ▸ Pleats\\u2026"); steps++;
+    // (Round r30 / 2: the hem's half that Fullness left with no curve point is now curve points, not a handle curve, so the
+    // click goes on the line where it is furthest from them; at 0.4 it hit a curve point and opened that point's menu)
+    const tFree = [0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85].map(t => [t, Math.min(...(P().segs[hemNow].cps || []).map(c => { const q = app.segPt(P(), hemNow, t); return Math.hypot(q.x - c.x, q.y - c.y); }), 1e9)]).sort((x, y) => y[1] - x[1])[0][0];
+    s = onSeg(hemNow, tFree); app.menuClick(s.x, s.y, "More ▸ Pleats\\u2026"); steps++;
     out.folds = P().internals.filter(l => l.fold).length; out.ok3 = sound();
     out.pleatToast = toasts[toasts.length-1];
 
@@ -945,7 +948,7 @@ test("sewing tools run in the booted app: Segment Sewing 1:N with Shift, M:N wit
   assert.strictEqual(o.partNow[0], 1); assert.strictEqual(o.partNow[1], 0, "the range now starts on the new point");
   assert.strictEqual(o.deselected, null);
   assert.strictEqual(o.check[0], true); assert.ok(/1 seam differs/.test(o.check[1]), o.check[1]); assert.ok(/within the limit/.test(o.checkOk));
-  assert.strictEqual(JSON.parse(r.storage["pdraft:sewcheck"]).on, true, "the setting is saved per browser"); assert.strictEqual(o.fileV, 27);      // (version 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13; 15 since Round r12)
+  assert.strictEqual(JSON.parse(r.storage["pdraft:sewcheck"]).on, true, "the setting is saved per browser"); assert.strictEqual(o.fileV, 28);      // (version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13; 15 since Round r12)
 });
 
 module.exports = T;

@@ -234,7 +234,8 @@ test("r29 / 3: a series renders one picture a frame, is stopped where it got to,
 });
 
 test("r29 / 3: Pause holds a path traced Final Render and its clock; Resume goes on; Stop while paused keeps it; the bar says samples, time, time left, noise", () => {
-  const o = boot({ blank: true, three: true, script: SCENE + `
+  // (Round r32: Path Traced is the desktop app's only, so this boots as the desktop app)
+  const o = boot({ blank: true, three: true, desktop: true, script: SCENE + `
     return app.wait(() => v3.ready(), "the 3D window").then(() => {
       const upd = { updateFrom() {}, setTextures() {} };
       app.ev("globalThis").THREE_PATHTRACER = {
@@ -324,7 +325,7 @@ test("r29 / 3: a document's render settings and custom views are in its file (ve
     });` }).result;
   assert.strictEqual(o.none, false, "untouched: no key, so older documents keep their bytes");
   assert.strictEqual(o.steps, 0, "no history step");
-  assert.deepStrictEqual(o.file, [27, "640x480", "portrait", 25, "Front 3/4"]);
+  assert.deepStrictEqual(o.file, [28, "640x480", "portrait", 25, "Front 3/4"]);      // (Round r30: the file version is 28)
   assert.strictEqual(o.inHistory, false);
   assert.deepStrictEqual(o.fresh, [null, "640x480", 40, 0, "now"], "the machine's size, but no lens or custom view of another document");
   assert.deepStrictEqual(o.back, ["640x480", 25, 1, 25]);

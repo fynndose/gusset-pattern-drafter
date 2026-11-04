@@ -2,7 +2,7 @@
   "name": "gusset",
   "productName": "Gusset – Pattern Drafter",
   "dataFolder": "Gusset",
-  "version": "1.0.0-beta.2",
+  "version": "1.0.0-beta.3",
   "description": "Gusset – Pattern Drafter: the desktop app",
   "author": "The Gusset – Pattern Drafter authors",
   "license": "GPL-3.0-or-later",
@@ -90,7 +90,8 @@
       ]
     },
     "portable": {
-      "artifactName": "Gusset-${version}-win-${arch}-portable.${ext}"
+      "artifactName": "Gusset-${version}-win-${arch}-portable.${ext}",
+      "splashImage": "icons/splash.bmp"
     },
     "nsis": {
       "artifactName": "Gusset-${version}-win-${arch}-setup.${ext}",

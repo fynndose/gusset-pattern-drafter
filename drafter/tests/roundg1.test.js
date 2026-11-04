@@ -98,7 +98,8 @@ test("G1 a pattern's menu is W1: inside a pattern with Edit Pattern, anywhere on
   assert.deepStrictEqual(o["Layer Clone"], ["Over", "Under"]);
   // (Deactivate, Freeze, Strengthen and Hide 3D Pattern built in Round r14 / 6)
   assert.deepStrictEqual(o["3D Pattern"], ["Deactivate (Pattern Only) [Ctrl+J]", "Deactivate (Pattern & Sewing)", "Freeze [Ctrl+K]", "Strengthen [Ctrl+H]", "Solidify [Ctrl+E]" /* (Round build-1 / 5: built) */, "—", "Archive" /* (built in Round r20 / 9) */, "Hide 3D Pattern [Shift+Q]"]);
-  assert.deepStrictEqual(o.Order, ["Bring Forward", "Bring to Front", "Send Backward", "Send to Back"]);
+  // (Round r30 / 3: the rows show their keys)
+  assert.deepStrictEqual(o.Order, ["Bring Forward [Ctrl+]]", "Bring to Front [Ctrl+Shift+]]", "Send Backward [Ctrl+[]", "Send to Back [Ctrl+Shift+[]"]);
   assert.deepStrictEqual(o.Flip, ["Horizontally", "Horizontally (Each)", "Vertically", "Vertically (Each)"]);
   assert.ok(o.Rotate[0] === "Reset Along Grain Direction" && o.Rotate.includes("Parallel to…"), o.Rotate.join(" | "));      // (Parallel to… built in Round r17b / 1)
   assert.deepStrictEqual(o.more, ["Mirror Paste (Position Only)", "Replace (by the Copied Pattern)", "Add Annotation…", "Scale…", "Move…", "Rotate…", "Proportional Grading…"]);

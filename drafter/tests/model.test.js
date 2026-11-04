@@ -186,18 +186,19 @@ test("linked mirror: children keep the source's ids, so a seam on the mirror's i
   assert.strictEqual(new Set(M.internals.map(x => x.id)).size, 3);
 });
 
-test("stacking: layer first, then selected over unselected, then list order", () => {
+// (Round r30 / 3, the maintainer's user test: selecting a pattern no longer puts it on top of its layer; only Order changes the order)
+test("stacking: layer first, then list order; selecting changes nothing", () => {
   reset();
   const a = mkPiece("a", rectShape(0, 0, 100, 100)), b = mkPiece("b", rectShape(50, 50, 100, 100)), c = mkPiece("c", rectShape(60, 60, 100, 100));
   S.pieces.push(a, b, c);
   const names = () => stack().map(p => p.name).join("");
   assert.strictEqual(names(), "abc");
   S.sel = [a.id];
-  assert.strictEqual(names(), "bca", "selected goes on top within a layer");
+  assert.strictEqual(names(), "abc", "selecting does not move a pattern up");
   b.layer = 1;
-  assert.strictEqual(names(), "cab", "a higher layer beats selection");
+  assert.strictEqual(names(), "acb", "a higher layer is on top");
   a.layer = 1;
-  assert.strictEqual(names(), "cba");
+  assert.strictEqual(names(), "cab");
   c.layer = -1; a.layer = 0; b.layer = 0; S.sel = [];
   assert.strictEqual(names(), "cab");
   // clicks go to the top of the stack: (70,70) is inside all three (view is 1:1)

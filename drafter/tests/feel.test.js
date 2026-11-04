@@ -222,7 +222,7 @@ test("dragging a point in the booted app: free movement, the original kept for t
     app.drag(a.x, a.y, b.x, b.y);
     out.free = { ...S.pieces[0].pts[2] }; out.orig = S.drag && S.drag.orig && S.drag.orig.pts[2]; out.lines = S.drag && S.drag.lines.length; out.cursor = app.cv.style.cursor;
     const c = at({ x: 352, y: 300 }); app.fire("pointermove", { x: c.x, y: c.y, ctrlKey: true });
-    out.ctrl = { ...S.pieces[0].pts[2] }; out.on = S.drag.onLine;
+    out.ctrl = { ...S.pieces[0].pts[2] }; out.on = S.drag.onLine; out.dirs = S.drag.lines.slice(0, 2);
     app.fire("pointerup", { x: c.x, y: c.y });
     out.undo = S.undo.length; app.undo(); out.back = { ...S.pieces[0].pts[2] };
     out.snap = [S.snapG, app.el("s-snap").textContent];
@@ -232,7 +232,10 @@ test("dragging a point in the booted app: free movement, the original kept for t
   near(o.free.x, 337.3, 1e-6, "no 5 mm steps"); near(o.free.y, 291.9, 1e-6);
   assert.deepStrictEqual(o.orig, { x: 300, y: 260 }, "where it was is kept while it is dragged"); assert.strictEqual(o.lines, 4); // (Round r19 / H03: over and while dragging a point, line or mark the pointer is the arrow with a four-way badge, an image with "move" as its fallback; it was the system's "move")
   assert.match(o.cursor, /^url[(].*, move$/);
-  assert.ok(o.on >= 0, "Ctrl holds it to one of its lines"); near(o.ctrl.x - 300, o.ctrl.y - 260, 1e-6, "here the diagonal");
+  // (Round r30 / 6, the maintainer's user test: Ctrl follows one of the point's own lines, the one nearest the motion, never a
+  // diagonal between them; here it was the diagonal)
+  assert.ok(o.on === 0 || o.on === 1, "Ctrl holds it to one of its own lines: " + o.on);
+  const u = o.dirs[o.on]; near((o.ctrl.x - 300)*u.y - (o.ctrl.y - 260)*u.x, 0, 1e-6, "on that line's extension");
   assert.strictEqual(o.undo, 1); assert.deepStrictEqual(o.back, { x: 300, y: 260 });
   assert.deepStrictEqual(o.snap, [0, "GRID OFF"]);
 });

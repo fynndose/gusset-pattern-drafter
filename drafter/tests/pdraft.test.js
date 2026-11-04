@@ -152,7 +152,7 @@ test("every version 11 test file opens (" + v11.length + " files): patterns, sew
     assert.strictEqual(o.drape, Object.keys(was.drape || {}).length, f + ": the drape"); assert.strictEqual(o.images, was.images.length, f); assert.strictEqual(o.res, was.cloth.res);
     // (Round F: every pattern has its place in 3D once the file is open; one the file gave a place keeps it)
     assert.ok(o.p3.every(Boolean), f + ": every pattern has its place in 3D"); was.pieces.forEach((p, k) => { if (p.p3) assert.deepStrictEqual(o.p3[k], p.p3.pos, f + ": the file's place"); }); assert.strictEqual(o.pins, was.pieces.reduce((n, p) => n + (p.pins || []).length, 0));
-    assert.deepStrictEqual([o.v, o.zip], [27, true], "saved as version 27 (Round r29; 26 since Round r26; 25 since Round r25; 24 since Round r20; 23 since the r19 follow-up; 22 since Round r18; 21 since Round r17b; 20 since Round build-1; 19 since Round perf-2; 18 since Round r15; 17 since Round r14), a ZIP container");
+    assert.deepStrictEqual([o.v, o.zip], [28, true], "saved as version 28 (Round r30; 27 since Round r29; 26 since Round r26; 25 since Round r25; 24 since Round r20; 23 since the r19 follow-up; 22 since Round r18; 21 since Round r17b; 20 since Round build-1; 19 since Round perf-2; 18 since Round r15; 17 since Round r14), a ZIP container");
     assert.deepStrictEqual(o.parts, ["document.json", "history.json", ...was.images.map(im => "images/" + im.id + ".png"), ...(was.drape ? ["drape.bin"] : [])], f + ": its parts");
     assert.strictEqual(o.same, true, f + ": the same document after the round trip"); assert.deepStrictEqual(o.hist2, o.hist); assert.strictEqual(o.toast2, "Opened again.pdraft with " + steps + " history steps");
     assert.strictEqual(o.identical, true, f + ": save, reopen, save gives identical bytes");
@@ -182,7 +182,7 @@ test("save, reopen, save gives identical bytes with the platform's deflate too, 
   assert.deepStrictEqual(o.saved, ["Saved", false]); assert.strictEqual(o.same, true); assert.strictEqual(o.identical, true);
   const parts = partsOf(Buffer.from(o.b64, "base64"));
   assert.deepStrictEqual(parts.map(p => [p.name, p.method]), [["document.json", 8], ["history.json", 8], ["images/1.png", 0]]);
-  assert.strictEqual(JSON.parse(parts[0].data.toString("utf8")).v, 27);      // (version 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
+  assert.strictEqual(JSON.parse(parts[0].data.toString("utf8")).v, 28);      // (version 28 since Round r30 (a seam's mirror); 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
   assert.ok(o.size < text.length/3, "version 12: " + o.size + " bytes, version 11: " + text.length);
 });
 
@@ -242,7 +242,7 @@ test("a document made in this session (not read from a file) is saved, opened an
 
 test("a file that is no pattern file, a damaged one and one from a newer version are refused with the reason, and the open document stays", () => {
   const junk = foreignZip([{ name: "readme.txt", data: Buffer.from("hello") }]);
-  const newer = foreignZip([{ name: "document.json", data: Buffer.from(JSON.stringify({ v: 28, pieces: [] })      /* (one past this build's: 28 since Round r29, 27 since Round r26, 26 since Round r25, 25 since Round r20, 24 since the r19 follow-up, 23 since Round r18, 22 since Round r17b, 21 since Round build-1, 20 since Round perf-2, 19 since Round r15, 18 since Round r14, 17 since Round r13) */), deflate: false }]);
+  const newer = foreignZip([{ name: "document.json", data: Buffer.from(JSON.stringify({ v: 29, pieces: [] })      /* (one past this build's: 29 since Round r30, 28 since Round r29, 27 since Round r26, 26 since Round r25, 25 since Round r20, 24 since the r19 follow-up, 23 since Round r18, 22 since Round r17b, 21 since Round build-1, 20 since Round perf-2, 19 since Round r15, 18 since Round r14, 17 since Round r13) */), deflate: false }]);
   const cut = foreignZip([{ name: "document.json", data: Buffer.from(JSON.stringify({ v: 12, pieces: [] })), crc: 1 }]);
   const r = boot({ script: `
     const out = [], open = (name, b64) => { app.ev("openFile")(name, app.ev("bytesOf")(b64), null, true); out.push([toasts[toasts.length-1], S.pieces.length, !!S.dirty]); };
@@ -461,7 +461,9 @@ test("a file's avatar height and pose are put on the avatar for that document on
   assert.deepStrictEqual(o.byHand, [1700, [1700, "{}", 16]], "set by hand: the user's own from now on"); assert.deepStrictEqual(o.kept, [1700, [1700, "{}", 16]]);
 });
 
-test("one's own avatar is kept in the pattern file only when its owner says so" + (hasMarty ? "" : " (Marty is not here: skipped)") + ": off by default, asked before it is switched on, read back from the file, and never for a built-in avatar", () => {
+// (Round r31 / 1, the maintainer's decision of 4 Nov: one's own avatar is always kept in the pattern file, with no question; until then
+// it was off by default and asked before it was switched on, Avatar ▸ Keep This Avatar in the Pattern File, which is gone)
+test("one's own avatar is always kept in the pattern file" + (hasMarty ? "" : " (Marty is not here: skipped)") + ": read back from the file, saved into it again, and never a built-in avatar", () => {
   if (!hasMarty) return;
   const size = fs.statSync(MARTY).size;
   const r = boot({ blank: true, three: true, storage: { "pdraft:avatar": JSON.stringify({ cell: 20 }) }, script: `
@@ -472,49 +474,27 @@ test("one's own avatar is kept in the pattern file only when its owner says so" 
       const sq = (n, x, y, w, h) => app.mkPiece(n, app.mkShape([{x:x,y:y},{x:x+w,y:y},{x:x+w,y:y+h},{x:x,y:y+h}], true));
       app.push("Rectangle"); S.pieces.push(sq("Front", 0, 0, 300, 300)); app.commit();
       const save = () => { let f = null; app.setDownload((n, b) => { f = b; }); app.saveDoc(false); return f; };
-      const item = () => app.MENUS.avatar().find(x => /Keep This Avatar/.test(x.n));
-      // as it comes: the record, no file
+      const asked = []; app.modalAnswer = (title) => { asked.push(title); return "cancel"; };
       let f = save();
-      out.plain = [app.fileParts(f).map(p => p[0]), app.fileDoc(f).scene.avatar, item().on, S.avEmbed];
-      // asked, and Cancel leaves it off
-      const asked = []; let pick = "cancel";
-      app.modalAnswer = (title, keys, text) => { asked.push([title, keys.join(), text]); return pick; };
-      item().f(); out.cancelled = [S.avEmbed, item().on];
-      pick = "embed"; app.ev("markClean")(); item().f(); out.on = [S.avEmbed === S.av.hash, item().on, !!S.dirty, toasts[toasts.length-1]];
-      out.asked = asked;
-      f = save();
       const rec = app.fileDoc(f).scene.avatar;
-      out.kept = [app.fileParts(f), rec.embed, rec.file, rec.preset];
+      out.kept = [app.fileParts(f), rec.embed, rec.file, rec.preset, asked.length, !!app.MENUS.avatar().find(x => /Keep This Avatar/.test(x.n))];
       // another session with no avatar: it is read out of the file, and saved into it again
       app.ev("removeAvatar")(true); out.gone = !S.av;
       app.ev("openFile")("with-avatar.pdraft", f, null, true); await app.wait(() => S.av, "the avatar from the file");
-      out.back = [S.av.name, S.av.hash === rec.hash, S.avEmbed === rec.hash, app.storage.has("pdraft-avatar")];
+      out.back = [S.av.name, S.av.hash === rec.hash, app.storage.has("pdraft-avatar")];
       out.again = app.fileParts(save()).map(p => p[0]);
-      // switched off again: the next file is without it
-      item().f(); out.off = [S.avEmbed, toasts[toasts.length-1], app.fileParts(save()).map(p => p[0])];
-      // a built-in avatar is never put in a file, whatever a document says: Marty with the tick of another avatar
-      pick = "embed"; item().f();
+      // a built-in avatar is never put in a file
       app.ev("avatarLoaded")(body, "marty.glb", null, true); await app.wait(() => S.av && S.av.preset === "marty", "Marty");
-      out.preset = [app.fileParts(save()).map(p => p[0]), !!item(), app.fileDoc(save()).scene.avatar.embed];
-      app.ev("avatarEmbed")(true); out.refused = toasts[toasts.length-1];
+      out.preset = [app.fileParts(save()).map(p => p[0]), app.fileDoc(save()).scene.avatar.embed];
       return out;
     })();` }, 120000);
   assert.deepStrictEqual(r.errors, []);
   const o = r.result;
-  assert.deepStrictEqual(o.plain[0], ["document.json", "history.json"], "by default the avatar's file is not in the pattern file");
-  assert.deepStrictEqual([o.plain[1].name, o.plain[1].preset, Math.round(o.plain[1].height), o.plain[1].pose, o.plain[1].embed], ["my-scan.glb", undefined, 1876, {}, undefined], "only its name, height, pose and hash");
-  assert.deepStrictEqual(o.plain.slice(2), [false, null]);
-  assert.deepStrictEqual(o.cancelled, [null, false]);
-  assert.strictEqual(o.asked[0][0], "Keep this avatar in the pattern file?"); assert.strictEqual(o.asked[0][1], "embed,cancel");
-  assert.ok(/my-scan[.]glb, [0-9.]+ MB/.test(o.asked[0][2]) && /whoever gets the pattern file gets the avatar/.test(o.asked[0][2]), o.asked[0][2]);
-  assert.deepStrictEqual(o.on, [true, true, true, "my-scan.glb will be saved inside this pattern file"]);
   assert.deepStrictEqual(o.kept[0].map(p => p[0]), ["document.json", "history.json", "avatar/my-scan.glb"]); assert.strictEqual(o.kept[0][2][1], size, "the file itself, byte for byte");
-  assert.deepStrictEqual(o.kept.slice(1), [true, "avatar/my-scan.glb", null]);
-  assert.strictEqual(o.gone, true); assert.deepStrictEqual(o.back, ["my-scan.glb", true, true, false], "loaded from the file, and still the owner's choice");
+  assert.deepStrictEqual(o.kept.slice(1), [true, "avatar/my-scan.glb", null, 0, false], "no question, no menu item");
+  assert.strictEqual(o.gone, true); assert.deepStrictEqual(o.back, ["my-scan.glb", true, false], "loaded from the file, not remembered on this machine");
   assert.deepStrictEqual(o.again, ["document.json", "history.json", "avatar/my-scan.glb"]);
-  assert.strictEqual(o.off[0], null); assert.ok(/no longer kept in the pattern file/.test(o.off[1])); assert.deepStrictEqual(o.off[2], ["document.json", "history.json"]);
-  assert.deepStrictEqual(o.preset, [["document.json", "history.json"], false, null], "a built-in avatar: no menu item, no file");
-  assert.ok(/Only an avatar of your own/.test(o.refused), o.refused);
+  assert.deepStrictEqual(o.preset, [["document.json", "history.json"], null], "a built-in avatar: its id, no file");
 });
 
 module.exports = T;

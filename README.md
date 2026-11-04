@@ -83,7 +83,7 @@ A document is saved as a `.pdraft` file. It is a ZIP container, so any ZIP tool 
 
 - Lengths are millimetres, y points down. The choice of mm, cm or inches only changes what is displayed.
 - The file holds the pieces with their points, lines and curves, the seams, topstitches, guides and measurements, the grading tables, the library, the print layout, where each pattern is arranged in 3D, the simulation settings and the camera, and optionally the undo history and the draped cloth. Opened again, a document is as it was left.
-- It notes which avatar the garment was draped on (its name, height and pose), not the avatar itself. Your own avatar goes into the file only if you choose **Avatar → Keep This Avatar in the Pattern File**.
+- It notes which avatar the garment was draped on (its name, height and pose). A built-in avatar is noted by its name only; an avatar of your own is saved inside the file, so the file opens on it again wherever it goes. Keep that in mind before sharing a file made on a body scan.
 - Files written by every earlier version (plain JSON, `.pdraft` or `.json`) still open; they are brought up to date when they are read. A version of the program from before the container cannot open the new files.
 
 ## Importing project files

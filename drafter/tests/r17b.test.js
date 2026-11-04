@@ -55,7 +55,7 @@ test("r17b / 1: Add Background Image: one picture under the patterns at 96 ppi, 
   assert.deepStrictEqual(r.b, { w: 254, h: 127, opacity: 0.5, lock: false, hide: false }, "960 × 480 px at 96 ppi is 254 × 127 mm");
   assert.ok(r.middle);
   assert.deepStrictEqual(r.steps, ["Add Background Image"]);
-  assert.strictEqual(r.v, 27); /* (version 27 since Round r29 (a document's render settings); 26 since Round r26; 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18) */ assert.strictEqual(r.parts, 1, "the picture is a part of its own"); assert.ok(r.saved);
+  assert.strictEqual(r.v, 28); /* (version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r26; 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18) */ assert.strictEqual(r.parts, 1, "the picture is a part of its own"); assert.ok(r.saved);
   assert.strictEqual(r.back, 254); assert.ok(r.picture);
   assert.deepStrictEqual(r.replaced, [254, 254], "the new picture's shape at the old width");
 });
@@ -312,7 +312,7 @@ test("r17b / 1: a version 20 file (written by the build before this round) opens
       return out;
     });` });
   const r = o.result;
-  assert.deepStrictEqual(r.v, [20, 27]);      /* (saved again it is this build's version: 27 since Round r29, 26 since Round r26; 25 since Round r25; 24 since Round r20; 23 since the r19 follow-up; 22 since Round r18) */ assert.deepStrictEqual(r.display, [false, true]);
+  assert.deepStrictEqual(r.v, [20, 28]);      /* (saved again it is this build's version: 28 since Round r30, 27 since Round r29, 26 since Round r26; 25 since Round r25; 24 since Round r20; 23 since the r19 follow-up; 22 since Round r18) */ assert.deepStrictEqual(r.display, [false, true]);
   assert.ok(r.same, "the document as the file has it: " + JSON.stringify(r.diff));
   assert.deepStrictEqual(r.names, ["Front piece", "Back"]); assert.strictEqual(r.res3, 12);
   assert.ok(r.undo.length >= 1, "its history came with it: " + JSON.stringify(r.undo)); assert.strictEqual(r.undone, "Front");

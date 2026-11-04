@@ -93,6 +93,7 @@ const UA = { windows: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537
   const one = { schema: 1, latest: rel("1.0.0-beta.1", true), stable: null };
   t = await dl("windows", one);
   say(/Download for Windows/.test(await text(t.page, "#dl-primary")) && (await t.page.$eval("#dl-primary a", a => a.href)).endsWith("a-setup.exe") && /Test version/.test(await text(t.page, "#dl-notes")), "Windows: the installer first, marked as a test version");
+  say((await t.page.$$("#dl-primary a")).length === 1 && !(await t.page.$eval("#dl-other", e => e.hidden)) && (await t.page.$eval("#dl-other a", a => a.href)).endsWith("a-portable.exe") && /Starts slower [(]it unpacks itself each time[)][.] Use it if you can't install[.]/.test(await text(t.page, "#dl-other")), "Windows: one big button, the installer; the portable under Other downloads, with why it is not the first");
   say((await t.page.$$("#dl-rows tr")).length === 5 && (await t.page.$eval("#foot-source", a => a.href)).endsWith("source.zip"), "every file in the table, and the footer's link to this version's source code");
   say((await text(t.page, "#dl-rows")).includes("ab".repeat(32)), "the checksums are shown");
   if (SHOTS) await t.page.screenshot({ path: path.join(SHOTS, "download-windows.png"), fullPage: true });
@@ -104,9 +105,10 @@ const UA = { windows: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537
     t = await dl("mac", { schema: 1, latest: both, stable: null });
     const hrefs = await t.page.$$eval("#dl-primary a", as => as.map(a => a.href));
     say(hrefs.length === 2 && hrefs[0].endsWith("a.dmg") && hrefs[1].endsWith("b.dmg") && /Intel/.test(await text(t.page, "#dl-primary")), "Mac: both chips offered by name, when both are built");
+    say((await t.page.$$eval("#dl-other a", as => as.map(a => a.href))).join() === "https://example.test/a.zip" && /same app as the disk image/.test(await text(t.page, "#dl-other")), "Mac: the .zip under Other downloads, with its line");
     await t.ctx.close(); }
   t = await dl("linux", one);
-  say((await t.page.$eval("#dl-primary a", a => a.href)).endsWith("a.AppImage"), "Linux: the AppImage");
+  say((await t.page.$eval("#dl-primary a", a => a.href)).endsWith("a.AppImage") && await t.page.$eval("#dl-other", e => e.hidden), "Linux: the AppImage, nothing else to list");
   await t.ctx.close();
   t = await dl("phone", one);
   say(/needs a computer/.test(await text(t.page, "#dl-primary")) && !(await t.page.$("#dl-primary a")), "a phone: no button, says why");

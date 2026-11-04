@@ -56,4 +56,7 @@ contextBridge.exposeInMainWorld("desktop", {
     install: () => ipcRenderer.invoke("updates:install"), page: () => ipcRenderer.invoke("updates:page"), onProgress: (f) => ipcRenderer.on("update-progress", (e, p) => f(p)) },
   // (a Mac) the app's first menu: f("about") or f("settings")
   onAppMenu: (f) => ipcRenderer.on("app-menu", (e, what) => f(what)),
+  // (Round r32) the page is fully ready: its window is shown and the splash closed; onStartLate(f): the window was shown before that, after f(seconds)
+  ready: () => ipcRenderer.send("app:ready"),
+  onStartLate: (f) => ipcRenderer.on("start-late", (e, s) => f(s)),
 });

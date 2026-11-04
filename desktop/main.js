@@ -13,6 +13,8 @@ const path = require("path");
 // has loaded (scripts/startup-time.js reads them). Nothing is kept or written without it
 const START_LOG = process.env.PDRAFT_STARTUP_LOG || "", T0 = { main: performance.now() };
 const mark = (n) => { if (START_LOG && T0[n] == null) T0[n] = Math.round(performance.now()); };
+// (Round r32) written again at each later moment (the page loaded, shown, ready); origin: the process's start, epoch ms
+const startLog = () => { if (START_LOG) try { fs.writeFileSync(START_LOG, JSON.stringify({ ...T0, origin: Math.round(performance.timeOrigin), version: app.getVersion(), exe: process.execPath })); } catch (e) {} };
 
 // (Round r24 follow-up) the program's name in full: the windows' titles, and the product name the real app has (productName)
 const APP_NAME = "Gusset – Pattern Drafter";
@@ -314,13 +316,15 @@ ipcMain.handle("print", async (e, html, pw, ph) => {
   } finally { w.destroy(); fs.rmSync(file, { force: true }); }
 });
 
-/* ---- the start-up splash (Round r24) ----
-   A small window of its own (drafter/splash.html: the mark sewing itself together), shown the moment the app is ready to
-   open windows and before the page starts loading; the page's window stays hidden until it can paint, is then shown at once,
-   and the splash fades out over it (SPLASH_FADE) once it has been up SPLASH_MIN: so it never delays the program, and only a
-   start quicker than SPLASH_MIN keeps it up that long. A click on it closes it. Under reduced motion it stands still
-   (its page's own style). SPLASH_WAIT: the page's window is shown then even if it has not painted. */
-const SPLASH_MIN = 600, SPLASH_FADE = 200, SPLASH_WAIT = 10000;
+/* ---- the start-up splash (Round r24; Round r32: until the program is fully ready) ----
+   A small window of its own (drafter/splash.html: the mark sewing itself together), the first thing made once the app can
+   open windows. The page's window is made hidden and stays hidden while the page starts: it says when it is fully ready
+   ("app:ready": both windows drawn, its panels built, the unsaved work's check answered; the page's startReady()). Then the
+   page's window is shown and the splash closed in the same moment (pageUp()), never sooner than SPLASH_MIN after the splash
+   came, so it never only flashes; never a grey window with a spinner. The splash's animation plays on meanwhile (its own
+   page; under reduced motion it stands still with a thin line). SPLASH_LATE: the page's window is shown then whatever the
+   page says, and the page told so ("start-late"), which says it in one line. */
+const SPLASH_MIN = 1000, SPLASH_LATE = 30000;
 let splash = null, splashAt = 0;
 function showSplash() {
   splashAt = Date.now();
@@ -331,32 +335,29 @@ function showSplash() {
   });
   splash.webContents.on("will-navigate", (e) => e.preventDefault());
   splash.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-  splash.on("closed", () => { splash = null; });
+  splash.on("closed", () => { splash = null; mark("splashGone"); });
   splash.once("show", () => mark("splashShown"));
   splash.webContents.once("did-finish-load", () => mark("splashLoaded"));
   splash.loadFile(SPLASH).catch(() => {});
 }
-// the page's window is up: the splash goes, after SPLASH_MIN from its start at the earliest, fading where the system can
-function splashEnd() {
-  if (!splash) return;
+// the page is ready (or SPLASH_LATE has passed: late): its window shown and the splash closed together, SPLASH_MIN after the splash came at the earliest
+let upAsked = false;
+function pageUp(w, late) {
+  if (upAsked || w.isDestroyed()) return;
+  upAsked = true;
   setTimeout(() => {
-    if (!splash) return;
-    if (process.platform === "linux") return splash.destroy();          // (no window opacity there)
-    const t0 = Date.now(), step = () => {
-      if (!splash) return;
-      const k = Math.min(1, (Date.now() - t0)/SPLASH_FADE);
-      if (k >= 1) return splash.destroy();
-      splash.setOpacity(1 - k); setTimeout(step, 16);
-    };
-    step();
-  }, Math.max(0, SPLASH_MIN - (Date.now() - splashAt)));
+    if (w.isDestroyed()) return;
+    if (!w.isVisible()) w.show();
+    if (splash) splash.destroy();
+    if (late) w.webContents.send("start-late", SPLASH_LATE/1000);
+  }, splash ? Math.max(0, SPLASH_MIN - (Date.now() - splashAt)) : 0);
 }
 
 /* ---- the window ---- */
 function createWindow() {
   win = new BrowserWindow({
     width: 1440, height: 900, minWidth: 720, minHeight: 480, backgroundColor: "#2b2b2d", title: APP_NAME + TITLE_TAIL,
-    show: !splash,                                                   // (with the splash: shown when it can paint, below)
+    show: !splash,                                                   // (with the splash: shown when the page is ready, pageUp())
     // the developer tools only when run from source (npm start, F12); a built app has none
     webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, sandbox: true, nodeIntegration: false, devTools: !app.isPackaged },
     // run from source, the window shows the app's icon (Electron's own otherwise); a built app has it in the executable
@@ -376,15 +377,13 @@ function createWindow() {
   win.webContents.once("did-finish-load", () => { loaded = true; handOver(fileArg(process.argv) || early); early = null; });
   win.on("closed", () => { win = null; loaded = false; });
   if (splash) {
-    const w = win, up = () => { clearTimeout(late); if (!w.isDestroyed() && !w.isVisible()) w.show(); splashEnd(); }, late = setTimeout(up, SPLASH_WAIT);
-    w.once("ready-to-show", up);
+    const w = win, late = setTimeout(() => pageUp(w, true), SPLASH_LATE);
+    const ready = (e) => { if (e.sender !== w.webContents) return; ipcMain.removeListener("app:ready", ready); clearTimeout(late); mark("pageReady"); startLog(); pageUp(w, false); };
+    ipcMain.on("app:ready", ready);
   }
-  win.once("show", () => mark("mainShown"));
+  win.once("show", () => { mark("mainShown"); startLog(); });
   win.once("ready-to-show", () => mark("mainPaint"));
-  win.webContents.once("did-finish-load", () => {
-    mark("mainLoaded");
-    if (START_LOG) try { fs.writeFileSync(START_LOG, JSON.stringify({ ...T0, version: app.getVersion(), exe: process.execPath })); } catch (e) {}
-  });
+  win.webContents.once("did-finish-load", () => { mark("mainLoaded"); startLog(); });
   win.loadFile(PAGE);
 }
 
@@ -438,6 +437,8 @@ else {
     // Windows and Linux: no menu bar, and with it none of its shortcuts: the page's own menu bar is the only one, and Ctrl+R
     // (Mirror Paste), Ctrl+N (New), Ctrl+W (Remove All Pins), Ctrl+H / J / K, Ctrl+Shift+I, Ctrl +/− and F11 all reach the page.
     // A Mac: the app's own first menu and Window, which every Mac app has, and nothing that doubles the page's menus
+    // (Round r32) the splash as early as it can be: only the old folder's copy comes first (a few ms with nothing to copy), because a window made
+    // before it writes Chromium's own files into the new data folder, which then no longer looks empty, and nothing would be brought over
     mark("ready");
     Menu.setApplicationMenu(MAC ? macMenu() : null);
     bringOver(); mark("broughtOver");

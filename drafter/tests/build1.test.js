@@ -408,7 +408,8 @@ test("build-1 / 4: Edit Zipper picks zippers only; an end dragged shows a dot on
 
 /* ---- batch 5: Solidify, Particle Distance per pattern, Simulation Shrinkage ---- */
 test("build-1 / 5: a pattern's own Particle Distance and Simulation Shrinkage in the Property Editor: kept only when set, in the file (version 20), one step each", () => {
-  const o = boot({ script: DOC + `
+  // (Round r32: a particle distance under 10 mm is the desktop app's only, so this boots as the desktop app)
+  const o = boot({ desktop: true, script: DOC + `
     S.sel = [A.id]; app.ev("ui")();
     const h = app.el("props").innerHTML;
     out.rows = ["pp-res3", "pp-weft", "pp-warp"].map(id => h.includes('id="' + id + '"'));
@@ -430,12 +431,13 @@ test("build-1 / 5: a pattern's own Particle Distance and Simulation Shrinkage in
   assert.deepStrictEqual(r.particle, [8, 20], "its own, the other the document's");
   assert.deepStrictEqual(r.cleared, [null, null], "back to the document's and to none: nothing kept");
   assert.deepStrictEqual(r.small, [null, true], "under 5 mm is refused and said");
-  assert.strictEqual(r.doc, 12); assert.strictEqual(r.v, 27);      // (version 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up; 22 since Round r18; 21 since Round r17b)
+  assert.strictEqual(r.doc, 12); assert.strictEqual(r.v, 28);      // (version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up; 22 since Round r18; 21 since Round r17b)
   assert.deepStrictEqual(r.same, ["A"]); assert.deepStrictEqual(r.others, ["B", "C", "D"]);
 });
 
 test("build-1 / 5: in 3D each pattern is meshed at its own Particle Distance; a seam between two is paired at the finer one", () => {
-  const o = boot({ three: true, script: DOC + `
+  // (Round r32: as above)
+  const o = boot({ three: true, desktop: true, script: DOC + `
     app.ev("garmentSync")(true);
     const n = (p) => app.G3.items.get(p.id).mesh.xy.length/2;
     out.before = [n(A), n(B)];

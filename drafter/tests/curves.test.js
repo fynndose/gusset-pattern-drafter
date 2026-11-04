@@ -272,11 +272,10 @@ test("a handle curve becomes curve points to within a tenth of a millimetre, and
   setCurve(g, 1, true); g.segs[1].c1 = V(318, 130); g.segs[1].c2 = V(318, 270);
   toCurvePoints(g, 1);
   assert.strictEqual(g.segs[1].cps.length, 2);
-  // taking the points out again gives a handle curve that leaves and arrives the same way
-  const dir = [segTan(g, 1, 0), segTan(g, 1, 1)];
+  // (Round r30 / 2, the maintainer's decision: taking every curve point out leaves a straight line; it used to leave a handle curve
+  // that left and arrived as the curve-point curve did)
   deleteCp(g, 1, 1); deleteCp(g, 1, 0);
-  assert.strictEqual(isSpline(g.segs[1]), false); assert.ok(g.segs[1].curved);
-  samePt(segTan(g, 1, 0), dir[0], 1e-9); samePt(segTan(g, 1, 1), dir[1], 1e-9);
+  assert.strictEqual(isSpline(g.segs[1]), false); assert.strictEqual(g.segs[1].curved, false); assert.strictEqual(g.segs[1].c1, null);
   // a curve-point curve with several pieces is fitted
   reset();
   const q = curved([V(340, 130), V(350, 270)]), was = trace(q, 1);
@@ -558,7 +557,7 @@ test("files: curve points are saved and read back; junk is dropped; a file from 
   reset();
   const p = curved(); addPoint(p, 1, 0.4); S.nextId = 5;
   const text = docJSON(), d = JSON.parse(text);
-  assert.strictEqual(d.v, 27);      // (version 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
+  assert.strictEqual(d.v, 28);      // (version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
   const want = [1, 2].flatMap(i => trace(p, i, 50));
   reset(); loadDoc(JSON.parse(text)); checkDoc(S.pieces, S.seams);
   const q = S.pieces[0];
@@ -706,11 +705,11 @@ test("Edit Curvature bends a curve-point curve into one curve with no curve poin
     let a = at({ x: 300, y: 400 }), b = at({ x: 330, y: 430 });
     app.drag(a.x, a.y, b.x, b.y); app.fire("pointerup", { x: b.x, y: b.y });
     out.end = [P().pts[2], P().segs[1].cps[0], app.segPt(P(), 1, app.segCurve(P(), 1).U[1]), pt];
-    // Edit Curvature: one bent curve, no curve points
+    // Edit Curvature: one bent curve (Round r30 / 2: let go, it is curve points of that shape, no handles; it was a handle curve)
     app.setTool("edit_curvature");
     a = at(app.segPt(P(), 1, 0.5)); b = { x: a.x + 20, y: a.y };
     app.drag(a.x, a.y, b.x, b.y); app.fire("pointerup", { x: b.x, y: b.y });
-    out.bent = [P().segs[1].curved, P().segs[1].cps === undefined, !!P().segs[1].c1];
+    out.bent = [P().segs[1].curved, Array.isArray(P().segs[1].cps) && P().segs[1].cps.length > 0, P().segs[1].c1 == null];
     app.checkDoc(S.pieces, S.seams);
     return out;` });
   assert.deepStrictEqual(r.errors, []);

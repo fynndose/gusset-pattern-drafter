@@ -564,6 +564,9 @@
   #dlg.print .info { display: flex; flex-wrap: wrap; gap: 2px 12px; margin-bottom: 6px; }
   #dlg.print .info .lk { margin: 0; }
   #dlg.wide .hint { max-width: 290px; }
+  /* (Round r32) what only the desktop app does, in a browser: a lock and its words, told by shape and weight, not colour */
+  .locked svg.lock { vertical-align: -2px; margin-right: 2px; flex: none; }
+  .hint.locked, #dlg .hint .hint.locked, #rw-side .hint.locked { font-weight: 600; color: #e4e4e8; opacity: 1; }
   /* (Round r17b / 4) the two Snapshot boxes: two columns, the print box's line table */
   #dlg.snap2, #dlg.snap3 { width: 600px; max-width: calc(100vw - 12px); }
   #dlg.snap2 .cols, #dlg.snap3 .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
