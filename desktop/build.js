@@ -1,7 +1,10 @@
 // Builds the desktop app with electron-builder and puts what it made in desktop/dist, each file with its SHA-256 beside it.
-//   node build.js [win | portable | nsis | mac | linux] [--arch=x64 | --arch=arm64]
+//   node build.js [win | portable | nsis | mac | linux] [--arch=x64 | --arch=arm64 | --arch=x64,arm64]
 // With no target: on Windows the installer and the portable .exe (win, Round r24), the .dmg and .zip on a Mac, the AppImage on Linux (a .deb would need a public homepage); with no arch,
-// this computer's. A system's app is built on that system only (a Mac's on a Mac: it is signed there, ad hoc).
+// this computer's. A system's app is built on that system only (a Mac's on a Mac: it is signed there, ad hoc). Several arches are built in one
+// run (beta.3 release fix: the release workflow builds the Apple-chip Mac app on the Intel Mac, --arch=x64,arm64): then one channel file names
+// every arch's download (two runs each wrote their own -mac.yml, and the release kept only one of them), each arch's unpacked app gets
+// unpacked-<arch>.json, unpacked.json is this computer's arch (the one that can be started here), and the package check runs on each.
 // The page and its files are taken from ../drafter as they are at the time of the build (extraResources in
 // package.json: the list the tests keep in step with what the page loads). The build is made from a committed
 // state only (PDRAFT_ALLOW_DIRTY=1 to build from changed files, for a try), and the date and the commit are written
@@ -29,11 +32,11 @@ const path = require("path");
 
 const SYSTEM = { win32: "win", darwin: "mac", linux: "linux" }[process.platform];
 const target = process.argv.slice(2).find(a => !a.startsWith("--")) || { win: "win", mac: "mac", linux: "linux" }[SYSTEM];
-const arch = (process.argv.find(a => a.startsWith("--arch=")) || "").slice(7) || process.arch;
+const arches = ((process.argv.find(a => a.startsWith("--arch=")) || "").slice(7) || process.arch).split(",").map(a => a.trim()).filter(Boolean);
 const FOR = { win: ["win", "--win nsis portable"], portable: ["win", "--win portable"], nsis: ["win", "--win nsis"], mac: ["mac", "--mac"], linux: ["linux", "--linux"] }[target];
 if (!FOR) { console.error("Unknown target " + target + ": win, portable, nsis, mac or linux"); process.exit(1); }
 if (FOR[0] !== SYSTEM) { console.error("The " + FOR[0] + " app is built on " + FOR[0] + " only (this is " + SYSTEM + ")"); process.exit(1); }
-if (!["x64", "arm64"].includes(arch)) { console.error("Unknown arch " + arch + ": x64 or arm64"); process.exit(1); }
+for (const arch of arches) if (!["x64", "arm64"].includes(arch)) { console.error("Unknown arch " + arch + ": x64 or arm64"); process.exit(1); }
 const ROOT = path.join(__dirname, "..");
 const stage = process.env.PDRAFT_STAGE ? path.resolve(process.env.PDRAFT_STAGE) : path.join(os.tmpdir(), "pdraft-desktop-build");
 const out = process.env.PDRAFT_OUT ? path.resolve(process.env.PDRAFT_OUT) : path.join(__dirname, "dist");
@@ -43,7 +46,7 @@ const git = (...a) => { try { return execFileSync("git", a, { cwd: ROOT, encodin
 const dirty = git("status", "--porcelain") || "";
 if (dirty && process.env.PDRAFT_ALLOW_DIRTY !== "1") { console.error("The project has changes that are not committed:\n" + dirty + "\nCommit them first (a build is made from a commit), or set PDRAFT_ALLOW_DIRTY=1 for a try."); process.exit(1); }
 const commit = (git("rev-parse", "--short", "HEAD") || "source") + (dirty ? "-dirty" : ""), date = new Date().toISOString().slice(0, 10);
-console.log("Building " + target + " " + arch + " from " + commit + " on " + date);
+console.log("Building " + target + " " + arches.join(" and ") + " from " + commit + " on " + date);
 fs.rmSync(stage, { recursive: true, force: true });
 
 const env = { ...process.env };
@@ -73,26 +76,36 @@ if (process.env.PDRAFT_BUILD_VERSION) extra.push("--config.extraMetadata.version
 if (process.env.PDRAFT_BUILD_NAME) { const n = process.env.PDRAFT_BUILD_NAME, slug = n.toLowerCase().replace(/[^a-z0-9]+/g, "-");
   extra.push("--config.productName=" + q(n), "--config.extraMetadata.productName=" + q(n), "--config.extraMetadata.name=" + q(slug), "--config.appId=com.gussetdrafter.gusset-pattern-drafter.test." + slug.replace(/-/g, ""), "--config.extraMetadata.dataFolder=" + q(n),
     "--config.nsis.shortcutName=" + q(n), "--config.nsis.uninstallDisplayName=" + q(n), "--config.win.executableName=" + q(n)); }
-const r = spawnSync("npx electron-builder " + FOR[1] + " --" + arch + " --publish never \"--config.directories.output=" + stage + "\" --config.extraMetadata.buildDate=" + date + " --config.extraMetadata.buildCommit=" + commit + (extra.length ? " " + extra.join(" ") : ""),
+const r = spawnSync("npx electron-builder " + FOR[1] + " " + arches.map(a => "--" + a).join(" ") + " --publish never \"--config.directories.output=" + stage + "\" --config.extraMetadata.buildDate=" + date + " --config.extraMetadata.buildCommit=" + commit + (extra.length ? " " + extra.join(" ") : ""),
   { cwd: __dirname, stdio: "inherit", shell: true, env });
 if (r.status !== 0) process.exit(r.status || 1);
 
-// the unpacked app: win-unpacked, linux-unpacked (linux-arm64-unpacked), mac or mac-arm64 with the .app in it
+// each arch's unpacked app: win-unpacked, linux-unpacked, mac (with the .app in it) for x64; win-arm64-unpacked, linux-arm64-unpacked, mac-arm64 for arm64
 // (the program file: Windows and Linux by its executableName, a Mac by the product name, as electron-builder names them)
 const PKGB = require("./package.json"), PRODUCT = process.env.PDRAFT_BUILD_NAME || PKGB.productName, EXE = PKGB.build.linux.executableName,
   WIN_EXE = process.env.PDRAFT_BUILD_NAME || PKGB.build.win.executableName || PRODUCT;
-const dir = fs.readdirSync(stage).map(d => path.join(stage, d)).find(d => fs.statSync(d).isDirectory() && /(-unpacked|^mac(-arm64|-universal)?)$/.test(path.basename(d)));
-if (!dir) { console.error("electron-builder finished but left no unpacked app in " + stage); process.exit(1); }
-const unpacked = SYSTEM === "mac"
+const dirOf = (arch) => path.join(stage, SYSTEM === "mac" ? (arch === "x64" ? "mac" : "mac-" + arch) : SYSTEM + (arch === "x64" ? "" : "-" + arch) + "-unpacked");
+const unpackedOf = (dir) => SYSTEM === "mac"
   ? { app: path.join(dir, PRODUCT + ".app"), exe: path.join(dir, PRODUCT + ".app", "Contents", "MacOS", PRODUCT), resources: path.join(dir, PRODUCT + ".app", "Contents", "Resources") }
   : { app: dir, exe: path.join(dir, SYSTEM === "win" ? WIN_EXE + ".exe" : EXE), resources: path.join(dir, "resources") };
-fs.writeFileSync(path.join(stage, "unpacked.json"), JSON.stringify(unpacked, null, 1));
+const apps = {};
+for (const arch of arches) {
+  let dir = dirOf(arch);
+  // (one arch: whatever unpacked folder electron-builder left, as before)
+  if (!fs.existsSync(dir) && arches.length === 1) dir = fs.readdirSync(stage).map(d => path.join(stage, d)).find(d => fs.statSync(d).isDirectory() && /(-unpacked|^mac(-arm64|-universal)?)$/.test(path.basename(d)));
+  if (!dir || !fs.existsSync(dir)) { console.error("electron-builder finished but left no unpacked " + arch + " app in " + stage); process.exit(1); }
+  apps[arch] = unpackedOf(dir);
+  fs.writeFileSync(path.join(stage, "unpacked-" + arch + ".json"), JSON.stringify(apps[arch], null, 1));
+}
+fs.writeFileSync(path.join(stage, "unpacked.json"), JSON.stringify(apps[process.arch] || apps[arches[0]], null, 1));
 
-// what the app holds, checked before anything is kept
+// what each app holds, checked before anything is kept
 // (Round r28: scripts/package-check.js stays in the private repository; the public source has only what its build needs)
 const PKG_CHECK = path.join(ROOT, "scripts", "package-check.js");
-const chk = fs.existsSync(PKG_CHECK) ? spawnSync(process.execPath, [PKG_CHECK, unpacked.app], { stdio: "inherit" }) : { status: 0 };
-if (chk.status !== 0) { console.error("\nThe built app failed the package check: nothing was kept (the build is in " + stage + ")."); process.exit(1); }
+for (const arch of arches) {
+  const chk = fs.existsSync(PKG_CHECK) ? spawnSync(process.execPath, [PKG_CHECK, apps[arch].app], { stdio: "inherit" }) : { status: 0 };
+  if (chk.status !== 0) { console.error("\nThe built " + arch + " app failed the package check: nothing was kept (the build is in " + stage + ")."); process.exit(1); }
+}
 
 fs.mkdirSync(out, { recursive: true });
 // (Round r24) and the update check's channel files and blockmaps, which the release carries beside the builds
@@ -106,5 +119,5 @@ for (const f of made) {
   fs.writeFileSync(to + ".sha256", sum + " *" + f + "\n");                    // the format sha256sum -c reads
   console.log("\n" + to + "  (" + (fs.statSync(to).size/1048576).toFixed(1) + " MB)\nSHA-256 " + sum);
 }
-if (process.env.PDRAFT_KEEP_STAGE === "1") console.log("The unpacked app is kept in " + unpacked.app);
+if (process.env.PDRAFT_KEEP_STAGE === "1") console.log("The unpacked app is kept in " + arches.map(a => apps[a].app).join(" and "));
 else fs.rmSync(stage, { recursive: true, force: true });

@@ -33,10 +33,12 @@ function readYml(text) {
 }
 const yml = files.filter(f => /\.yml$/.test(f) && !/^builder-/.test(f));
 if (!yml.length) problems.push("no channel file (.yml) in " + dir + ": was the build given PDRAFT_UPDATE_SOURCE?");
+const named = new Map();      // channel file → the files it names
 const sha = new Map();
 const sha512 = (f) => { if (!sha.has(f)) sha.set(f, crypto.createHash("sha512").update(fs.readFileSync(path.join(dir, f))).digest("base64")); return sha.get(f); };
 for (const y of yml) {
   const d = readYml(fs.readFileSync(path.join(dir, y), "utf8"));
+  named.set(y, d.files.map(f => f.url));
   if (d.version !== version) problems.push(y + " names version " + d.version + ", not " + version);
   if (pre && /^latest/.test(y)) problems.push(y + ": a test version must not write a latest channel file (stable versions would be offered it)");
   if (!d.files.length) problems.push(y + " names no file");
@@ -52,5 +54,10 @@ const want = channel === "latest" ? "latest" : channel;
 if (files.some(f => /-setup\.exe$/.test(f)) && !has(new RegExp("^" + want + "\\.yml$"))) problems.push("the Windows installer has no " + want + ".yml");
 if (files.some(f => /\.AppImage$/.test(f)) && !has(new RegExp("^" + want + "-linux(-arm64)?\\.yml$"))) problems.push("the AppImage has no " + want + "-linux.yml");
 if (files.some(f => /-mac-[\w]+\.zip$/.test(f)) && !has(new RegExp("^" + want + "-mac\\.yml$"))) problems.push("the Mac build has no " + want + "-mac.yml");
+// (beta.3 release fix) every download is named by its system's channel file: beta.2's two Mac builds each wrote beta-mac.yml, and the
+// release kept the Intel one only. The Apple-chip and Intel apps are now built in one run, which writes one file naming both
+const chan = (re) => [...named].filter(([y]) => re.test(y)).flatMap(([, names]) => names);
+const own = [[/-setup\.exe$/, new RegExp("^" + want + "\\.yml$")], [/\.AppImage$/, new RegExp("^" + want + "-linux(-arm64)?\\.yml$")], [/-mac-[\w]+\.zip$/, new RegExp("^" + want + "-mac\\.yml$")]];
+for (const [file, ymlRe] of own) for (const f of files.filter(n => file.test(n))) if (has(ymlRe) && !chan(ymlRe).includes(f)) problems.push(f + " is not named by its channel file (" + yml.filter(y => ymlRe.test(y)).join(", ") + "): an app on that system would not be offered it");
 if (problems.length) { console.log("\nUPDATE FILES CHECK FAILED:\n  " + problems.join("\n  ")); process.exit(1); }
 console.log("Update files check passed: " + yml.length + " channel file(s) for " + version + " (channel " + channel + "), every file they name is here and matches.");

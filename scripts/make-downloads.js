@@ -64,34 +64,39 @@ function listOf(rels) {
   return { schema: 1, generated: latest ? latest.date : null, latest, stable };
 }
 
-function fromDist(dir, version, repo) {
-  const tag = "v" + version, sums = {};
-  const sumFile = path.join(dir, "SHA256SUMS.txt");
-  if (fs.existsSync(sumFile)) for (const l of fs.readFileSync(sumFile, "utf8").split(/\r?\n/)) { const m = /^([0-9a-f]{64}) [ *](.+)$/.exec(l); if (m) sums[m[2]] = m[1]; }
-  const files = fs.readdirSync(dir).map(name => {
+// one version from a list of its files, [{ name, size }], and their checksums { name: sha256 }
+function fromFiles(list, version, repo, sums) {
+  const tag = "v" + version;
+  const files = list.map(({ name, size }) => {
     const c = classify(name);
-    return c && { ...c, name, url: "https://github.com/" + repo + "/releases/download/" + tag + "/" + encodeURIComponent(name), size: fs.statSync(path.join(dir, name)).size, sha256: sums[name] || "" };
-  }).filter(Boolean);
+    return c && { ...c, name, url: "https://github.com/" + repo + "/releases/download/" + tag + "/" + encodeURIComponent(name), size, sha256: (sums || {})[name] || "" };
+  }).filter(Boolean).sort((a, b) => (a.name < b.name ? -1 : 1));
   return files.length ? { version, tag, prerelease: version.includes("-"), date: "", source: sourceZip(repo, tag), files } : null;
+}
+const sumsOf = (file) => { const s = {}; if (file && fs.existsSync(file)) for (const l of fs.readFileSync(file, "utf8").split(/\r?\n/)) { const m = /^([0-9a-f]{64}) [ *](.+)$/.exec(l); if (m) s[m[2]] = m[1]; } return s; };
+
+function fromDist(dir, version, repo) {
+  return fromFiles(fs.readdirSync(dir).map(name => ({ name, size: fs.statSync(path.join(dir, name)).size })), version, repo, sumsOf(path.join(dir, "SHA256SUMS.txt")));
 }
 
 if (require.main === module) {
   const arg = (n) => { const i = process.argv.indexOf("--" + n); return i > 0 ? process.argv[i + 1] : ""; };
   const repo = arg("repo"), out = arg("out");
-  if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || !out || !(arg("api") || (arg("dist") && arg("version")))) { console.error("node scripts/make-downloads.js (--api <releases.json> | --dist <folder> --version <v>) --repo <owner/repo> --out <file>"); process.exit(1); }
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || !out || !(arg("api") || ((arg("dist") || arg("assets")) && arg("version")))) { console.error("node scripts/make-downloads.js (--api <releases.json> | --dist <folder> --version <v> | --assets <files.json> --version <v> --sums <SHA256SUMS.txt>) --repo <owner/repo> --out <file>"); process.exit(1); }
   let rels;
-  const readSums = (f) => { const s = {}; if (f && fs.existsSync(f)) for (const l of fs.readFileSync(f, "utf8").split(/\r?\n/)) { const m = /^([0-9a-f]{64}) [ *](.+)$/.exec(l); if (m) s[m[2]] = m[1]; } return s; };
+  const readSums = sumsOf;
   if (arg("api")) {
     // (gh api --paginate --slurp gives a list of pages, each a list of releases)
     const sums = readSums(arg("sums"));
     rels = JSON.parse(fs.readFileSync(arg("api"), "utf8")).flat().map(r => fromApi(r, repo));
     for (const r of rels) for (const f of r ? r.files : []) if (!f.sha256 && sums[f.name]) f.sha256 = sums[f.name];
   } else {
-    rels = [fromDist(arg("dist"), arg("version"), repo)];
-    if (!rels[0]) { console.error("no file a person downloads in " + arg("dist")); process.exit(1); }
+    // (--assets, beta.3 release fix: a draft that got a system's files later, by its whole list of files [{ name, size }])
+    rels = [arg("assets") ? fromFiles(JSON.parse(fs.readFileSync(arg("assets"), "utf8")), arg("version"), repo, readSums(arg("sums"))) : fromDist(arg("dist"), arg("version"), repo)];
+    if (!rels[0]) { console.error("no file a person downloads in " + (arg("assets") || arg("dist"))); process.exit(1); }
   }
   const list = listOf(rels);
   fs.writeFileSync(out, JSON.stringify(list, null, 2) + "\n");
   console.log(out + ": latest " + (list.latest ? list.latest.version + " (" + list.latest.files.length + " files)" : "none") + ", stable " + (list.stable ? list.stable.version : "none"));
 }
-module.exports = { classify, parseVersion, compareVersions, fromApi, fromDist, listOf };
+module.exports = { classify, parseVersion, compareVersions, fromApi, fromDist, fromFiles, listOf };

@@ -141,16 +141,19 @@ test("r28 / 9 the workflow: the list is written in the dry run and the tag's run
   const made = rel.indexOf("node scripts/make-downloads.js --dist dist");
   assert.ok(made > 0 && made > rel.indexOf("SHA256SUMS.txt") && made < rel.indexOf('echo "Would make'), "after the checksums, before the dry run stops");
   assert.ok(rel.includes('if [ "$DRY" = true ]; then echo "Would make the draft release'), "the dry run still stops there, making nothing");
-  assert.ok(rel.includes('DRY: ${{ !startsWith(github.ref, \'refs/tags/v\') }}'), "dry unless a tag");
+  // (beta.3 release fix: dry unless a tag was pushed, or attach was ticked in a run by hand from a tag)
+  assert.ok(rel.includes("DRY: ${{ github.event_name != 'push' && !inputs.attach }}"), "dry unless a tag");
   // (Round PUB-1b, the maintainer's decision: a draft, which the maintainer publishes by hand)
   assert.ok(rel.includes('gh release create "$TAG" --draft --prerelease="$PRE"'), "a draft");
   assert.ok(!rel.includes("--draft=false"), "never published here");
   const job = wf.slice(wf.indexOf("  site-downloads:"));
-  assert.ok(job.includes("if: github.event_name == 'release' && github.repository == 'fynndose/gusset-pattern-drafter'"), "on a release published by hand, only in the public repository");
+  // (beta.3 release fix: or a release that is out already and got a missing system's files)
+  assert.ok(job.includes("github.repository == 'fynndose/gusset-pattern-drafter' && (github.event_name == 'release' || needs.release.outputs.published == 'true')"), "on a release published by hand, only in the public repository");
   assert.ok(job.includes("--api ") && job.includes("--out website/downloads.json") && /gh api --paginate --slurp "repos\/\$GITHUB_REPOSITORY\/releases/.test(job), "from all the releases, never /releases/latest");
   assert.ok(!/releases\/latest/.test(wf), "never GitHub's latest");
   assert.ok(wf.includes("if: github.event_name != 'release' && (inputs.probe == '' || inputs.probe == null)"), "a published release builds nothing");
-  assert.ok(wf.includes("if: github.event_name != 'release' && (startsWith(github.ref, 'refs/tags/v')"), "a published release makes no pre-release");
+  // (beta.3 release fix: !cancelled(), so that a system whose build never ran does not stop the release)
+  assert.ok(wf.includes("github.event_name != 'release' && (startsWith(github.ref, 'refs/tags/v')"), "a published release makes no pre-release");
   assert.ok(wf.includes("PDRAFT_UPDATE_SOURCE: ${{ inputs.update_source || vars.PDRAFT_UPDATE_SOURCE || 'https://gussetdrafter.com/updates/' }}"), "(Round r29d: the website's feed by default; Round PUB-1 had the public repository)");
   assert.ok(!/github:[a-z]/i.test(wf.split("github:<owner>/<repo>").join("").split("github:fynndose/gusset-pattern-drafter").join("")), "names no other repository");
 });
@@ -158,7 +161,8 @@ test("r28 / 9 the workflow: the list is written in the dry run and the tag's run
 test("r28 / 10 the workflow is valid YAML, its jobs as expected", () => {
   let yaml; try { yaml = require(path.join(ROOT, "desktop", "node_modules", "js-yaml")); } catch (e) { return; }      // (there after npm install in desktop/)
   const w = yaml.load(read(".github", "workflows", "release.yml"));
-  assert.deepStrictEqual(Object.keys(w.jobs), ["plan", "probe", "build", "release", "site-downloads"]);
+  // (beta.3 release fix: mac-arm64-check, the optional Apple-chip check, which nothing waits for)
+  assert.deepStrictEqual(Object.keys(w.jobs), ["plan", "probe", "build", "mac-arm64-check", "release", "site-downloads"]);
   assert.deepStrictEqual(w.on.release.types, ["published"]);      // (Round PUB-1b, the maintainer's brief)
   assert.strictEqual(w.jobs["site-downloads"].permissions.contents, "write");
   assert.strictEqual(w.jobs.build.needs, "plan", "with no plan, no build");

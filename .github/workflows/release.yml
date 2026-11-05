@@ -5,8 +5,17 @@
 #   desktop check on the built app's files, the built app itself started and driven, then the files and their SHA-256 uploaded
 #   then: the draft release for the tag (a pre-release if the version says so), with every file, SHA256SUMS.txt and docs/release-notes/<version>.md (the
 #   checksums added to its text)
-# "all" and a tag are win-x64 (installer and portable), mac-arm64, mac-x64, linux-x64. A private repository's macOS minutes count ten times: there "all" leaves out the Intel Mac.
-# By hand the pre-release job runs too, as a dry run: everything but making the release.
+# "all" and a tag are win-x64 (installer and portable), mac (both Mac apps, below), linux-x64; with mac, in the public repository, the optional
+# mac-arm64-check. A private repository's macOS minutes count ten times: there the optional check runs only when named.
+# (beta.3 release fix: the v1.0.0-beta.3 run failed twice because no Apple-chip build machine was free.) A release is never held up by one kind
+# of build machine:
+#   - Both Mac apps are built on the Intel Mac in one run (the Apple-chip app cross-built: electron-builder fetches that arch's Electron and signs it
+#     ad hoc there), so one -mac.yml names both (two jobs each wrote their own, and beta.2's release kept only the Intel one). The Intel app is tested
+#     and started there; the Apple-chip one gets what can be checked without running it (its arch, its signature, its size beside the Intel one's,
+#     the disk image and the zip read whole). mac-arm64-check then starts that very zip on an Apple chip, if one is free: it never holds up the release.
+#   - A system whose build never ran (no machine came, cancelled) is missing, not a failure: the draft is made with the rest, its notes say what
+#     is missing, and a run by hand from the tag with "attach" adds it later (the maintainer's launch checklist). A step that failed after Install
+#     (a test, a check, the build) is real (failed-<system>-<attempt>), and stops the release.
 # Every build is given where the app looks for updates (PDRAFT_UPDATE_SOURCE: the input update_source, else the repository
 # variable, else the website's update feed, not the public repository; "none": such a build does not look for updates), and carries the channel files the app reads (beta.yml or
 # latest.yml, -mac.yml, -linux.yml) and the blockmaps, checked by scripts/update-files-check.js before the release takes
@@ -14,7 +23,7 @@
 # The website's list of downloads (scripts/make-downloads.js): GitHub's "latest release" leaves out pre-releases, so the list is
 # worked out from all the releases. The pre-release job attaches this build's list to the draft (a dry run prints it). When the
 # maintainer publishes a release, the job site-downloads writes website/downloads.json from every release that is out and commits
-# it, which is what puts it on the website. That job runs only in the public repository.
+# it, which is what puts it on the website; also after files were added to a release that is out already. That job runs only in the public repository.
 name: Release
 
 on:
@@ -25,8 +34,12 @@ on:
   workflow_dispatch:
     inputs:
       systems:
-        description: "Which systems to build and check: all (win-x64, mac-arm64, mac-x64, linux-x64), or some of win-x64, mac-arm64, mac-x64, linux-x64 (comma-separated)"
+        description: "Which systems to build and check: all, or some of win-x64, mac (both Mac apps), linux-x64, mac-arm64-check (the Apple-chip app started on an Apple chip; optional), comma-separated"
         default: all
+      attach:
+        description: "Add the built files to the release of the tag this run is started from (Use workflow from > Tags), for a system it is missing. Off: a dry run"
+        type: boolean
+        default: false
       probe:
         description: "Instead of building: webgl (the Intel Mac) or webgl-arm (the Apple-chip Mac) tries Chromium's WebGL switches (a few minutes)"
         default: ""
@@ -53,6 +66,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.m.outputs.matrix }}
+      armcheck: ${{ steps.m.outputs.armcheck }}
     steps:
       - id: m
         env:
@@ -60,12 +74,15 @@ jobs:
           PRIVATE_REPO: ${{ github.event.repository.private }}
         run: |
           node -e '
-            const all = [{ os: "windows-latest", name: "win-x64", softgl: "1" }, { os: "macos-latest", name: "mac-arm64" },
-              { os: "macos-15-intel", name: "mac-x64", nogl: "1" }, { os: "ubuntu-latest", name: "linux-x64" }];
-            const want = (process.env.SYSTEMS || "all").split(",").map(s => s.trim()).filter(Boolean);
-            const pick = want.includes("all") ? all.filter(x => !(process.env.PRIVATE_REPO === "true" && x.name === "mac-x64")) : all.filter(x => want.includes(x.name));
+            // (both Mac apps on the Intel Mac: macos-15-intel. When GitHub retires Intel machines, build both on an Apple-chip one: arch "arm64,x64", and the Intel app is then the cross-built one)
+            const all = [{ os: "windows-latest", name: "win-x64", softgl: "1" }, { os: "macos-15-intel", name: "mac", arch: "x64,arm64", nogl: "1" },
+              { os: "ubuntu-latest", name: "linux-x64" }];
+            const want = (process.env.SYSTEMS || "all").split(",").map(s => s.trim()).filter(Boolean).map(s => (s === "mac-x64" || s === "mac-arm64" ? "mac" : s));
+            const pick = want.includes("all") ? all : all.filter(x => want.includes(x.name));
             if (!pick.length) { console.error("no system named: " + want); process.exit(1); }
-            console.log("matrix=" + JSON.stringify({ include: pick }));' >> "$GITHUB_OUTPUT"
+            const arm = pick.some(x => x.name === "mac") && (want.includes("mac-arm64-check") || process.env.PRIVATE_REPO !== "true");
+            console.log("matrix=" + JSON.stringify({ include: pick }));
+            console.log("armcheck=" + arm);' >> "$GITHUB_OUTPUT"
           cat "$GITHUB_OUTPUT"
 
   # (by hand only) which of Chromium's switches give WebGL on a Mac build machine
@@ -109,7 +126,7 @@ jobs:
     needs: plan
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 50
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
@@ -129,7 +146,7 @@ jobs:
             package-lock.json
             desktop/package-lock.json
 
-      # Electron's and electron-builder's downloads, kept between runs
+      # Electron's and electron-builder's downloads, kept between runs (the Mac's: both arches' Electron)
       - name: Download caches
         shell: bash
         run: |
@@ -139,9 +156,11 @@ jobs:
       - uses: actions/cache@v6
         with:
           path: ~/.pdraft-cache
-          key: pdraft-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('desktop/package-lock.json') }}
+          key: pdraft-${{ runner.os }}-${{ runner.arch }}-${{ matrix.arch || 'own' }}-${{ hashFiles('desktop/package-lock.json') }}
 
+      # (a failure up to here is the machine's or the network's, not the program's: no failed-<system> mark, so the release goes on without it)
       - name: Install
+        id: install
         shell: bash
         run: |
           npm ci --no-audit --no-fund
@@ -183,7 +202,29 @@ jobs:
         env:
           PDRAFT_STAGE: ${{ runner.temp }}/stage
           PDRAFT_KEEP_STAGE: "1"
-        run: node desktop/build.js
+          BUILD_ARCH: ${{ matrix.arch }}
+        run: node desktop/build.js ${BUILD_ARCH:+--arch=$BUILD_ARCH}
+
+      # the Apple-chip app cannot run on this machine: what can be checked without running it
+      - name: The Apple-chip app, checked without running it
+        if: matrix.name == 'mac'
+        shell: bash
+        run: |
+          for A in x64 arm64; do
+            APP=$(node -p "require(process.env.RUNNER_TEMP + '/stage/unpacked-$A.json').app"); EXE=$(node -p "require(process.env.RUNNER_TEMP + '/stage/unpacked-$A.json').exe")
+            WANT=$([ "$A" = x64 ] && echo x86_64 || echo arm64)
+            for B in "$EXE" "$APP/Contents/Frameworks/Electron Framework.framework/Electron Framework"; do
+              GOT=$(lipo -archs "$B"); echo "$A: $(basename "$B"): $GOT"
+              [ "$GOT" = "$WANT" ] || { echo "::error::$B is $GOT, not $WANT"; exit 1; }
+            done
+            # (an Apple chip runs no code without a signature: here an ad hoc one)
+            codesign --verify --deep --verbose=2 "$APP"
+          done
+          for K in dmg zip; do
+            node -e 'const fs = require("fs"), [x, r] = process.argv.slice(1), q = fs.statSync(r).size / fs.statSync(x).size; console.log(r + ": " + (q * 100).toFixed(0) + " % of the Intel one"); if (q < 0.75 || q > 1.25) { console.log("::error::the Apple-chip " + r + " is not near the Intel one in size"); process.exit(1); }' desktop/dist/*-mac-x64.$K desktop/dist/*-mac-arm64.$K
+          done
+          for D in desktop/dist/*.dmg; do hdiutil verify "$D"; done
+          for Z in desktop/dist/*-mac-*.zip; do unzip -tq "$Z"; done
 
       - name: Desktop check on the built app's files
         shell: bash
@@ -217,6 +258,7 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
+          overwrite: true
 
       - uses: actions/upload-artifact@v7
         if: always()
@@ -225,30 +267,145 @@ jobs:
           path: ${{ runner.temp }}/start
           if-no-files-found: ignore
           retention-days: 14
+          overwrite: true
 
-  # a tag: the draft release, never published here. By hand (Round r22): a dry run of the same job (the files downloaded, the checksums and the
-  # notes put together, the title shown) that creates no release and no tag
+      # a real failure (after Install: a test, a check, the build): the release job stops on this mark
+      - name: Mark a real failure
+        if: failure() && steps.install.outcome == 'success'
+        shell: bash
+        run: mkdir -p "$RUNNER_TEMP/failed" && echo "${{ matrix.name }} failed in attempt ${{ github.run_attempt }}" > "$RUNNER_TEMP/failed/failed.txt"
+      - uses: actions/upload-artifact@v7
+        if: failure() && steps.install.outcome == 'success'
+        with:
+          name: failed-${{ matrix.name }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/failed
+          retention-days: 14
+
+  # (optional) the Apple-chip app from the release's own zip, started and driven on an Apple chip. Nothing waits for it: when no such machine
+  # is free the release is made without this check. Red because a test or the app failed: do not publish (the maintainer's launch checklist)
+  mac-arm64-check:
+    name: mac-arm64-check (optional)
+    needs: [plan, build]
+    if: ${{ !cancelled() && needs.plan.outputs.armcheck == 'true' }}
+    runs-on: macos-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      actions: read
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+      PDRAFT_SMOKE_SLOW: "4"
+    steps:
+      - name: Is there an Apple-chip app to check
+        id: has
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?per_page=100" --jq '.artifacts[].name' | grep -qx gusset-mac; then echo "yes=true" >> "$GITHUB_OUTPUT";
+          else echo "::notice::The Mac build did not finish in this run: nothing to check here"; fi
+      - uses: actions/checkout@v7
+        if: steps.has.outputs.yes == 'true'
+      - uses: actions/setup-node@v7
+        if: steps.has.outputs.yes == 'true'
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            desktop/package-lock.json
+      - name: Install
+        if: steps.has.outputs.yes == 'true'
+        run: |
+          npm ci --no-audit --no-fund
+          npm ci --no-audit --no-fund --prefix desktop
+          node desktop/node_modules/electron/install.js
+      # (as in build: the one known bug on an Apple chip)
+      - name: Unit tests on an Apple chip (not the slow drapes)
+        if: steps.has.outputs.yes == 'true'
+        shell: bash
+        run: |
+          set +e
+          node drafter/tests/run.js --fast > "$RUNNER_TEMP/tests.log" 2>&1; code=$?
+          set -e
+          cat "$RUNNER_TEMP/tests.log"
+          if [ $code -ne 0 ]; then
+            fails=$(grep -c '^  FAIL ' "$RUNNER_TEMP/tests.log")
+            if [ "$fails" = 1 ] && grep -q '^  FAIL r14 / 2: the solver folds the cloth along a fold line' "$RUNNER_TEMP/tests.log"; then
+              echo "::warning title=Known bug::r14 / 2 (the 270° fold) fails on an Apple chip: the fold line is wavy. Released as a known bug (Round desk-2)."
+            else exit $code; fi
+          fi
+      - uses: actions/download-artifact@v8
+        if: steps.has.outputs.yes == 'true'
+        with:
+          name: gusset-mac
+          path: dist
+      - name: The Apple-chip app unpacked from its zip
+        if: steps.has.outputs.yes == 'true'
+        shell: bash
+        run: |
+          test "$(uname -m)" = arm64
+          A="$RUNNER_TEMP/app"; mkdir -p "$A"; ditto -x -k dist/*-mac-arm64.zip "$A"
+          node -e 'const fs = require("fs"), p = require("path"), d = process.argv[1], app = fs.readdirSync(d).find(n => n.endsWith(".app")), P = p.join(d, app);
+            fs.writeFileSync(process.argv[2], JSON.stringify({ app: P, exe: p.join(P, "Contents", "MacOS", app.slice(0, -4)), resources: p.join(P, "Contents", "Resources") }, null, 1));' "$A" "$RUNNER_TEMP/unpacked.json"
+          cat "$RUNNER_TEMP/unpacked.json"
+          lipo -archs "$(node -p "require(process.env.RUNNER_TEMP + '/unpacked.json').exe")"
+      - name: Desktop check on its files
+        if: steps.has.outputs.yes == 'true'
+        shell: bash
+        run: |
+          export PDRAFT_SMOKE_APP=$(node -p "require(process.env.RUNNER_TEMP + '/unpacked.json').resources")
+          npm run smoke:desktop || { echo "--- once more ---"; npm run smoke:desktop; }
+      - name: The Apple-chip app started and driven
+        if: steps.has.outputs.yes == 'true'
+        shell: bash
+        run: |
+          RUN="node scripts/start-built.js $RUNNER_TEMP/unpacked.json $RUNNER_TEMP/start"
+          $RUN || { echo "--- once more ---"; rm -rf "$RUNNER_TEMP/start"; $RUN; }
+      - uses: actions/upload-artifact@v7
+        if: always() && steps.has.outputs.yes == 'true'
+        with:
+          name: checks-mac-arm64
+          path: ${{ runner.temp }}/start
+          if-no-files-found: ignore
+          retention-days: 14
+          overwrite: true
+
+  # a tag: the draft release, never published here, with every system that was built (one that never ran is listed as missing; a real
+  # failure stops it). By hand, from a tag, with attach: the built files added to that tag's release. By hand otherwise (Round r22): a dry run of
+  # the same job (the files downloaded, the checksums and the notes put together, the title shown) that creates no release and no tag
   release:
     name: pre-release
-    needs: build
-    if: github.event_name != 'release' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
+    needs: [plan, build]
+    if: ${{ !cancelled() && needs.plan.result == 'success' && github.event_name != 'release' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     permissions:
       contents: write
+      actions: read
+    outputs:
+      published: ${{ steps.r.outputs.published }}
     steps:
       - uses: actions/checkout@v7
+      - name: Which systems were built, and whether one failed for real
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?per_page=100" --jq '.artifacts[].name' | tee "$RUNNER_TEMP/artifacts.txt"
+          node scripts/release-parts.js runs "$RUNNER_TEMP/artifacts.txt"
       - uses: actions/download-artifact@v8
         with:
           pattern: gusset-*
           path: dist
           merge-multiple: true
       - name: Create or update the draft release
+        id: r
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
-          DRY: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+          DRY: ${{ github.event_name != 'push' && !inputs.attach }}
+          ATTACH: ${{ github.event_name == 'workflow_dispatch' && inputs.attach == true }}
         run: |
+          if [ "$ATTACH" = true ] && [ "$GITHUB_REF_TYPE" != tag ]; then echo "::error::To add files to a release, start this run from its tag (Use workflow from > Tags): $TAG is a branch"; exit 1; fi
           V="${TAG#v}"
           CONFIG=$(node -p "require('./drafter/config.js').version")
           if [ "$DRY" = true ]; then V="$CONFIG"; echo "Dry run (no tag): version $V from drafter/config.js";
@@ -257,28 +414,51 @@ jobs:
           if [ "$PDRAFT_UPDATE_SOURCE" != none ]; then node scripts/update-files-check.js dist "$V"; else echo "Update source none: these builds do not look for updates, so there are no channel files"; fi
           NOTES="docs/release-notes/$V.md"
           test -f "$NOTES" || { echo "No release notes at $NOTES"; exit 1; }
-          (cd dist && sha256sum $(ls | grep -v '\.sha256$') > SHA256SUMS.txt && cat SHA256SUMS.txt)
-          # the website's list for this build: the same in a dry run. (After the checksums, so that it is not one of the files they list)
-          node scripts/make-downloads.js --dist dist --version "$V" --repo "$GITHUB_REPOSITORY" --out dist/downloads.json
+          if [ "$ATTACH" = true ]; then
+            # (beta.3 release fix) a system that was missing, added to the release: never over a file that is there, the checksums and the list made whole again
+            gh release view "$TAG" --json isDraft,assets > "$RUNNER_TEMP/release.json" || { echo "::error::There is no release for $TAG to add files to: the tag's own run makes it"; exit 1; }
+            node scripts/release-parts.js clash "$RUNNER_TEMP/release.json" dist
+            NEW=$(ls dist)
+            (cd dist && sha256sum $(ls | grep -v '\.sha256$') > "$RUNNER_TEMP/new-sums.txt")
+            gh release download "$TAG" -p SHA256SUMS.txt -D "$RUNNER_TEMP/old" || true
+            node scripts/release-parts.js sums "$RUNNER_TEMP/old/SHA256SUMS.txt" "$RUNNER_TEMP/new-sums.txt" > dist/SHA256SUMS.txt
+            node scripts/release-parts.js assets "$RUNNER_TEMP/assets.json" --release "$RUNNER_TEMP/release.json" --dist dist
+            node scripts/make-downloads.js --assets "$RUNNER_TEMP/assets.json" --sums dist/SHA256SUMS.txt --version "$V" --repo "$GITHUB_REPOSITORY" --out dist/downloads.json
+          else
+            (cd dist && sha256sum $(ls | grep -v '\.sha256$') > SHA256SUMS.txt)
+            # the website's list for this build: the same in a dry run. (After the checksums, so that it is not one of the files they list)
+            node scripts/make-downloads.js --dist dist --version "$V" --repo "$GITHUB_REPOSITORY" --out dist/downloads.json
+            node scripts/release-parts.js assets "$RUNNER_TEMP/assets.json" --dist dist
+          fi
+          cat dist/SHA256SUMS.txt
           cat dist/downloads.json
           BODY="$RUNNER_TEMP/body.md"
-          { cat "$NOTES"; printf '\n## SHA-256 of each file\n\n```\n'; cat dist/SHA256SUMS.txt; printf '```\n'; } > "$BODY"
+          # (the systems not built yet, if any, between the notes and the checksums)
+          { cat "$NOTES"; node scripts/release-parts.js missing "$RUNNER_TEMP/assets.json"; printf '\n## SHA-256 of each file\n\n```\n'; cat dist/SHA256SUMS.txt; printf '```\n'; } > "$BODY"
           TITLE="Gusset – Pattern Drafter "$(echo "$V" | sed -E 's/-(alpha|beta|rc)\./ \1 /')
-          if [ "$DRY" = true ]; then echo "Would make the draft release \"$TITLE\" with:"; ls -l dist; head -5 "$BODY"; tail -8 "$BODY"; exit 0; fi
-          PRE=false; case "$V" in *-*) PRE=true ;; esac
-          if gh release view "$TAG" > /dev/null 2>&1; then
-            gh release edit "$TAG" --prerelease="$PRE" --title "$TITLE" --notes-file "$BODY"
+          if [ "$DRY" = true ]; then echo "Would make the draft release \"$TITLE\" with:"; ls -l dist; head -5 "$BODY"; tail -16 "$BODY"; exit 0; fi
+          if [ "$ATTACH" = true ]; then
+            gh release upload "$TAG" $(for f in $NEW; do echo "dist/$f"; done)          # (no --clobber: clash made sure none of them is there)
+            gh release upload "$TAG" dist/SHA256SUMS.txt dist/downloads.json --clobber
+            gh release edit "$TAG" --notes-file "$BODY"
+            if [ "$(node -p "require(process.env.RUNNER_TEMP + '/release.json').isDraft")" = false ]; then echo "published=true" >> "$GITHUB_OUTPUT"; echo "The release is out already: the website's list and the update feed are written again next"; fi
           else
-            gh release create "$TAG" --draft --prerelease="$PRE" --verify-tag --title "$TITLE" --notes-file "$BODY"
+            PRE=false; case "$V" in *-*) PRE=true ;; esac
+            if gh release view "$TAG" > /dev/null 2>&1; then
+              gh release edit "$TAG" --prerelease="$PRE" --title "$TITLE" --notes-file "$BODY"
+            else
+              gh release create "$TAG" --draft --prerelease="$PRE" --verify-tag --title "$TITLE" --notes-file "$BODY"
+            fi
+            gh release upload "$TAG" dist/* --clobber
           fi
-          gh release upload "$TAG" dist/* --clobber
           gh release view "$TAG" --json assets --jq '.assets[] | "\(.name)  \(.size)"'
 
-  # a release published by hand: website/downloads.json from every release that is out, committed to the default
-  # branch, from where the website is deployed. A push with this job's token starts no workflow, so this cannot go round in a circle
+  # a release published by hand (or one that is out and got a missing system's files: attach): website/downloads.json from every release that
+  # is out, committed to the default branch, from where the website is deployed. A push with this job's token starts no workflow, so this cannot go round in a circle
   site-downloads:
     name: the website's list of downloads
-    if: github.event_name == 'release' && github.repository == 'fynndose/gusset-pattern-drafter'
+    needs: release
+    if: ${{ !cancelled() && github.repository == 'fynndose/gusset-pattern-drafter' && (github.event_name == 'release' || needs.release.outputs.published == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

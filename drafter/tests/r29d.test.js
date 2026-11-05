@@ -67,7 +67,8 @@ test("r29d / 1: the workflow writes the feed only on a release published by hand
   const wf = read(".github", "workflows", "release.yml").replace(/\r\n/g, "\n"), job = wf.slice(wf.indexOf("  site-downloads:")), before = wf.slice(0, wf.indexOf("  site-downloads:"));
   assert.ok(job.includes('node scripts/make-update-feed.js --api "$RUNNER_TEMP/releases.json" --repo "$GITHUB_REPOSITORY" --out website/updates'));
   assert.ok(job.includes("git add website/downloads.json website/updates"));
-  assert.ok(job.includes("if: github.event_name == 'release' && github.repository == 'fynndose/gusset-pattern-drafter'"));
+  // (beta.3 release fix: or a release that is out already and got a missing system's files, attach)
+  assert.ok(job.includes("github.repository == 'fynndose/gusset-pattern-drafter' && (github.event_name == 'release' || needs.release.outputs.published == 'true')"));
   assert.ok(wf.includes("types: [published]"));
   assert.ok(!before.includes("make-update-feed"), "a tag's run never touches the feed");
   assert.ok(before.includes('gh release upload "$TAG" dist/* --clobber'), "every built file on the release, the channel files with them: beta 1 reads those");

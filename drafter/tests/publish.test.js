@@ -50,17 +50,21 @@ test("pub / 3 the update source: the public repository by default, an override, 
 test("pub / 4 the release path: a tag builds every system and makes a draft, the job that checks the channel files can see the source, the version must match, the list follows the maintainer's publishing", () => {
   const wf = lf(read(".github", "workflows", "release.yml"));
   assert.ok(wf.indexOf("\nenv:\n  PDRAFT_UPDATE_SOURCE:") > 0 && wf.indexOf("\nenv:\n  PDRAFT_UPDATE_SOURCE:") < wf.indexOf("\njobs:"), "for the whole workflow: the release job read an empty variable while it was set on the build job alone");
-  for (const os of ['name: "win-x64"', 'name: "mac-arm64"', 'name: "mac-x64"', 'name: "linux-x64"']) assert.ok(wf.includes(os), os);
-  assert.ok(wf.includes('process.env.PRIVATE_REPO === "true" && x.name === "mac-x64"'), "the Intel Mac counts ten times only in a private repository");
+  // (beta.3 release fix: both Mac apps are built by one job on the Intel Mac, the Apple-chip one cross-built, since no Apple-chip machine came for
+  // the v1.0.0-beta.3 run; the Apple-chip machine only runs the optional check, which in a private repository runs only when named)
+  for (const os of ['name: "win-x64"', 'name: "mac", arch: "x64,arm64"', 'name: "linux-x64"']) assert.ok(wf.includes(os), os);
+  assert.ok(wf.includes('want.includes("mac-arm64-check") || process.env.PRIVATE_REPO !== "true"'), "the optional Apple-chip check counts ten times only in a private repository");
   assert.ok(wf.includes('elif [ "$V" != "$CONFIG" ]; then echo "The tag says'), "a tag that is not the program's version stops");
   // (Round PUB-1b, the maintainer's decision: a draft, published by hand; that starts the job that writes the list)
   assert.ok(wf.includes('gh release create "$TAG" --draft '), "a tag makes a draft");
   assert.ok(!wf.includes("--draft=false"), "the workflow never publishes");
   assert.ok(wf.includes("types: [published]"), "published by hand starts the list");
-  assert.ok(wf.includes("if: github.event_name == 'release' && github.repository == "), "on that event, in the public repository only");
+  // (beta.3 release fix: also after a missing system's files were added to a release that is out already)
+  assert.ok(wf.includes("if: ${{ !cancelled() && github.repository == 'fynndose/gusset-pattern-drafter' && (github.event_name == 'release' || needs.release.outputs.published == 'true') }}"), "on that event, in the public repository only");
   assert.ok(/--sums "\$RUNNER_TEMP\/SHA256SUMS\.txt"/.test(wf), "with every checksum");
   assert.ok(/git push/.test(wf.slice(wf.indexOf("  site-downloads:"))));
-  assert.ok(!/DRY: \$\{\{ startsWith/.test(wf) && wf.includes("DRY: ${{ !startsWith(github.ref, 'refs/tags/v') }}"), "by hand: a dry run");
+  // (beta.3 release fix: by hand is a dry run even when started from a tag, unless attach is ticked; before, a run by hand from a tag made or edited the release)
+  assert.ok(wf.includes("DRY: ${{ github.event_name != 'push' && !inputs.attach }}"), "by hand: a dry run");
 });
 
 test("pub / 5 the list of downloads gives each version, each file's address, size and checksum", () => {
