@@ -1,9 +1,9 @@
-version: 1.0.0-beta.2
+version: 1.0.0-beta.3
 files:
-  - url: https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.2/Gusset-1.0.0-beta.2-linux-x86_64.AppImage
-    sha512: KlbL3+vNOeVD8YEAsQRqE1I1sRVntC+mwh5H9DmnaGsGsWnCPz6NQUAZQ3RDb7IaTpO8jfNJvtxfISAHpZCjsA==
-    size: 100826733
-    blockMapSize: 106113
-path: https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.2/Gusset-1.0.0-beta.2-linux-x86_64.AppImage
-sha512: KlbL3+vNOeVD8YEAsQRqE1I1sRVntC+mwh5H9DmnaGsGsWnCPz6NQUAZQ3RDb7IaTpO8jfNJvtxfISAHpZCjsA==
-releaseDate: '2026-11-01T16:49:43.174Z'
+  - url: https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.3/Gusset-1.0.0-beta.3-linux-x86_64.AppImage
+    sha512: kyjsTbid7Y82AQuv/xJ8oVSDnl8xx4uQx4no0hVN1PpFS04Wypf8eM2bGytxxlGMzf/u5EAiuK0lAMmaN6y2hw==
+    size: 100843041
+    blockMapSize: 106037
+path: https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.3/Gusset-1.0.0-beta.3-linux-x86_64.AppImage
+sha512: kyjsTbid7Y82AQuv/xJ8oVSDnl8xx4uQx4no0hVN1PpFS04Wypf8eM2bGytxxlGMzf/u5EAiuK0lAMmaN6y2hw==
+releaseDate: '2026-11-05T11:48:21.874Z'
