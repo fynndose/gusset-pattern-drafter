@@ -146,7 +146,7 @@ jobs:
             package-lock.json
             desktop/package-lock.json
 
-      # Electron's and electron-builder's downloads, kept between runs (the Mac's: both arches' Electron)
+      # Electron's and electron-builder's downloads, kept between runs (the Mac's: both arches' Electron). Keyed by the system's name, never by matrix.arch: a cache key takes no comma (the first dry run of the beta.3 fix stopped on "x64,arm64")
       - name: Download caches
         shell: bash
         run: |
@@ -156,7 +156,7 @@ jobs:
       - uses: actions/cache@v6
         with:
           path: ~/.pdraft-cache
-          key: pdraft-${{ runner.os }}-${{ runner.arch }}-${{ matrix.arch || 'own' }}-${{ hashFiles('desktop/package-lock.json') }}
+          key: pdraft-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}-${{ hashFiles('desktop/package-lock.json') }}
 
       # (a failure up to here is the machine's or the network's, not the program's: no failed-<system> mark, so the release goes on without it)
       - name: Install

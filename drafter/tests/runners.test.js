@@ -147,4 +147,29 @@ test("runners / 8 a Mac whose file is missing: the feed keeps the newest release
   assert.ok(read("website", "assets", "download.js").includes('"There is no " + SYSTEMS[os] + " version of this release.'), "said in words, the table below");
 });
 
+test("runners / 9 every cache key and artifact name, with each system's matrix values filled in, holds only what GitHub takes (the first dry run of this fix stopped at actions/cache: a key cannot contain commas, and the key had \"x64,arm64\")", () => {
+  let yaml; try { yaml = require(path.join(ROOT, "desktop", "node_modules", "js-yaml")); } catch (e) { return; }
+  const w = yaml.load(read(".github", "workflows", "release.yml"));
+  const js = /node -e '([\s\S]*?)' >> /.exec(w.jobs.plan.steps[0].run)[1];
+  const plan = spawnSync(process.execPath, ["-e", js], { env: { ...process.env, SYSTEMS: "all", PRIVATE_REPO: "false" }, encoding: "utf8" });
+  const matrix = JSON.parse(/^matrix=(.*)$/m.exec(plan.stdout)[1]).include;
+  assert.ok(matrix.some(m => /,/.test(m.arch || "")), "(the Mac's arch list still has its comma: the case this test is for)");
+  // what each expression gives on a build machine; a matrix value as the plan writes it; anything else (hashFiles, a status) a plain stand-in
+  const fill = (s, m) => String(s).replace(/\$\{\{\s*([^}]*?)\s*\}\}/g, (all, ex) => {
+    let k;
+    if ((k = /^matrix\.(\w+)(?:\s*\|\|\s*'([^']*)')?$/.exec(ex))) return m[k[1]] || k[2] || "";
+    return { "runner.os": "macOS", "runner.arch": "X64", "github.run_attempt": "1" }[ex] || "h0";
+  });
+  const seen = [];
+  for (const [id, job] of Object.entries(w.jobs)) for (const s of job.steps || []) {
+    const use = s.uses || "", v = s.with || {};
+    for (const m of id === "build" ? matrix : [{}]) {
+      if (/^actions\/cache@/.test(use)) { const k = fill(v.key, m); seen.push(k); assert.ok(/^[\w.-]+$/.test(k) && k.length <= 512, id + ": the cache key " + k); }
+      if (/^actions\/(upload|download)-artifact@/.test(use) && v.name) { const n = fill(v.name, m); seen.push(n); assert.ok(/^[\w.-]+$/.test(n), id + ": the artifact name " + n); }
+    }
+  }
+  assert.ok(seen.includes("gusset-mac") && seen.some(k => /^pdraft-macOS-X64-mac-/.test(k)), seen.join(" "));
+  assert.strictEqual(new Set(seen.filter(k => /^pdraft-/.test(k))).size, matrix.length, "a cache of its own for each system");
+});
+
 module.exports = T;
