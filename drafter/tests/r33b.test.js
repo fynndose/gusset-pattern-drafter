@@ -1,6 +1,7 @@
 // Round r33b: the pull takes a handful of cloth (the sleeve that would not move), Seamless Blocking, the background image
 // turned, Re-drape.
 "use strict";
+const FV = require("./harness").FILE_VERSION;      // (Round H1) this build's file version, read from the app's FILE_VERSION
 const assert = require("assert");
 const path = require("path");
 const fs = require("fs");
@@ -128,7 +129,7 @@ test("r33b / 2: Seamless Blocking: from the outline through a point to the outli
   assert.strictEqual(o.sim, true, "the pattern's own fabric is unchanged (the simulation's)");
   assert.strictEqual(o.sig, true, "the cloth's picture in 3D has the section's colour");
   assert.deepStrictEqual(o.moved, [1060, 1], "the section's place moved with the pattern");
-  assert.deepStrictEqual(o.file, [31, true, 1], "saved as version 31 (Round H1a; 30 in r34) with the line and the section");      // (Round H1a: version 31) (Round r34: version 30; 29 in Round r33b)
+  assert.deepStrictEqual(o.file, [FV, true, 1], "saved as this build's version (Round H1: FILE_VERSION; FV in H1a, 30 in r34) with the line and the section");      // (Round H1: this build's version read from the app, FV) (Round H1a: version 31) (Round r34: version 30; 29 in Round r33b)
   assert.deepStrictEqual(o.traced, [true, 3], "Trace as Seamless Block Line: a third section");
 });
 test("r33b / 3: the background image turns: the ring dragged a quarter round (Shift in steps of 15°), the Angle typed in the Property Editor; a turned picture moves and scales along its own sides; saved with its angle, none when 0", () => {

@@ -69,13 +69,22 @@ const args = [...(LINUX ? ["--no-sandbox"] : []), ...(LINUX || process.env.PDRAF
     step("--   not checked: an example on Marty and simulating (no WebGL on this machine)", true);
     await page.getByRole("button", { name: "Start Drafting" }).click();          // the welcome box closed, as the example's button closes it
     await page.evaluate(() => drafterDebug().run("starterDoc", true));
+    step("New from Starter Pattern asks whether to keep a history (a fresh profile), and Enable answers it", await keepHistory());
   }
   const file = path.join(work, "skirt.pdraft");
+  // (Round H1b / 3) a new project asks whether to keep a history while Settings > Preferences > History for New Projects is Ask Each
+  // Time, as it is on this fresh profile: answered Enable, as a tester would (release beta.5: before, the box stood in front of the keys)
+  async function keepHistory() {
+    const hq = await until(() => page.evaluate(() => { const m = document.getElementById("modal"); return !!m && /Keep a History/.test(m.textContent); }), 5000);
+    if (hq) { await page.getByRole("button", { name: "Enable", exact: true }).click(); await sleep(200); }
+    return !!hq && await page.evaluate(() => !document.getElementById("modal") && drafterDebug().S.histOn !== false);
+  }
   await app.evaluate(({ dialog }, f) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: f }); dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [f] }); }, file);
   await page.keyboard.press("ControlOrMeta+s");
   const saved = await until(() => Promise.resolve(fs.existsSync(file) && fs.statSync(file).size > 1000));
   step((MAC ? "Cmd" : "Ctrl") + "+S saves (Save As the first time)", !!saved, saved ? (fs.statSync(file).size/1024).toFixed(0) + " KB" : "");
   await page.evaluate(() => drafterDebug().run("newDoc", true));
+  step("File > New asks whether to keep a history (a fresh profile), and Enable answers it", await keepHistory());
   await page.keyboard.press("ControlOrMeta+o");
   const re = await until(() => page.evaluate((nogl) => { const d = drafterDebug(); return (nogl ? d.S.pieces.length === 1 : d.S.pieces.length === 4 && [...d.G3.items.values()].filter(it => it.draped).length === 4) && document.title; }, NOGL));
   step((MAC ? "Cmd" : "Ctrl") + "+O opens it again" + (NOGL ? "" : ", with its drape"), re === "skirt.pdraft — Gusset – Pattern Drafter (Beta)" || re === "skirt.pdraft — Gusset – Pattern Drafter", re);

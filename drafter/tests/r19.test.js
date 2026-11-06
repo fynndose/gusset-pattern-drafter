@@ -2,6 +2,7 @@
 // canvas: a pressed line yellow at once (H02), the Σ clear of the pointer (H05), crisper small numbers (H06), the pointer (H03,
 // H04) and Transform Pattern's polygon selection (H01).
 "use strict";
+const FV = require("./harness").FILE_VERSION;      // (Round H1) this build's file version, read from the app's FILE_VERSION
 const assert = require("assert");
 const path = require("path");
 const { spawnSync } = require("child_process");
@@ -159,7 +160,8 @@ test("r19 / H18, H21: each window its own title (the 3D one the document's file)
     app.menu.children.length = 0; app.ev("modeMenu")(); out.rows = app.menu.children.map(c => c.innerHTML.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim());
     app.ev("setMode")("layout"); out.layout = el("mode-btn").textContent; app.ev("setMode")("sim");
     return out;` }).result;
-  assert.deepStrictEqual(o.titles, ["3D Garment Window", "2D Pattern Window", ""]);
+  // (Round H1c / A: the 2D window's title also says the zoom, which the bottom bar said before)
+  assert.deepStrictEqual(o.titles.map(t => t.replace(/ · [0-9]+ %$/, "")), ["3D Garment Window", "2D Pattern Window", ""]); assert.ok(/ · [0-9]+ %$/.test(o.titles[1]), o.titles[1]);
   assert.strictEqual(o.file, "skirt.pdraft"); assert.strictEqual(o.none, "3D Garment Window");
   assert.strictEqual(o.mode, "SIMULATION ▾"); assert.strictEqual(o.layout, "PRINT LAYOUT ▾");
   assert.deepStrictEqual(o.rows, ["Mode", "✓ Simulation", "Print Layout"], "both modes, the one in use ticked");
@@ -332,13 +334,13 @@ test("r19 follow-up / version 23: a version 22 file (written by the build before
         .then((d) => { out.again = [d.v, "lights" in d]; app.ev("undo")(); out.undone = S.pieces[1].name; return out; });
     });` });
   const r = o.result;
-  assert.deepStrictEqual(r.v, [22, 31]);      // ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) opened, this build's version: 28 since Round r30, 27 since Round r29, 26 since Round r26, 25 since Round r25, 24 since Round r20)
+  assert.deepStrictEqual(r.v, [22, FV]);      // (Round H1: this build's version read from the app, FV) ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) opened, this build's version: 28 since Round r30, 27 since Round r29, 26 since Round r26, 25 since Round r25, 24 since Round r20)
   assert.ok(r.same, "the document as the file has it: " + JSON.stringify(r.diff));
   assert.deepStrictEqual(r.names, ["Front", "Back piece"]);
   assert.deepStrictEqual(r.layout, ["Two fabrics", "a3", 12, 2, 2], "the layout as it was");
   assert.deepStrictEqual(r.lights, [0, false], "no lights, none written");
   assert.deepStrictEqual(r.undo, ["Rectangle", "Assign Fabric", "Segment Sewing", "Print Layout", "Nest Patterns", "Rename"], "its history came with it");
-  assert.deepStrictEqual(r.again, [31, false]);      // ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) saved again: version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r26, 25 since Round r25, 24 since Round r20) assert.strictEqual(r.undone, "Back");
+  assert.deepStrictEqual(r.again, [FV, false]);      // (Round H1: this build's version read from the app, FV) ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) saved again: version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r26, 25 since Round r25, 24 since Round r20) assert.strictEqual(r.undone, "Back");
 });
 
 test("r19 follow-up / H22: lights are added, edited and deleted, each one undo step, saved in the file and read back; junk is dropped", () => {

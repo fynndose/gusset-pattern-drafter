@@ -1,6 +1,7 @@
 // Round r18: the avatar. Batch 1, the rig fitted to its skin (the joints of Marty's and Jessica's hands lay down the arm, outside
 // the hand); later batches: posing (FK, IK), the Avatar Editor's tabs, file version 22.
 "use strict";
+const FV = require("./harness").FILE_VERSION;      // (Round H1) this build's file version, read from the app's FILE_VERSION
 const assert = require("assert");
 const path = require("path");
 const fs = require("fs");
@@ -133,11 +134,11 @@ test("r18 / 2: a version 21 file (written by the build before this round: Marty 
         .then((parts) => app.ev("pdraftDoc")(parts)).then((d) => { out.again = d ? [d.v, "avedit" in d, J(d.scene.avatar)] : null; app.ev("undo")(); out.undone = S.pieces[0].pts[2].x; return out; });
     });` });
   const r = o.result;
-  assert.strictEqual(r.v, 31); /* ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) this build's version: 28 since Round r30, 27 since Round r29, 26 since Round r26, 25 since Round r25, 24 since Round r20) */ assert.strictEqual(r.avedit, false, "nothing of the avatar was edited by hand"); assert.deepStrictEqual(r.joints, { joints: {} });
+  assert.strictEqual(r.v, FV); /* (Round H1: this build's version read from the app, FV) ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) this build's version: 28 since Round r30, 27 since Round r29, 26 since Round r26, 25 since Round r25, 24 since Round r20) */ assert.strictEqual(r.avedit, false, "nothing of the avatar was edited by hand"); assert.deepStrictEqual(r.joints, { joints: {} });
   assert.deepStrictEqual(r.names, ["Front piece", "Back"]); assert.strictEqual(r.seams, 1);
   assert.deepStrictEqual(r.undo, ["Rename", "Move point"], "its history came with it");
   assert.deepStrictEqual([r.rec.preset, r.rec.name, r.rec.height, r.rec.pose], ["marty", "Marty", 1800, { armL: [0, 0, 12], forearmR: [20, 0, 0] }], "the avatar record as it was");
-  assert.ok(r.again && r.again[0] === 31 && r.again[1] === false, "saved again: version 31 (Round H1a), no avatar edits: " + JSON.stringify(r.again));      // ((Round H1a: version 31) (Round r34: version 30) (Round r33b: version 29)
+  assert.ok(r.again && r.again[0] === FV && r.again[1] === false, "saved again: this build's version (Round H1: FILE_VERSION), no avatar edits: " + JSON.stringify(r.again));      // (Round H1: this build's version read from the app, FV) ((Round H1a: version 31) (Round r34: version 30) (Round r33b: version 29)
   assert.strictEqual(r.undone, 200, "undo takes the point back where it was");
 });
 

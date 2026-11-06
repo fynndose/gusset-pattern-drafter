@@ -4,7 +4,7 @@
    The desktop app reads this file as text and opens no other link than this one. A classic script, so a page opened
    from a file can read it. (Round r24 follow-up) The project's own address, never a person's (release check rule 15). */
 var PDRAFT_CONFIG = {
-  version: "1.0.0-beta.4",
+  version: "1.0.0-beta.5",
   feedbackUrl: "mailto:feedback@gussetdrafter.com",
   downloadUrl: "https://gussetdrafter.com/download",      // (Round r28) where the update button sends the portable .exe and a Mac
 };

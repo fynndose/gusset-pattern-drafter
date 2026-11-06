@@ -1,6 +1,7 @@
 // Round r30: 2D editing fixes from the maintainer's user test. Batch 1 the angles (live while dragging, on internal lines, typed);
 // the later batches add theirs below.
 "use strict";
+const FV = require("./harness").FILE_VERSION;      // (Round H1) this build's file version, read from the app's FILE_VERSION
 const assert = require("assert");
 const path = require("path");
 const { spawnSync } = require("child_process");
@@ -297,7 +298,7 @@ test("r30 / 4: a version 27 file with sewing on one side of a symmetric pair ope
     out.v = doc.v; out.mir = (doc.seams || []).filter(sm => sm.mir !== undefined).length;
     return out;` }).result;
   assert.deepStrictEqual(o.seams, [[1, 1, true]]); assert.strictEqual(o.after, 1);
-  assert.strictEqual(o.v, 31); assert.strictEqual(o.mir, 0);      // ((Round H1a: version 31) (Round r34: version 30) (Round r33b: version 29)
+  assert.strictEqual(o.v, FV); assert.strictEqual(o.mir, 0);      // (Round H1: this build's version read from the app, FV) ((Round H1a: version 31) (Round r34: version 30) (Round r33b: version 29)
 });
 
 /* ---------- Batch 5: Trace ▸ Cut, Cut & Sew, Convert to Hole ---------- */

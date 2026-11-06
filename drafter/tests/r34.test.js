@@ -1,6 +1,7 @@
 // Round r34: everything in the inventory that had enough information. Batch 2: Dart Cap, Offset as Seamless Block Line, base lines
 // only inside a pattern.
 "use strict";
+const FV = require("./harness").FILE_VERSION;      // (Round H1) this build's file version, read from the app's FILE_VERSION
 const assert = require("assert");
 const path = require("path");
 const fs = require("fs");
@@ -165,7 +166,7 @@ test("r34 / 4: Link to Pattern Outline: an internal line 30 mm inside the right 
   assert.deepStrictEqual(o.moved, [[420, 50], [420, 150], [410, 100]], "the edge 50 mm out: the line still 30 mm inside it, its curve point with it");
   assert.deepStrictEqual(o.again, [[360, 50], [360, 150]], "edited to 40 mm inside, it keeps 40 mm when the edge comes back");
   assert.deepStrictEqual(o.afterAdd[0], o.afterAdd[1], "a point added to the outline leaves the line where it is");
-  assert.deepStrictEqual(o.file, [31, true], "saved as version 31 (Round H1a; 30 in r34) with the link");
+  assert.deepStrictEqual(o.file, [FV, true], "saved as this build's version (Round H1: FILE_VERSION; FV in H1a, 30 in r34) with the link");
   assert.strictEqual(o.box, true, "Edit Link lists the link");
   assert.deepStrictEqual(o.unlinked, [false, "Unlink from Pattern Outline"]);
 });
@@ -339,7 +340,7 @@ test("r34 / 7: Group: two selected patterns grouped (one step), a click on one w
   assert.deepStrictEqual(o.grouped.slice(2), [0, "Group"]); assert.ok(o.grouped[0] > 0 && o.grouped[0] === o.grouped[1], "one group for both");
   assert.strictEqual(o.clickSel.length, 2, "a click on one selects the group");
   assert.deepStrictEqual(o.dist, [500, "Distribute"], "gaps of 400: 0-100, 500-600, 1000-1100");
-  assert.deepStrictEqual(o.file, [31, 2]);      // (Round H1a: version 31; 30 in r34)
+  assert.deepStrictEqual(o.file, [FV, 2]);      // (Round H1: this build's version read from the app, FV) (Round H1a: version 31; 30 in r34)
   assert.deepStrictEqual(o.paste, [true, true], "the copies in a group of their own");
   assert.deepStrictEqual(o.ungrouped, [false, false, "Ungroup"]);
   assert.deepStrictEqual(o.moved, [true, false], "the copy grouped with D left its pasted group, which (one pattern) is none");

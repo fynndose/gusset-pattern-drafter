@@ -316,9 +316,9 @@ test("C8: the timeline gives every kind of step its own glyph and names the kind
     out.glyphs = app.ev("HIST_KINDS").map(x => x[3]);
     // the markers carry the kind in their tooltip
     app.ev("push")("Move in 3D"); app.commit(); app.ev("push")("Delete"); app.commit();
-    S.ui.timeline = true; const made = []; const ce = app.ev("document").createElement; app.ev("document").createElement = (t) => { const e = ce(t); made.push(e); return e; };
-    app.ev("renderTimeline")(); app.ev("document").createElement = ce;
-    out.titles = made.filter(e => e.className && /tl-step/.test(e.className)).map(e => [e.title, e.dataset.kind || ""]);
+    // (Round H1b / 2: the History panel's cards, each with its kind; its tooltip as the strip's markers had it)
+    S.ui.timeline = true; app.ev("renderTimeline")();
+    out.titles = app.ev("hpLayout")().cards.map(c => [app.ev("hpTitle")(c), c.kind]);
     return out;` }).result;
   assert.deepStrictEqual(o.kinds.map(k => k[0]), ["3D", "sewing", "delete", "copy", "move", "grading", "layout", "material", "file", "typed", "edit"]);
   assert.strictEqual(new Set(o.glyphs).size, o.glyphs.length, "every kind its own shape");
@@ -326,7 +326,8 @@ test("C8: the timeline gives every kind of step its own glyph and names the kind
   assert.ok(o.titles.length >= 3);
   const last = o.titles.slice(-2);
   assert.ok(/Move in 3D [(]3D window[)]$/.test(last[0][0]) && last[0][1] === "3D", JSON.stringify(last));
-  assert.ok(/Delete [(]Delete[)]$/.test(last[1][0]) && last[1][1] === "delete", JSON.stringify(last));
+  // (Round H1b / 2: the card's tooltip also says where the document is, before the kind)
+  assert.ok(/Delete(, the document is here)? [(]Delete[)]$/.test(last[1][0]) && last[1][1] === "delete", JSON.stringify(last));
 });
 // (Round r33 / 4) graded on the size run every document had before r33 (a document starts with none since): oldSizeRun
 test("C8: Grading Review (2D): a tile a size of the size run, every tile at one scale, the patterns as they are in that size; the base and the shown size marked by word and frame; on the 2D menu and the Grading panel", () => {

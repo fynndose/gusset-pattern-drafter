@@ -1,6 +1,7 @@
 // Round build-1: features that were "not built yet". Batch 2: sums in number fields, a notch caught at the middle of a line,
 // Select All ▸ Sewn / Fabric / Layer (Ctrl+Alt+A), and an autosave failure told in words.
 "use strict";
+const FV = require("./harness").FILE_VERSION;      // (Round H1) this build's file version, read from the app's FILE_VERSION
 const assert = require("assert");
 const path = require("path");
 const { spawnSync } = require("child_process");
@@ -432,7 +433,7 @@ test("build-1 / 5: a pattern's own Particle Distance and Simulation Shrinkage in
   assert.deepStrictEqual(r.particle, [8, 20], "its own, the other the document's");
   assert.deepStrictEqual(r.cleared, [null, null], "back to the document's and to none: nothing kept");
   assert.deepStrictEqual(r.small, [null, true], "under 5 mm is refused and said");
-  assert.strictEqual(r.doc, 12); assert.strictEqual(r.v, 31);      // ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up; 22 since Round r18; 21 since Round r17b)
+  assert.strictEqual(r.doc, 12); assert.strictEqual(r.v, FV);      // (Round H1: this build's version read from the app, FV) ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up; 22 since Round r18; 21 since Round r17b)
   assert.deepStrictEqual(r.same, ["A"]); assert.deepStrictEqual(r.others, ["B", "C", "D"]);
 });
 

@@ -2,6 +2,7 @@
 // press on Linux, at the release on Windows). Batches 2 and on: one feature (or a small group) each, from the inventory's
 // class A list.
 "use strict";
+const FV = require("./harness").FILE_VERSION;      // (Round H1) this build's file version, read from the app's FILE_VERSION
 const assert = require("assert");
 const path = require("path");
 const fs = require("fs");
@@ -163,7 +164,7 @@ test("r14 / 2: an internal line's Fold in the Property Editor (Uniform / Variabl
   assert.deepStrictEqual(o.folds, [[21, [100, 0], [100, 400], 180, 90, 40000]], "points the cloth's 20 mm apart; flat at the start, 90° at the end; 100 × FOLD_K");
   assert.deepStrictEqual(o.steps, ["Fold Angle", "Fold Angle", "Fold Angle", "Fold Angle"]);
   assert.deepStrictEqual(o.label, [], "no angle written: a fold line looks like any internal line (Round r15 / 7, the check videos; it was \"180° → 90°\")");
-  assert.deepStrictEqual(o.inFile, [31, [90, 100, -1]]);      // ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15)
+  assert.deepStrictEqual(o.inFile, [FV, [90, 100, -1]]);      // (Round H1: this build's version read from the app, FV) ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15)
   assert.deepStrictEqual(o.opened, [90, 100, -1]);
   assert.deepStrictEqual(o.flat, [null, null, null]); assert.strictEqual(o.noFolds, 0);
   assert.deepStrictEqual(o.undone, [90, 100, -1]);

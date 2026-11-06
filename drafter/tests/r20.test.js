@@ -1,6 +1,7 @@
 // Round r20: the "not built" backlog. Batch 1, the r18 follow-up: the IK slots in this program's own names (and the names files of
 // version 22 and 23 wrote read on opening), joint limits for FK and IK.
 "use strict";
+const FV = require("./harness").FILE_VERSION;      // (Round H1) this build's file version, read from the app's FILE_VERSION
 const assert = require("assert");
 const { load } = require("./harness");
 
@@ -360,10 +361,10 @@ test("r20 / 4: a version 23 file (written by the build before the bump: two patt
         .then((again) => new Promise((res) => app.ev("zipUnpack")(again, (e, p) => res(p)))).then((parts) => app.ev("pdraftDoc")(parts))
         .then((d) => { out.again = d.v; app.ev("undo")(); out.undone = S.pieces[1].name; return out; });
     });` });
-  assert.deepStrictEqual(o.v, [23, 31]);      // ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) Round r30: 28; Round r29: 27)
+  assert.deepStrictEqual(o.v, [23, FV]);      // (Round H1: this build's version read from the app, FV) ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) Round r30: 28; Round r29: 27)
   assert.strictEqual(o.same, true, "the same document");
   assert.deepStrictEqual(o.undo, ["Rectangle", "Rectangle", "Annotation", "Segment Sewing", "Rename"], "its history came with it");
-  assert.strictEqual(o.again, 31);      // ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) Round r30: 28; Round r29: 27) assert.strictEqual(o.undone, "Back");
+  assert.strictEqual(o.again, FV);      // (Round H1: this build's version read from the app, FV) ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) Round r30: 28; Round r29: 27) assert.strictEqual(o.undone, "Back");
 });
 test("r20 / 4: an annotation's Orientation, colour, Link to a line, Copy and Rotate: each one step, kept in the file, undone", () => {
   const o = boot({ blank: true, streams: true, script: DOC + `
@@ -386,7 +387,7 @@ test("r20 / 4: an annotation's Orientation, colour, Link to a line, Copy and Rot
   assert.deepStrictEqual(o.link, [true, 250, 100, 90], "at the top line's middle, along it, turned 90 more");
   assert.deepStrictEqual(o.steps, ["Rotate Annotation", "Annotation Color", "Copy Annotation", "Link Annotation"]);      // (Round r27: one spelling, the American of the rows from the references)
   assert.deepStrictEqual(o.norm, { text: "x", x: 1, y: 2 }, "the defaults and junk are not kept");
-  assert.deepStrictEqual(o.file, [31, 90, "#d55e00", true]);      // ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) the file's version: 28 since Round r30, 27 since Round r29; 26 since Round r26, 25 since Round r25) assert.strictEqual(o.undone, false);
+  assert.deepStrictEqual(o.file, [FV, 90, "#d55e00", true]);      // (Round H1: this build's version read from the app, FV) ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) the file's version: 28 since Round r30, 27 since Round r29; 26 since Round r26, 25 since Round r25) assert.strictEqual(o.undone, false);
 });
 
 /* ---- Batch 6 (rest), 11 (part) ---- */

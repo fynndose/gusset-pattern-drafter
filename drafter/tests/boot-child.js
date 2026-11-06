@@ -119,6 +119,9 @@ const ctx = {
     modals.push({ title, keys, text });
     if (ctx.__app && ctx.__app.modalAnswer) return ctx.__app.modalAnswer(title, keys, text);
     if (title === "Recover unsaved work?") return opt.recover === "ask" ? undefined : opt.recover === false ? "discard" : "recover";
+    // (Round H1b / 3) going back and editing: the old future kept as a branch, as before the box; a new project's history on
+    if (title === "Keep the Old Future?") return "keep";
+    if (title === "Keep a History?") return "on";
     return "discard";
   },
 };

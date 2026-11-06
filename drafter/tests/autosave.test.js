@@ -20,6 +20,7 @@ function env(storage) {
     saveFailed: false, storeT: null, restoredRaw: null, autosaveHold: "", recoverPending: null,
     // the parts of the program the autosave only passes through: the cloth, the history, the page
     G3: { items: new Map() }, showDoc: () => {}, blankDoc: () => { S.pieces = []; S.seams = []; }, drapeOut: () => null, normDrape: () => null, histPack: () => null, histKeep: () => 0,
+    clothSig: () => "",      // (Round H1b / 1: the cloth's signature, for the cloth kept beside the autosave)
     console: { warn: () => {} },
   });
   return { G, S, el, toasts, timers };
@@ -40,10 +41,11 @@ test("store() shows SAVING…, then writes the unsaved work and shows AUTOSAVED;
   S.pieces = [rect(1)]; S.nextId = 2;
   G.store();
   assert.strictEqual(S.dirty, true);
-  assert.strictEqual(el.className, "pending"); assert.match(el.textContent, /SAVING/);
+  assert.strictEqual(el.className, "pending gone");      // (Round H1c / A: only a failure is shown in the bottom bar: the other states are hidden there, said in the File menu)
+  assert.match(el.textContent, /SAVING/);
   assert.strictEqual(ls.m.size, 0, "debounced, not written yet");
   timers.pop()();
-  assert.strictEqual(el.className, "ok"); assert.strictEqual(el.textContent, "AUTOSAVED"); assert.match(el.title, /not saved to a file yet/);
+  assert.strictEqual(el.className, "ok gone"); assert.strictEqual(el.textContent, "AUTOSAVED"); assert.match(el.title, /not saved to a file yet/);
   const d = JSON.parse(ls.m.get("pdraft:doc"));
   assert.strictEqual(d.pieces.length, 1); assert.strictEqual(d.nextId, 2);
   assert.strictEqual(d.history, undefined, "the autosave carries no history");
@@ -91,7 +93,7 @@ test("a failing save turns the indicator red and warns once, then recovers", () 
   G.saveNow();
   assert.strictEqual(toasts.length, 1, "no repeated toast while still failing");
   full = false; G.saveNow();
-  assert.strictEqual(el.className, "ok");
+  assert.strictEqual(el.className, "ok gone");
 });
 
 test("blocked storage at start is reported, not swallowed", () => {

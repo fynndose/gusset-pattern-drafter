@@ -139,7 +139,8 @@ test("F2 a simulation run is one undo step: Ctrl+Z puts the cloth back as it was
     // the saved history has the steps and no drape references
     let file = null; app.setDownload((n, b) => { file = b; }); app.saveDoc(false);
     const h = app.fileDoc(file).history;
-    out.saved = [h.steps.some(s => s.n === "Simulate"), JSON.stringify(h).includes("drape3")];
+    // (Round H1: v4, the tree: its nodes; a step that had a cloth not kept says so, drape: 1, and names no snapshot)
+    out.saved = [h.nodes.some(s => s.n === "Simulate"), JSON.stringify(h).includes("drape3")];
     return out;` }, 120000);
   assert.deepStrictEqual(r.errors, []);
   const o = r.result;
@@ -387,9 +388,11 @@ test("F10 a step ends a look; the timeline has 3D State + and a chip a state wit
   const r = boot({ blank: true, three: true, script: STATES + `
     drop(100); app.ev("state3Add")(); drop(30); const now = X();
     app.ev("setTimeline")(true);
-    out.chips = app.el("timeline").children.filter(c => /tl-s3/.test(c.className)).map(c => c.innerHTML);
+    // (Round H1b / 2: the chips are in the History panel's header row)
+    const head = () => app.el("timeline").children.filter(c => c.className === "hp-head").pop() || { children: [] };
+    out.chips = head().children.filter(c => /tl-s3/.test(c.className)).map(c => c.innerHTML);
     app.el("timeline").children.length = 0; app.ev("look3")(1);                // (the fake page keeps old children when innerHTML is emptied)
-    out.chipsLook = app.el("timeline").children.filter(c => /tl-s3/.test(c.className)).map(c => c.innerHTML);
+    out.chipsLook = head().children.filter(c => /tl-s3/.test(c.className)).map(c => c.innerHTML);
     app.push("Rename"); S.pieces[0].name = "B"; app.commit(); out.ended = [!app.G3.look, far(X(), now) < 1e-3];
     app.menu.children.length = 0; app.ev("state3Menu")(1, 100, 100); out.menu = app.menu.children.map(c => (c.innerHTML || "").replace(/<[^>]*>/g, "")).filter(Boolean);
     const j = JSON.parse(app.docJSON()); out.json = j.states3.map(s => [s.name, Object.keys(s.cloth).map(k => typeof s.cloth[k].x)]);

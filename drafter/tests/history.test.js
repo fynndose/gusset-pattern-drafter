@@ -37,7 +37,7 @@ test("names are tidied: no markup, no ellipsis, not too long", () => {
   assert.strictEqual(histClean(null), "");
 });
 
-test("names keep step with the undo stack: a step taken back by hand, a cleared stack, the 90-step limit", () => {
+test("names keep step with the undo stack: a step taken back by hand, a cleared stack, the step limit (500 since Round H1; 90 before)", () => {
   reset();
   push("One"); push("Two"); push("Three");
   S.undo.pop();                                              // what a command does when it fails part-way
@@ -45,10 +45,12 @@ test("names keep step with the undo stack: a step taken back by hand, a cleared 
   push("Four"); assert.deepStrictEqual(histSteps().steps.map(s => s.n), ["One", "Two", "Four"]);
   S.undo.length = 0; assert.strictEqual(histSteps().steps.length, 0);
   S.undo.push("{}"); assert.strictEqual(histSteps().steps[0].n, "Edit", "a state pushed without a name still has one");
-  reset(); for (let k = 0; k < 95; k++) push("S" + k);
+  // (Round H1: the history keeps 500 steps on the path, HIST_CAP; it kept 90. The oldest step that is no Save State or branch point goes
+  // first; its change stays in the step after it)
+  reset(); for (let k = 0; k < 505; k++) push("S" + k);
   const h = histSteps();
-  assert.strictEqual(h.steps.length, 90); assert.strictEqual(S.undo.length, 90);
-  assert.strictEqual(h.steps[0].n, "S5"); assert.strictEqual(h.steps[89].n, "S94");
+  assert.strictEqual(h.steps.length, 500); assert.strictEqual(S.undo.length, 500);
+  assert.strictEqual(h.steps[0].n, "S5"); assert.strictEqual(h.steps[499].n, "S504");
 });
 
 test("a new step after going back discards the steps that were undone", () => {
@@ -151,7 +153,8 @@ test("booted app: several stretches on one side of a zipper, and Enter instead o
   assert.deepStrictEqual(o.parts, [2, 1]); assert.deepStrictEqual(o.len, [300, 300]); assert.ok(o.zip);
 });
 
-test("booted app: the timeline — a marker per step, a click rolls back and forward, a new edit drops what was undone", () => {
+// (Round H1b / 2: the timeline strip is the History panel now: a card per step on a canvas; the strip's markers were DOM buttons)
+test("booted app: the History panel — a card per step, a click selects, a double-click on its body goes there, on its name renames; a new edit keeps a branch; a run is one card; a card dragged keeps its place", () => {
   const r = boot({ script: DOC + `
     const xs = () => S.pieces[0].pts.map(p => p.x).join(",");
     const step = (name, dx) => { app.push(name); S.pieces[0].pts[0].x += dx; app.commit(); };
@@ -159,23 +162,37 @@ test("booted app: the timeline — a marker per step, a click rolls back and for
     step("One", 1); step("Two", 10); step("Three", 100);
     out.closed = [app.el("timeline").children.length, S.ui.timeline];
     app.setTimeline(true);
-    // the stand-in page keeps old children when innerHTML is cleared: the newest track is the one drawn last
-    const track = () => app.el("timeline").children.filter(c => c.className === "tl-track").pop();
-    const marks = () => track().children.filter(c => /tl-step/.test(c.className));
     out.open = [S.ui.timeline, JSON.parse(app.storage.get("pdraft:ui")).timeline];      // (Round r23 / 1: shown or not is view state, never written)
-    out.marks = marks().map(m => m.className.replace("tl-step", "").trim() + "|" + m.title);
-    out.head = track().children.findIndex(c => c.className === "tl-head");
-    // click the marker of step 1
-    marks()[1].onclick(); out.at1 = [app.histSteps().at, xs() === "1,200,200,0", marks().map(m => m.className.replace("tl-step", "").trim())];
-    // forward to step 3, back to the start
-    marks()[3].onclick(); out.at3 = [app.histSteps().at, xs() === "111,200,200,0"];
-    marks()[0].onclick(); out.at0 = [app.histSteps().at, xs() === start, S.redo.length];
+    const L = () => app.ev("hpLayout")(), card = (n) => L().cards.find(c => c.n === n);
+    const pon = (c, part) => app.ev("hpToScreen")(c.x + 60, c.y + (part === "name" ? 8 : 34));
+    const pev = (p) => ({ clientX: p.x, clientY: p.y, pointerId: 1 });
+    const pclick = (c, part) => { const p = pon(c, part); app.fireOn("hp-cv", "pointerdown", pev(p)); app.fireOn("hp-cv", "pointerup", pev(p)); };
+    const pdbl = (c, part) => { const p = pon(c, part); app.fireOn("hp-cv", "dblclick", pev(p)); };
+    out.cards = L().cards.map(c => [c.n, c.here, c.later, c.kind]);
+    // a click only selects
+    pclick(card("One")); out.sel = [app.ev("HP").sel, app.histSteps().at];
+    // a double-click on a card's body goes there
+    pdbl(card("One")); out.at1 = [app.histSteps().at, xs() === "1,200,200,0", L().cards.map(c => c.later)];
+    pdbl(card("Three")); out.at3 = [app.histSteps().at, xs() === "111,200,200,0"];
+    pdbl(card("Start")); out.at0 = [app.histSteps().at, xs() === start, S.redo.length];
     app.histGo(2); out.at2 = xs();
-    // a new edit from step 2: step Three is gone
-    step("Four", 1000); out.after = app.histSteps().steps.map(s => s.n); out.count = marks().length;
-    // undo and redo move the same line
-    app.undo(); out.undo = [app.histSteps().at, app.histSteps().steps.length];
-    app.redo(); out.redo = app.histSteps().at;
+    // a new edit from step 2: Three is kept, on a branch of its own row
+    step("Four", 1000); out.after = [app.histSteps().steps.map(s => s.n), L().cards.map(c => c.n + "@" + c.row + (c.later ? " later" : ""))];
+    // a double-click on a card's name renames it
+    app.promptAnswer = "Seam A"; pdbl(card("Four"), "name"); app.promptAnswer = undefined; out.renamed = app.histSteps().steps.slice(-1)[0].n;
+    // a run of the same command on the same pattern is one card; its count opens it, and again closes it
+    for (let k = 0; k < 3; k++) step("Nudge", 1);
+    out.run = [L().cards.filter(c => c.n === "Nudge").map(c => c.ids.length)];
+    const nc = card("Nudge"), cp = app.ev("hpToScreen")(nc.x + 150, nc.y + 34); app.fireOn("hp-cv", "pointerdown", pev(cp)); app.fireOn("hp-cv", "pointerup", pev(cp));
+    out.run.push(L().cards.filter(c => c.n === "Nudge").length);
+    // a card dragged keeps its place in the file; no step
+    const n0 = S.undo.length, c1 = card("Two"), p0 = pon(c1);
+    app.fireOn("hp-cv", "pointerdown", pev(p0)); app.fireOn("hp-cv", "pointermove", pev({ x: p0.x + 60, y: p0.y + 40 })); app.fireOn("hp-cv", "pointerup", pev({ x: p0.x + 60, y: p0.y + 40 }));
+    out.moved = [!!S.hui[c1.id], S.undo.length === n0];
+    // the wheel: forward zooms in
+    const s0 = app.ev("HP").view.s; app.fireOn("hp-cv", "wheel", { clientX: 300, clientY: 100, deltaY: -100 }); out.zoom = app.ev("HP").view.s > s0;
+    // undo and redo move the same way
+    app.undo(); out.undo = app.histSteps().at; app.redo();
     // a canvas drag is named after the tool, with its icon
     app.setTool("edit_pattern"); const a = at(200, 400), b = at(230, 430); app.fire("pointermove", a); app.fire("pointerdown", a); app.fire("pointermove", b); app.fire("pointerup", b);
     const last = app.histSteps().steps.slice(-1)[0]; out.drag = [last.n, last.tool];
@@ -187,14 +204,18 @@ test("booted app: the timeline — a marker per step, a click rolls back and for
   assert.deepStrictEqual(r.errors, [], r.errors.join("; "));
   assert.deepStrictEqual(o.closed, [0, false], "closed until asked for");
   assert.deepStrictEqual(o.open, [true, null]);
-  assert.deepStrictEqual(o.marks, ["|Start: before the first step", "|1 · Edit Pattern: One (Edit)", "|2 · Edit Pattern: Two (Edit)", "cur|3 · Edit Pattern: Three (Edit)"], "each marker names the tool in hand, its step and the kind of step (Round C / C8, Round CF)");
-  assert.strictEqual(o.head, 4, "the line stands after the step the document is at");
-  assert.deepStrictEqual(o.at1, [1, true, ["", "cur", "later", "later"]]);
+  assert.deepStrictEqual(o.cards, [["Start", false, false, "start"], ["One", false, false, "edit"], ["Two", false, false, "edit"], ["Three", true, false, "edit"]], "a card a step, its kind (Round C / C8), the document's one marked");
+  assert.deepStrictEqual(o.sel, [1, 3], "a click selects; the document stays at step 3");
+  assert.deepStrictEqual(o.at1, [1, true, [false, false, true, true]], "after the document's step: dimmed and hatched");
   assert.deepStrictEqual(o.at3, [3, true]);
   assert.deepStrictEqual(o.at0, [0, true, 3]);
   assert.strictEqual(o.at2, "11,200,200,0");
-  assert.deepStrictEqual(o.after, ["One", "Two", "Four"]); assert.strictEqual(o.count, 4);
-  assert.deepStrictEqual(o.undo, [2, 3]); assert.strictEqual(o.redo, 3);
+  assert.deepStrictEqual(o.after, [["One", "Two", "Four"], ["Start@0", "One@0", "Two@0", "Four@0", "Three@1 later"]], "the old future kept: Three on a row of its own, hatched");
+  assert.strictEqual(o.renamed, "Seam A");
+  assert.deepStrictEqual(o.run, [[3], 3], "three Nudges on one pattern: one card ×3, opened into three: " + JSON.stringify(o.run));
+  assert.deepStrictEqual(o.moved, [true, true], "moved: its place kept, no step");
+  assert.strictEqual(o.zoom, true);
+  assert.strictEqual(o.undo, 5);
   assert.deepStrictEqual(o.drag, ["Edit Pattern", "edit_pattern"]);
   assert.ok(/Flip/.test(o.menu), o.menu);
   assert.deepStrictEqual(o.shut, ["", null]);

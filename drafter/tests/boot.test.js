@@ -2,6 +2,7 @@
 // autosave data, with old-format autosaves, with blocked storage, and on a tiny stage.
 // Each boot runs in a child process with a timeout, so a hang is a failure, not a freeze.
 "use strict";
+const FV = require("./harness").FILE_VERSION;      // (Round H1) this build's file version, read from the app's FILE_VERSION
 const assert = require("assert");
 const path = require("path");
 const vm = require("vm");
@@ -48,7 +49,7 @@ test("fresh start: starter pattern, autosaved", () => {
   const r = boot();
   assertUp(r, "fresh");
   assert.deepStrictEqual(r.names, [STARTER]);
-  assert.strictEqual(JSON.parse(r.storage["pdraft:doc"]).v, 31);      // ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
+  assert.strictEqual(JSON.parse(r.storage["pdraft:doc"]).v, FV);      // (Round H1: this build's version read from the app, FV) ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
   assert.deepStrictEqual(r.toasts, []);
 });
 
@@ -950,7 +951,7 @@ test("sewing tools run in the booted app: Segment Sewing 1:N with Shift, M:N wit
   assert.strictEqual(o.partNow[0], 1); assert.strictEqual(o.partNow[1], 0, "the range now starts on the new point");
   assert.strictEqual(o.deselected, null);
   assert.strictEqual(o.check[0], true); assert.ok(/1 seam differs/.test(o.check[1]), o.check[1]); assert.ok(/within the limit/.test(o.checkOk));
-  assert.strictEqual(JSON.parse(r.storage["pdraft:sewcheck"]).on, true, "the setting is saved per browser"); assert.strictEqual(o.fileV, 31);      // ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13; 15 since Round r12)
+  assert.strictEqual(JSON.parse(r.storage["pdraft:sewcheck"]).on, true, "the setting is saved per browser"); assert.strictEqual(o.fileV, FV);      // (Round H1: this build's version read from the app, FV) ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13; 15 since Round r12)
 });
 
 module.exports = T;

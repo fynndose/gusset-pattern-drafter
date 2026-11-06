@@ -1,5 +1,6 @@
 // Round r25: the fixes from the third check session (its report and answers are in the private notes, not released).
 "use strict";
+const FV = require("./harness").FILE_VERSION;      // (Round H1) this build's file version, read from the app's FILE_VERSION
 const assert = require("assert");
 const ZPRJ = require("../zprj-import.js");
 const MK = require("./zprj-make");
@@ -276,10 +277,10 @@ test("r25 / 3 a version 24 file (written by the build before the bump) opens unc
         .then((again) => new Promise((res) => app.ev("zipUnpack")(again, (e, p) => res(p)))).then((parts) => app.ev("pdraftDoc")(parts))
         .then((d) => { out.again = d.v; return out; });
     });` }).result;
-  assert.deepStrictEqual(o.v, [24, 31]);      // ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) this build's version: 28 since Round r30, 27 since Round r29, 26 since Round r26)
+  assert.deepStrictEqual(o.v, [24, FV]);      // (Round H1: this build's version read from the app, FV) ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) this build's version: 28 since Round r30, 27 since Round r29, 26 since Round r26)
   assert.strictEqual(o.same, true, "the same document");
   assert.ok(o.steps > 0, "its history came with it");
-  assert.strictEqual(o.again, 31);      // ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) Round r30: 28; Round r29: 27)
+  assert.strictEqual(o.again, FV);      // (Round H1: this build's version read from the app, FV) ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) Round r30: 28; Round r29: 27)
 });
 
 /* ---- batch 4: a hole in a DXF ---- */

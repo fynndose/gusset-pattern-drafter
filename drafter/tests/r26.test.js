@@ -1,5 +1,6 @@
 // Round r26: the fixes from the fourth check session.
 "use strict";
+const FV = require("./harness").FILE_VERSION;      // (Round H1) this build's file version, read from the app's FILE_VERSION
 const assert = require("assert");
 const { load } = require("./harness");
 
@@ -140,7 +141,7 @@ test("r26 / 2: Flip Normal leaves a fold alone; a version 25 file's flipped patt
   assert.deepStrictEqual(o.walk.filter(a => a !== null).every(a => a === 90), true, "stored angles: " + o.walk);
   assert.deepStrictEqual(o.glue, [1]); assert.deepStrictEqual(o.shrink, { weft: 50, warp: 300 }); assert.deepStrictEqual(o.corner, { t: "slant", a: 10, b: 10 });
   assert.deepStrictEqual(o.off, [true, true, 90]); assert.deepStrictEqual(o.on, [true, true, 90, 90]);
-  assert.deepStrictEqual(o.saved, [31, true]);      // ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) Round r30: 28; Round r29: 27)
+  assert.deepStrictEqual(o.saved, [FV, true]);      // (Round H1: this build's version read from the app, FV) ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) Round r30: 28; Round r29: 27)
   assert.deepStrictEqual(o.again, [true, 90]);
 });
 

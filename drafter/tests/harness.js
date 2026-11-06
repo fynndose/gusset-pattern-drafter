@@ -149,4 +149,6 @@ function oldSizeRun() {
 }
 // the same as a line of script for a booted app (boot-child.js): S.grading set to it
 const OLD_SIZE_RUN_JS = "S.grading = " + JSON.stringify(oldSizeRun()) + ";";
-module.exports = { load, syntaxCheck, appSource, extract, pageHTML, pageScripts, liveServerInject, oldSizeRun, OLD_SIZE_RUN_JS };
+// (Round H1) this build's file version, read from the app's FILE_VERSION: the tests compare with it, never with a number of their own
+const FILE_VERSION = +/FILE_VERSION = ([0-9]+)/.exec(appSource())[1];
+module.exports = { load, syntaxCheck, appSource, extract, pageHTML, pageScripts, liveServerInject, oldSizeRun, OLD_SIZE_RUN_JS, FILE_VERSION };

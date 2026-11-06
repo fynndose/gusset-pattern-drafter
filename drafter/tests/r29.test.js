@@ -1,6 +1,7 @@
 // Round r29: the Render workspace as the maintainer explained it, Print Layout's trimmed view,
 // and Print opening one window. What needs real pixels or a real graphics card is in the browser smoke (PDRAFT_SMOKE_ONLY=r29).
 "use strict";
+const FV = require("./harness").FILE_VERSION;      // (Round H1) this build's file version, read from the app's FILE_VERSION
 const assert = require("assert");
 const { spawnSync } = require("child_process");
 const path = require("path");
@@ -327,7 +328,7 @@ test("r29 / 3: a document's render settings and custom views are in its file (ve
   // changes no file; it was "untouched: no key" until then. A document never rendered is saved with the settings it would render with here.)
   assert.strictEqual(o.none, true, "every file says its render settings");
   assert.strictEqual(o.steps, 0, "no history step");
-  assert.deepStrictEqual(o.file, [31, "640x480", "portrait", 25, "Front 3/4"]);      // ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) Round r30: the file version is 28)
+  assert.deepStrictEqual(o.file, [FV, "640x480", "portrait", 25, "Front 3/4"]);      // (Round H1: this build's version read from the app, FV) ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) Round r30: the file version is 28)
   assert.strictEqual(o.inHistory, false);
   assert.deepStrictEqual(o.fresh, [null, "640x480", 40, 0, "now"], "the machine's size, but no lens or custom view of another document");
   assert.deepStrictEqual(o.back, ["640x480", 25, 1, 25]);

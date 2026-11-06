@@ -102,7 +102,7 @@ test("G1 a pattern's menu is W1: inside a pattern with Edit Pattern, anywhere on
   assert.deepStrictEqual(o.Order, ["Bring Forward [Ctrl+]]", "Bring to Front [Ctrl+Shift+]]", "Send Backward [Ctrl+[]", "Send to Back [Ctrl+Shift+[]"]);
   assert.deepStrictEqual(o.Flip, ["Horizontally", "Horizontally (Each)", "Vertically", "Vertically (Each)"]);
   assert.ok(o.Rotate[0] === "Reset Along Grain Direction" && o.Rotate.includes("Parallel to…"), o.Rotate.join(" | "));      // (Parallel to… built in Round r17b / 1)
-  assert.deepStrictEqual(o.more, ["Mirror Paste (Position Only)", "Replace (by the Copied Pattern)", "Add Annotation…", "Scale…", "Move…", "Rotate…", "Proportional Grading…"]);
+  assert.deepStrictEqual(o.more, ["Mirror Paste (Position Only)", "Replace (by the Copied Pattern)", "Add Annotation…", "Create History Group…" /* (Round H1d / B: this program's own, so under More) */, "Scale…", "Move…", "Rotate…", "Proportional Grading…"]);
   assert.deepStrictEqual(o.flip, [400, 0], "the two swapped places, mirrored about the box round both");
   assert.deepStrictEqual(o.each, [20, 400], "each in its own place (A reaches to 320 with its curve: its box is 0 to 320)");
   assert.strictEqual(o.flipStep, "Flip Horizontally"); assert.strictEqual(o.cloneStep, "Layer Clone (Under)");

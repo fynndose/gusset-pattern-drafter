@@ -1,6 +1,7 @@
 // Round r9: 2D fixes (Align, Shift while dragging, the mirror line), simulation control, seams that hold, and the 3D
 // additions after them. A test (or more) a batch.
 "use strict";
+const FV = require("./harness").FILE_VERSION;      // (Round H1) this build's file version, read from the app's FILE_VERSION
 const assert = require("assert");
 const path = require("path");
 const { spawnSync } = require("child_process");
@@ -244,7 +245,7 @@ test("r9 / 3: every cloth point on either side of a seam gets its partner; a fab
     const ph = app.ev("fabricPhys"), item = app.ev("normLibItem");
     return [item("fabric", { physical: "Single jersey" }, 1).maxStretch, item("fabric", { physical: "Heavy woven" }, 2).maxStretch, item("fabric", { physical: "Heavy woven", maxStretch: 12 }, 3).maxStretch,
       ph(item("fabric", { physical: "Rib knit" }, 4)).maxStretch, app.ev("FILE_VERSION")];` }).result;
-  assert.deepStrictEqual(o, [30, 5, 12, 0.5, 31]);      // ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) the file version: 28 since Round r30; 27 since Round r29; 26 since Round r26; 25 since Round r25; 24 since Round r20; 23 since the r19 follow-up; 22 since Round r18; 21 since Round r17b; 20 since Round build-1; 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
+  assert.deepStrictEqual(o, [30, 5, 12, 0.5, FV]);      // (Round H1: this build's version read from the app, FV) ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) the file version: 28 since Round r30; 27 since Round r29; 26 since Round r26; 25 since Round r25; 24 since Round r20; 23 since the r19 follow-up; 22 since Round r18; 21 since Round r17b; 20 since Round build-1; 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
 });
 
 /* ---------- 4: the strain map ---------- */

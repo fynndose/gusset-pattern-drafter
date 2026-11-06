@@ -147,6 +147,9 @@ test("every key of the table fires its command, and with one more modifier held 
       // (Round r12 / 3) Clone as Pattern's key wants a closed internal shape selected
       if (row.id === "cloneAsPattern") { const P0 = S.pieces[0]; if (!P0.internals.some(it => it.closed)) app.addChild(P0, "internals", app.mkShape([{x:20,y:20},{x:40,y:20},{x:40,y:40}], true)); S.selKind = "internal"; S.selInt = P0.internals.findIndex(it => it.closed); }
       else { S.selKind = "outline"; S.selInt = -1; }
+      // (Round H1b / 2) Link Lines with two lines selected, as a user gives it (since Round H1c U is Link Lines' alone; the History panel is D)
+      if (row.id === "linkLines") { const P0 = S.pieces[0]; app.ev("setLines")([{ p: P0, sh: P0, i: 0, kind: "outline", int: -1 }, { p: P0, sh: P0, i: 1, kind: "outline", int: -1 }]); }
+      else if (S.selSeg >= 0) app.ev("setLines")([]);
       if (app.keyFind(evOf(row.k)) !== row) { out.bad.push(row.k + " does not reach " + row.id); continue; }
       out.tested++;
       const letter = /(^|[+])([A-Z]|[A-Z][A-Za-z0-9]+)$/.test(row.k);      // Shift is part of a key's name for letters and named keys only

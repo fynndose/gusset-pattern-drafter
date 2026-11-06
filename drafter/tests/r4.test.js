@@ -766,20 +766,22 @@ test("B5 Save writes the history timeline into the file and Open brings it back:
     app.saveDoc(false);
     out.file = file; out.clean = [!!S.dirty, app.storage.has("pdraft:doc")];
     const d = JSON.parse(file);
-    out.hist = { v: d.history.v, at: d.history.at, steps: d.history.steps.length, states: d.history.states.length, size: JSON.stringify(d.history).length, doc: JSON.stringify(d.pieces).length };
+    out.hist = { v: d.history.v, at: d.history.at, head: d.history.head, nodes: d.history.nodes.length, size: JSON.stringify(d.history).length, doc: JSON.stringify(d.pieces).length };
     out.whole = S.undo.concat(S.redo).reduce((n, t) => n + app.ev("histText")(t).length, 0);      // (Round perf-2 / 5: each step as the whole text snap() gave)
-    // with the cap at 2, only the last two done steps are saved (the undone ones always are)
+    // (Round H1: History in the File above 0 keeps every step, the tree; it kept the last n done steps) with it at 2, all six nodes
     app.ev("setPrefs({ histKeep: 2 })"); app.saveDoc(false);
-    const c = JSON.parse(file).history; out.capped = [c.at, c.steps.map(s => s.n)];
+    const c = JSON.parse(file).history; out.capped = [c.at, c.nodes.map(s => s.n)];
     app.ev("setPrefs({ histKeep: 0 })"); app.saveDoc(false); out.none = JSON.parse(file).history === undefined;
     return out;`);
   const o = made.result, b = o.before;
   assert.deepStrictEqual([b.at, b.redo, b.name, b.n], [3, 2, "Front A", 1]);
   assert.deepStrictEqual(b.names, ["Edit Pattern", "Add Point", "Rename", "Rename", "Symmetric Pattern"]);
-  assert.deepStrictEqual([o.hist.v, o.hist.at, o.hist.steps, o.hist.states], [3, 3, 5, 6]);      // (history v3 since Round perf-2, file version 19)
+  // (Round H1: history v4, the tree, since file version 32: node 0 the start, the steps nodes 1 to 5, the document at node 3, the
+  // branch's end node 5; v3 since Round perf-2, file version 19, was 5 steps and 6 states)
+  assert.deepStrictEqual([o.hist.v, o.hist.at, o.hist.head, o.hist.nodes], [4, 3, 5, 6]);
   assert.ok(o.hist.size < o.whole/2, "stored as changes it is well under the whole snapshots: " + o.hist.size + " against " + o.whole);
   assert.deepStrictEqual(o.clean, [false, false], "saved: nothing unsaved, nothing to recover");
-  assert.deepStrictEqual(o.capped, [2, ["Add Point", "Rename", "Rename", "Symmetric Pattern"]]); assert.strictEqual(o.none, true);
+  assert.deepStrictEqual(o.capped, [3, ["Start", "Edit Pattern", "Add Point", "Rename", "Rename", "Symmetric Pattern"]]); assert.strictEqual(o.none, true);
 
   // another session opens the file
   const opened = run(`
@@ -790,8 +792,8 @@ test("B5 Save writes the history timeline into the file and Open brings it back:
     app.histGo(0); out.first = S.pieces[0].pts[2]; out.firstName = S.pieces[0].name; out.firstPts = S.pieces[0].pts.length;
     app.histGo(2); out.second = S.pieces[0].pts.length;
     app.checkDoc(S.pieces, S.seams);
-    // a new edit from there discards what was undone, as always
-    app.ev("push('Rename'); S.pieces[0].name = 'Fork'; commit()"); out.fork = [S.undo.length, S.redo.length];
+    // (Round H1) a new edit from there keeps what was undone as a branch (it was discarded): off the path, three steps
+    app.ev("push('Rename'); S.pieces[0].name = 'Fork'; commit()"); out.fork = [S.undo.length, S.redo.length, S.hoff.size];
     // Clear History: the document stays, the timeline is empty
     app.ev("clearHistory()"); out.cleared = [S.undo.length, S.redo.length, S.pieces[0].name];
     return out;`, { blank: true });
@@ -801,17 +803,18 @@ test("B5 Save writes the history timeline into the file and Open brings it back:
   assert.strictEqual(opened.result.redo1, "Front B"); assert.strictEqual(opened.result.redo2, 2);
   assert.deepStrictEqual(opened.result.first, o.first, "the very first state, as it was"); assert.strictEqual(opened.result.firstName, "Front bodice");
   assert.strictEqual(opened.result.second, opened.result.firstPts + 1, "after step 2 the added point is there");
-  assert.deepStrictEqual(opened.result.fork, [3, 0]); assert.deepStrictEqual(opened.result.cleared, [0, 0, "Fork"]);
+  assert.deepStrictEqual(opened.result.fork, [3, 0, 3]); assert.deepStrictEqual(opened.result.cleared, [0, 0, "Fork"]);
 });
 
 test("B5 a file without a history, with a broken one or from another file version opens with an empty timeline; a file that can't be drawn leaves the document as it was", () => {
   const file = JSON.parse(run(`let f = null; app.setDownload((n, t) => { f = JSON.stringify(app.fileDoc(t)); }); app.ev("push('Rename'); S.pieces[0].name = 'X'; commit()"); app.saveDoc(false); return f;`).result);
-  assert.strictEqual(file.history.steps.length, 1);
+  assert.strictEqual(file.history.nodes.length, 2);      // (Round H1: v4, the start and the one step)
   const open = (d) => run(`app.ev("openText('f.pdraft', " + JSON.stringify(${JSON.stringify(JSON.stringify(d))}) + ")"); return [S.pieces.map(p => p.name), S.undo.length, S.redo.length, toasts.slice(-1)[0]];`, { blank: true }).result;
   assert.deepStrictEqual(open(file), [["X"], 1, 0, "Opened f.pdraft with 1 history step"]);
   const { history, ...plain } = file;
   assert.deepStrictEqual(open(plain), [["X"], 0, 0, "Opened f.pdraft"]);
-  for (const bad of [{ ...history, states: history.states.slice(1) }, { ...history, at: 9 }, { ...history, fv: 10 }, { ...history, states: [history.states[0], { ids: [12345] }] }, "junk", { v: 2 }])
+  // (Round H1: v4's: no start, a place that is no node, another file version, a step naming a pattern that is not there, junk, an empty v2)
+  for (const bad of [{ ...history, nodes: history.nodes.slice(1) }, { ...history, at: 9 }, { ...history, fv: 10 }, { ...history, nodes: [history.nodes[0], { id: 1, up: 0, n: "X", d: { ids: [12345] } }] }, "junk", { v: 2 }])
     assert.deepStrictEqual(open({ ...plain, history: bad }), [["X"], 0, 0, "Opened f.pdraft"], JSON.stringify(bad).slice(0, 60));
   // a document that can't be drawn: refused with the reason, and what was open stays open with its history
   const broken = JSON.parse(JSON.stringify(plain)); broken.pieces[0].pts[1] = null;

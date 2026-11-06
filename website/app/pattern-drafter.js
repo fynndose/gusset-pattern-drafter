@@ -41,7 +41,7 @@
    Units mm, y down.
    ================================================================ */
 const S = {
-  pieces: [], seams: [], stitches: [], lineLinks: [], selMore: [], images: [], guides: [], measures: [], tacks: [], buttons: [], pipings: [], bindings: [], glues: [], backdrop: null, avedit: { joints: {} }, lights: [], bgMode: null, selTrim: null, grading: null, gradeClip: null, print: null, walk: null, selSeam: null, selPart: null, sewCheck: { on: false, useLen: true, len: 2, useRatio: false, ratio: 2 }, sewBad: null, ui: { layout: "2d", unbuilt: true, render: "front", show3d: {} }, lib: null, ob: null, mode: "sim", layout: null, lview: { s: 0.5, x: 40, y: 90 },
+  pieces: [], seams: [], stitches: [], hgroups: [], hlane: {}, hjump: {}, lineLinks: [], selMore: [], images: [], guides: [], measures: [], tacks: [], buttons: [], pipings: [], bindings: [], glues: [], backdrop: null, avedit: { joints: {} }, lights: [], bgMode: null, selTrim: null, grading: null, gradeClip: null, print: null, walk: null, selSeam: null, selPart: null, sewCheck: { on: false, useLen: true, len: 2, useRatio: false, ratio: 2 }, sewBad: null, ui: { layout: "2d", unbuilt: true, render: "front", show3d: {} }, lib: null, ob: null, mode: "sim", layout: null, lview: { s: 0.5, x: 40, y: 90 },
   show: { sewing: true, topstitch: true, puckering: true, baseline: true, sa: true, grading: false, reference: true, symmetric: true, links: true, pins: true, name: true, annotations: true, length: true, angle: false, grainline: true, measurements: true, ruler: true, guides: true, lockAll: false, lockInt: false, lockBase: true, lockGuide: false }, nextSegId: 1, nextShapeId: 1, sel: [], selPt: -1, selSeg: -1, selInt: -1, selKind: "outline",
   tool: "edit_pattern", unit: "mm", dec: 1, snapG: 0, saValue: 10, prefs: null,
   notch: { type: "I", len: 6, color: "#00a37a", width: 2, dup: true },
@@ -1682,7 +1682,8 @@ const toW = (x, y) => V((x-S.view.x)/S.view.s, (y-S.view.y)/S.view.s);
    view a start and the layout reset give; centreOrigin(): the same keeping the zoom (the switch to the 2D window alone). */
 function centreOrigin() { S.view = { s: S.view && S.view.s > 0 ? S.view.s : 1, x: W/2, y: H/2 }; zoomShow(); draw(); }
 function homeView() { S.view = { s: 1, x: W/2, y: H/2 }; zoomShow(); draw(); }
-function zoomShow() { const z = document.getElementById("s-zoom"); if (z) z.textContent = "Z " + Math.round(S.view.s*100) + "%"; }
+// (Round H1c / A: the zoom is said in the 2D window's title strip; the bar's element stays for what reads it, hidden)
+function zoomShow() { const z = document.getElementById("s-zoom"); if (z) z.textContent = "Z " + Math.round(S.view.s*100) + "%"; if (typeof winTitles === "function") winTitles(); }
 function zoomTo(list) {
   if (!list.length) return homeView();
   // Padding shrinks on a small stage and the scale is clamped to the wheel-zoom range.
@@ -1693,7 +1694,7 @@ function zoomTo(list) {
   S.view.s = Number.isFinite(s) ? Math.max(.05, Math.min(30, s)) : 1;
   S.view.x = W/2 - (b.x0+b.x1)/2*S.view.s;
   S.view.y = H/2 - (b.y0+b.y1)/2*S.view.s;
-  document.getElementById("s-zoom").textContent = "Z " + Math.round(S.view.s*100) + "%";
+  zoomShow();
   draw();
 }
 const fitAll = () => zoomTo(S.pieces.filter(p => p.on));
@@ -1708,7 +1709,8 @@ const fmt = (mm) => (mm/UNIT_MM[S.unit]).toFixed(unitDec());
 // (drape3: the drape snapshot the cloth was in, when it is known (drapeCapture()): undo and redo put that drape back; never saved)
 const snapObj = () => ({ pieces: S.pieces, seams: S.seams, lib: S.lib, layout: S.layout, stitches: S.stitches, guides: S.guides, measures: S.measures, grading: S.grading, links: S.lineLinks, tacks: S.tacks, buttons: S.buttons, pipings: S.pipings, bindings: S.bindings, glues: S.glues, backdrop: S.backdrop || null, avedit: S.avedit, lights: S.lights || [],
   ...(S.puckers && S.puckers.length ? { puckers: S.puckers } : {}),          // (Round r20 / 7: only when there are some, so older histories stay as they were)
-  ...(S.home3 ? { home: S.home3 } : {}),                                     // (Round r27: Reset 2D Arrangement (All) forgets it, and undo must bring it back)
+  ...(S.home3 ? { home: S.home3 } : {}),
+  ...(S.hgroups && S.hgroups.length ? { hgroups: S.hgroups } : {}),          // (Round H1d / B)                                     // (Round r27: Reset 2D Arrangement (All) forgets it, and undo must bring it back)
   ...(typeof G3 !== "undefined" && G3.drapeNow ? { drape3: G3.drapeNow } : {}) });
 const snap = () => JSON.stringify(snapObj());
 /* (Round perf-2 / 5) HISTORY AS CHANGES. A step of the history keeps the document as it was in parts (histState()): every pattern
@@ -1717,7 +1719,7 @@ const snap = () => JSON.stringify(snapObj());
    (it was the whole document every time). unsnap() takes a step in parts or as one text (as 3D moves and older code made it);
    histSame() says two steps are the same document, as comparing their whole texts did. A step's parts put together are snap()'s
    text: JSON.parse of each part is JSON.parse of the whole. */
-const SNAP_KEYS = ["pieces", "seams", "lib", "layout", "stitches", "guides", "measures", "grading", "links", "tacks", "buttons", "pipings", "bindings", "glues", "backdrop", "avedit", "lights", "puckers", "home"];
+const SNAP_KEYS = ["pieces", "seams", "lib", "layout", "stitches", "guides", "measures", "grading", "links", "tacks", "buttons", "pipings", "bindings", "glues", "backdrop", "avedit", "lights", "puckers", "home", "hgroups"];      // (Round H1d / B: the History Groups, only once there are some)
 let histLast = null;
 const histList = (v) => Array.isArray(v) && v.every(it => it && typeof it === "object" && !Array.isArray(it) && Number.isFinite(it.id)) && new Set(v.map(it => it.id)).size === v.length;
 function histState(o) {
@@ -1758,7 +1760,7 @@ function histSame(a, b) {
   }
   return true;
 }
-function unsnap(t) { const d = histObj(t); S.drapeWant = d.drape3 || null; S.lineLinks = d.links || []; S.pieces = d.pieces; S.seams = d.seams || []; S.stitches = d.stitches || []; S.puckers = d.puckers || []; if (d.lib) S.lib = d.lib; if (d.layout) S.layout = d.layout; S.guides = d.guides || []; S.measures = d.measures || []; S.tacks = d.tacks || []; S.buttons = d.buttons || []; S.pipings = d.pipings || []; S.bindings = d.bindings || []; S.glues = d.glues || []; S.backdrop = d.backdrop || null; S.avedit = normAvEdit(d.avedit); S.lights = normLights(d.lights); if (d.grading) S.grading = d.grading; if (d.home) S.home3 = d.home; }
+function unsnap(t) { const d = histObj(t); S.drapeWant = d.drape3 || null; S.lineLinks = d.links || []; S.pieces = d.pieces; S.seams = d.seams || []; S.stitches = d.stitches || []; S.puckers = d.puckers || []; if (d.lib) S.lib = d.lib; if (d.layout) S.layout = d.layout; S.guides = d.guides || []; S.measures = d.measures || []; S.tacks = d.tacks || []; S.buttons = d.buttons || []; S.pipings = d.pipings || []; S.bindings = d.bindings || []; S.glues = d.glues || []; S.backdrop = d.backdrop || null; S.avedit = normAvEdit(d.avedit); S.lights = normLights(d.lights); if (d.grading) S.grading = d.grading; if (d.home) S.home3 = d.home; S.hgroups = Array.isArray(d.hgroups) ? d.hgroups : []; }
 /* ---- history ----
    Every undo step has a name, for the timeline. S.undo[k] is the document before step k;
    S.un[k] = { n, tool } names that step, S.rn the steps that were undone (S.redo's).
@@ -1771,7 +1773,132 @@ function histNote(t) { const s = histClean(t); histHint = s.length > 1 ? s : nul
 const histToolName = (id) => { const t = REG.tools.find(x => x.id === id); return t ? t.name : ""; };
 function histFit() {
   S.un = S.un || []; S.rn = S.rn || [];
-  for (const [names, stack] of [[S.un, S.undo], [S.rn, S.redo]]) { names.length = Math.min(names.length, stack.length); while (names.length < stack.length) names.push({ n: "Edit", tool: "" }); }
+  if (!(S.hoff instanceof Map)) S.hoff = new Map();
+  if (!(S.hsave instanceof Map)) S.hsave = new Map();
+  if (!S.hui || typeof S.hui !== "object") S.hui = {};
+  if (!S.hlane || typeof S.hlane !== "object") S.hlane = {};
+  if (!S.hjump || typeof S.hjump !== "object") S.hjump = {};
+  for (const [names, stack] of [[S.un, S.undo], [S.rn, S.redo]]) {
+    names.length = Math.min(names.length, stack.length);
+    while (names.length < stack.length) names.push({ n: "Edit", tool: "" });
+    for (const x of names) if (!Number.isInteger(x.id)) x.id = histId();      // (Round H1 / 1) every step a node of the tree
+  }
+}
+/* ---- (Round H1 / 1) THE HISTORY TREE ----
+   Going back and then making a step keeps the steps that were undone, as a branch: the history is a tree of nodes, each step one
+   node, the start node 0. The path from the start to the end of the branch worked on is what undo and redo walk, as before:
+   S.undo / S.un (done) and S.redo / S.rn (undone), every step with its node id (S.un[k].id, S.rn[k].id). Every other node is in
+   S.hoff (id -> { id, up, n, tool, st }: its parent, its name and tool, the document after it, in parts as every step, the parts
+   it did not change shared with the step before). S.hsave: Save States (id -> name); S.hui: a node's place in the panel when it
+   was moved (id -> { x, y }); S.histNext: the next id. treeGo() goes to any node. At most HIST_CAP steps on the path: the oldest
+   that is neither a Save State nor a branch point (a node with a child off the path) is dropped, its change kept in the step after
+   it (histCap()). Kept in the file (history.json v4, histPack(), histUnpack()); a node's cloth only at Save States and branch points
+   (and the current one, drape.bin): any other step that had one is marked, and going to it asks for a Re-drape (drapeBack()). */
+const HIST_CAP = 500;
+function histId() { if (!(S.histNext >= 1)) S.histNext = 1; return S.histNext++; }
+// the branches push() made of an undone future, newest last: unpush() and pressDrop() take one back with its step
+let histMade = [];
+const histMadeBack = (n) => { while (histMade.length > n) for (const id of histMade.pop()) S.hoff.delete(id); if (histAskFuture && !histAskFuture.some(id => S.hoff.has(id))) histAskFuture = null; };
+/* (Round H1b / 3) THE KEEP / DELETE BOX. Going back and then making a step keeps the old future as a branch at once; once the command is
+   done (commit(), no press under way) a box asks: Keep the old future as a branch, or Delete the future, which asks again (it cannot be
+   undone). Only with the project's history on (S.histOn; off: undo works as it always did, the old future goes, nothing in the file). */
+let histAskFuture = null;
+const histOn = () => S.histOn !== false;
+function histFutureAsk() {
+  const ids = histAskFuture;
+  histAskFuture = null;
+  if (!ids || !ids.some(id => S.hoff.has(id))) return;
+  if (S.prefs && S.prefs.keepFuture) return;                 // (Round H1c / A: Remember my choice, Keep: kept without asking; Delete always asks)
+  const all = histBranchAll(ids[0]), n = all.length;
+  askModal("Keep the Old Future?", "You went back and made a change. The " + n + (n === 1 ? " step" : " steps") + " you had undone can stay as a branch of the history, to go back to or compare, or be deleted." +
+    "<br><br><label><input type=\"checkbox\" id=\"keep-remember\"> Remember my choice when it is Keep (Settings \u25b8 Preferences \u25b8 Keep the Old Future Without Asking); Delete always asks</label>",
+    [{ k: "keep", n: "Keep the old future as a branch", primary: true, esc: true, f: () => { const r = document.getElementById("keep-remember"); if (r && r.checked) setPrefs({ keepFuture: true }); HP.lay = null; renderTimeline(); } },
+     { k: "delete", n: "Delete the future", f: () => askModal("Delete the Future?", "The " + n + (n === 1 ? " step" : " steps") + " will be gone from the history. This cannot be undone.",
+       [{ k: "delete", n: "Delete", f: () => { histDropIds(all); toast("The old future is deleted: " + n + (n === 1 ? " step" : " steps")); } }, { k: "keep", n: "Keep it", primary: true, esc: true, f: () => {} }]) }]);
+}
+// a node off the path and every node below it
+function histBranchAll(id) { const { nodes } = histNodes(), kids = histKids(nodes), out = []; const go = (k) => { out.push(k); for (const c of kids.get(k) || []) go(c); }; if (nodes.has(id)) go(id); return out.filter(k => S.hoff.has(k)); }
+function histDropIds(ids) { for (const id of ids) { S.hoff.delete(id); S.hsave.delete(id); delete S.hui[id]; } histMade = []; HP.lay = null; store(); renderTimeline(); }
+// the node the document is at
+const histAtId = () => (S.un && S.un.length ? S.un[S.un.length - 1].id : 0);
+// the undone future, made a branch off the node the document is at (before a new step takes its place); the ids it moved
+function histBranchRedo() {
+  histFit();
+  if (!S.redo.length) return null;
+  const ids = [];
+  let up = histAtId();
+  for (let k = S.redo.length - 1; k >= 0; k--) { const nm = S.rn[k]; S.hoff.set(nm.id, { id: nm.id, up, n: nm.n, tool: nm.tool || "", st: S.redo[k] }); ids.push(nm.id); up = nm.id; }
+  return ids;
+}
+// the nodes that are never dropped: Save States, and every node a branch hangs from
+function histKeptIds() { histFit(); const k = new Set(S.hsave.keys()); for (const x of S.hoff.values()) if (x.up != null) k.add(x.up);
+  for (const g of S.hgroups || []) { if (Number.isInteger(g.cut)) k.add(g.cut); if (g.from) k.add(g.from.node); }      // (Round H1e / 3: where a lane starts, where a Split Off came from)
+  return k; }
+function histCap() {
+  if (S.un.length + S.rn.length <= HIST_CAP) return;
+  if (hgOn()) { const t = histNodes(); hgLanes(t.nodes, t.path, t.at); }      // (Round H1d / B: every step's lane kept before one goes)
+  const kept = histKeptIds();
+  for (let i = 1; i < S.undo.length && S.un.length + S.rn.length > HIST_CAP; i++) {
+    if (kept.has(S.un[i - 1].id)) continue;
+    S.undo.splice(i, 1); S.un.splice(i - 1, 1); i--;
+  }
+}
+// a step made from a state taken earlier (a 3D drag: the document before the drag); as push(), with the undone future kept as a branch
+function pushState(st, n) {
+  histFit();
+  if (S.redo.length && histOn()) { const ids = histBranchRedo(); if (ids) { histMade.push(ids); histAskFuture = ids; } }
+  S.undo.push(st); S.un.push({ n, tool: "", id: histId() }); histCap();
+  S.redo.length = 0; S.rn.length = 0;
+}
+// every node: id -> { id, up, n, tool, st, path } (st null for the node the document is at: it is the live document), the path's ids,
+// and where on it the document is
+function histNodes() {
+  histFit();
+  const out = new Map(), path = [0, ...S.un.map(x => x.id), ...S.rn.slice().reverse().map(x => x.id)];
+  const sts = [S.undo[0] === undefined ? null : S.undo[0], ...S.undo.slice(1), ...S.redo.slice().reverse()], nm = [{ n: "Start", tool: "" }, ...S.un, ...S.rn.slice().reverse()];
+  const at = S.un.length, st = [...S.undo, null, ...S.redo.slice().reverse()];
+  path.forEach((id, i) => out.set(id, { id, up: i ? path[i - 1] : null, n: nm[i].n, tool: nm[i].tool || "", st: st[i], path: true }));
+  for (const [id, x] of S.hoff) if (!out.has(id)) out.set(id, { id, up: x.up, n: x.n, tool: x.tool || "", st: x.st, path: false });
+  void sts;
+  return { nodes: out, path, at };
+}
+// a node's children, newest last
+function histKids(nodes) { const k = new Map(); for (const x of [...nodes.values()].sort((a, b) => a.id - b.id)) if (x.up != null) { if (!k.has(x.up)) k.set(x.up, []); k.get(x.up).push(x.id); } return k; }
+// the path through a node: from the start to it, then on down its newest children to the end of that branch
+function histPathThrough(nodes, id) {
+  const up = [];
+  for (let k = id; k != null && nodes.has(k); k = nodes.get(k).up) up.unshift(k);
+  const kids = histKids(nodes), down = [];
+  for (let k = id; (kids.get(k) || []).length;) { const c = kids.get(k); k = c[c.length - 1]; down.push(k); }
+  return { path: [...up, ...down], at: up.length - 1 };
+}
+// the four lists and the branches from the nodes, a path through them and where on it the document is
+function histLay(nodes, path, at) {
+  const on = new Set(path), nm = (id) => ({ n: nodes.get(id).n, tool: nodes.get(id).tool || "", id });
+  S.hoff = new Map();
+  for (const x of nodes.values()) if (!on.has(x.id)) S.hoff.set(x.id, { id: x.id, up: x.up, n: x.n, tool: x.tool || "", st: x.st });
+  S.undo = path.slice(0, at).map(id => nodes.get(id).st);
+  S.un = path.slice(1, at + 1).map(nm);
+  S.redo = path.slice(at + 1).reverse().map(id => nodes.get(id).st);
+  S.rn = path.slice(at + 1).reverse().map(nm);
+}
+// go to a node anywhere in the tree: on the path, as a step back or forward; on another branch, that branch becomes the path
+function treeGo(target) {
+  pushFlush();
+  const { nodes, path, at } = histNodes();
+  if (!nodes.has(target)) return false;
+  if (path.includes(target)) { histGo(path.indexOf(target)); return true; }
+  if (typeof simHalt === "function") simHalt();
+  if (typeof G3 !== "undefined" && G3.look) look3End();
+  nodes.get(path[at]).st = histState();                      // the document as it is now is that node's
+  const t = histPathThrough(nodes, target), st = nodes.get(target).st;
+  histLay(nodes, t.path, t.at);
+  histMade = [];
+  unsnap(st);
+  S.sel = S.sel.filter(id => byId(id)); S.selPt = S.selSeg = S.selInt = -1; S.selCp = null; S.tps = null;
+  commit();
+  if (typeof drapeBack === "function") drapeBack();
+  return true;
 }
 function push(name) {
   pushFlush();
@@ -1779,9 +1906,12 @@ function push(name) {
   histFit();
   const tool = S.mode === "layout" ? "" : S.tool || "", n = histClean(name) || histHint || (S.mode === "layout" ? "Print Layout" : histToolName(tool)) || "Edit";
   // the tool in hand is kept with every step (Round CF): the timeline shows its icon with the step's word
-  S.undo.push(histState()); S.un.push({ n, tool: histToolName(tool) ? tool : "" }); pushCount++;
-  if (S.undo.length > 90) { S.undo.shift(); S.un.shift(); }
-  pushWas = S.redo.length ? { at: S.undo.length, redo: S.redo.slice(), rn: (S.rn || []).slice() } : null;      // (Round r21 / 2) for unpush()
+  // (Round H1 / 1) an undone future is kept, a branch off the node the document is at; unpush() takes it back with the step
+  const was = S.redo.length ? { redo: S.redo.slice(), rn: S.rn.slice(), made: histMade.length } : null;
+  if (was && histOn()) { const ids = histBranchRedo(); if (ids) { histMade.push(ids); histAskFuture = ids; } }      // (Round H1b / 3: asked about once the command is done)
+  S.undo.push(histState()); S.un.push({ n, tool: histToolName(tool) ? tool : "", id: histId() }); pushCount++;
+  histCap();
+  pushWas = was ? { ...was, at: S.undo.length } : null;      // (Round r21 / 2) for unpush()
   S.redo.length = 0; S.rn.length = 0;
 }
 /* (Round r15 / 1) A press in the 2D window (or one the 3D window hands to a 2D tool) that changed nothing leaves no
@@ -1805,22 +1935,23 @@ function unpush() {
   if (!S.undo.length) return;
   const w = pushWas; pushWas = null;
   S.undo.pop(); histFit();
-  if (w && w.at === S.undo.length + 1 && !S.redo.length) { S.redo = w.redo; S.rn = w.rn; histFit(); }
+  if (w && w.at === S.undo.length + 1 && !S.redo.length) { S.redo = w.redo; S.rn = w.rn; histMadeBack(w.made); histFit(); }
   if (typeof renderTimeline === "function") renderTimeline();
 }
-function pressMark() { pressAt = { n: pushCount, top: S.undo[S.undo.length - 1], redo: S.redo.slice(), rn: (S.rn || []).slice(), doc: S.redo.length ? histState() : null }; }
+function pressMark() { pressAt = { n: pushCount, top: S.undo[S.undo.length - 1], redo: S.redo.slice(), rn: (S.rn || []).slice(), made: histMade.length, doc: S.redo.length ? histState() : null }; }
 function pressDrop() {
   const m = pressAt; pressAt = null;
   if (!m || pushCount === m.n) return false;
   const top = S.undo[S.undo.length - 1], now = histState();
   if (pushCount === m.n + 1 && top !== m.top && histSame(top, now)) { S.undo.pop(); histFit(); }
   else if (!(top === m.top && m.doc !== null && histSame(now, m.doc))) return false;
-  if (!S.redo.length) { S.redo = m.redo; S.rn = m.rn; histFit(); }
+  if (!S.redo.length) { S.redo = m.redo; S.rn = m.rn; histMadeBack(m.made); histFit(); }
   if (typeof renderTimeline === "function") renderTimeline();
   return true;
 }
 // the steps in order, and how many of them are done: steps[k] for k < at are in the document
-function histSteps() { histFit(); return { steps: [...S.un, ...S.rn.slice().reverse()], at: S.un.length }; }
+// (Round H1: each as { n, tool }; the tree's ids and branches are histNodes()')
+function histSteps() { histFit(); return { steps: [...S.un, ...S.rn.slice().reverse()].map(s => ({ n: s.n, tool: s.tool })), at: S.un.length }; }
 // roll the document back or forward to just after step j (0 = before the first)
 function histGo(j) {
   pushFlush(); histFit();
@@ -1831,7 +1962,7 @@ function histGo(j) {
   S.sel = S.sel.filter(id => byId(id)); S.selPt = S.selSeg = S.selInt = -1; S.selCp = null; S.tps = null;
   commit();
 }
-function commit() { handlesOut(); seamMirrors(); freeze3(); if (typeof renderTimeline === "function") renderTimeline(); if (S.mode === "layout") drawLayout(); sync(); if (syncHalf.lost) { syncHalf.lost = false; toast("That change can't be mirrored from this half: make it on the other half of the symmetric unfold", 5000); } syncLinks(); olinkSync(); groupsTidy(); S.seams = resolveRefs(S.pieces, S.seams); S.stitches = validStitches(S.stitches, S.pieces); S.puckers = validStitches(S.puckers || [], S.pieces); S.measures = validMeasures(S.measures, S.pieces); S.tacks = validTacks(S.tacks, S.pieces); S.buttons = validButtons(S.buttons, S.pieces); S.pipings = validPipings(S.pipings, S.seams); S.bindings = validBindings(S.bindings, S.pieces); S.glues = validGlues(S.glues, S.pieces, S.seams); for (const p of S.pieces) pruneGrade(p); ui(); drawSoon(); store(); if (typeof avEditSync === "function") avEditSync(); if (typeof garmentChanged === "function") garmentChanged(); }
+function commit() { if (histAskFuture && !pressAt && !pushLater && typeof setTimeout === "function") setTimeout(() => { if (histAskFuture && !pressAt && !S.drag) histFutureAsk(); }, 0); handlesOut(); seamMirrors(); freeze3(); if (typeof renderTimeline === "function") renderTimeline(); if (S.mode === "layout") drawLayout(); sync(); if (syncHalf.lost) { syncHalf.lost = false; toast("That change can't be mirrored from this half: make it on the other half of the symmetric unfold", 5000); } syncLinks(); olinkSync(); groupsTidy(); hgTidy(); if (hgAsk && !pressAt && !pushLater && typeof setTimeout === "function") setTimeout(() => { if (hgAsk && !pressAt && !S.drag && !modalNow) hgFutureAsk(); }, 0); S.seams = resolveRefs(S.pieces, S.seams); S.stitches = validStitches(S.stitches, S.pieces); S.puckers = validStitches(S.puckers || [], S.pieces); S.measures = validMeasures(S.measures, S.pieces); S.tacks = validTacks(S.tacks, S.pieces); S.buttons = validButtons(S.buttons, S.pieces); S.pipings = validPipings(S.pipings, S.seams); S.bindings = validBindings(S.bindings, S.pieces); S.glues = validGlues(S.glues, S.pieces, S.seams); for (const p of S.pieces) pruneGrade(p); ui(); drawSoon(); store(); if (typeof avEditSync === "function") avEditSync(); if (typeof garmentChanged === "function") garmentChanged(); }
 function undo() {
   pushFlush();
   if (!S.undo.length) return;
@@ -2092,7 +2223,7 @@ function viewHelp() {
 const COLORS = [["outline", "Pattern outline", "#262626"], ["fill", "Pattern fill", "#ffffff"], ["internal", "Internal line", "#d43c3c"],
   ["baseline", "Baseline", "#7173f8"], ["punch", "Punch mark", "#00a37a"], ["hover", "Hover", "#2eaaf1"], ["selection", "Selection", "#ecfd3f"],
   ["saLine", "Seam allowance line", "#8a63d2"], ["curve", "Curve point", "#ea5151"], ["move", "Move and guide lines", "#8a3fd1"]];
-const PREFS_DEFAULT = { unit: "mm", decimals: 1, grid: 0, smart: true, snapPts: true, colors: Object.fromEntries(COLORS.map(c => [c[0], c[2]])), histKeep: 50, view: normViewCtl(null), gizmo: "m", gizSpace: "screen", wheelRev: false, gridShow: true, openDisplay: false, objKind: "single", labelHalo: true, updateCheck: true, gradeStep: 10, simQuality: "normal" };      // (Round r33: the grading tools' Arrow Key Movement, Simulation Quality)
+const PREFS_DEFAULT = { unit: "mm", decimals: 1, grid: 0, smart: true, snapPts: true, colors: Object.fromEntries(COLORS.map(c => [c[0], c[2]])), histKeep: 50, view: normViewCtl(null), gizmo: "m", gizSpace: "screen", wheelRev: false, gridShow: true, openDisplay: false, keepBranchCloth: false, keepFuture: false, showHints: false, histNew: "ask", objKind: "single", labelHalo: true, updateCheck: true, gradeStep: 10, simQuality: "normal" };      // (Round r33: the grading tools' Arrow Key Movement, Simulation Quality)
 // (Round r15 / 8, the check videos S16) the gizmo's axes: the screen's (ticked first in the reference, the maintainer's choice), the
 // pattern's own (they turn with it) or the 3D window's
 const GIZ_SPACES = [["screen", "Screen Coordinate"], ["local", "Local Coordinate"], ["world", "World Coordinate"]];
@@ -2109,7 +2240,7 @@ function normPrefs(o) {
     // the wheel turned round: forward zooms out (Round r12 / 1). Before it only the custom mouse set could say so, as its
     // own view.wheel: such a choice is kept
     wheelRev: typeof o.wheelRev === "boolean" ? o.wheelRev : !!(o.view && o.view.preset === "custom" && o.view.wheel === "out"),
-    gridShow: o.gridShow !== false, openDisplay: o.openDisplay === true,
+    gridShow: o.gridShow !== false, openDisplay: o.openDisplay === true, keepBranchCloth: o.keepBranchCloth === true, keepFuture: o.keepFuture === true, showHints: o.showHints === true, histNew: ["ask", "on", "off"].includes(o.histNew) ? o.histNew : "ask",      // (Round H1b / 3)      // (Round H1b / 1: off by default)
     objKind: o.objKind === "multi" ? "multi" : "single",      // (Round r25 follow-up, the maintainer's decision 1) Export OBJ's Object: Single Object unless Multiple was chosen last
     updateCheck: o.updateCheck !== false,                     // (Round r24) the desktop app asks whether a newer version is out at the start, unless switched off
     labelHalo: o.labelHalo !== false,
@@ -2124,6 +2255,7 @@ function applyPrefs() {
   S.unit = P.unit; S.dec = P.decimals; S.snapG = P.grid;
   C_HOVER = c.hover; C_SEL = c.selection; C_CURVE = c.curve; C_INT = c.internal; C_BASE = c.baseline;
   C_OUT = c.outline; C_FILL = c.fill; C_SALINE = c.saLine; C_MOVE = c.move; C_PUNCH = c.punch;
+  if (document.body && document.body.classList) document.body.classList.toggle("hints", !!P.showHints);      // (Round H1c / A: Show Tool Hints)
   const ub = document.getElementById("s-unit"), sb = document.getElementById("s-snap");
   if (ub) ub.textContent = S.unit.toUpperCase();
   if (sb) { sb.textContent = S.snapG ? "GRID " + S.snapG : "GRID OFF"; sb.classList.toggle("on", !!S.snapG); }
@@ -2136,21 +2268,28 @@ function setPrefs(o) { S.prefs = normPrefs({ ...S.prefs, ...o }); savePrefs(); a
    The status bar shows the state: SAVED (nothing unsaved), AUTOSAVED (unsaved work, kept
    for recovery). A failure (storage full, blocked, private mode) turns it red, toasts
    once, and asks before the tab closes. See THE DOCUMENT AND ITS FILE. */
-const AUTOSAVE_KEY = "pdraft:doc", FILE_VERSION = 31;      // 31 (Round H1a): the garment measurements (garMeas), the defaults the file was written with (defaults), the render settings always, the avatar record's collision detail (cell) and its pose file's turns (baseQ). 30 (Round r34): an internal line's link to the outline (olink) and a pattern's group (group) (an older build would drop them, so it refuses the file). 29 (Round r33b): Seamless Blocking (an internal line's block, a pattern's blocks: each section's place and fabric) and the background image's angle (an older build would drop them, so it refuses the file). 28 (Round r30): a seam's mirror on a symmetric pair (mir; an older build would drop it, so it refuses the file). 27 (Round r29): a document's render settings (render, only once changed; an older build would drop them, so it refuses the file)
+const AUTOSAVE_KEY = "pdraft:doc", FILE_VERSION = 33;      // 33 (Round H1d): the History Groups (hgroups), each history node's lane (l) and a step that took one group back (j) (an older build would drop them, so it refuses the file). 32 (Round H1): the history as a tree (history.json v4: every node, its parent, Save States, places in the panel) and histcloth.bin (the cloth of Save States and branch points). 31 (Round H1a): the garment measurements (garMeas), the defaults the file was written with (defaults), the render settings always, the avatar record's collision detail (cell) and its pose file's turns (baseQ). 30 (Round r34): an internal line's link to the outline (olink) and a pattern's group (group) (an older build would drop them, so it refuses the file). 29 (Round r33b): Seamless Blocking (an internal line's block, a pattern's blocks: each section's place and fabric) and the background image's angle (an older build would drop them, so it refuses the file). 28 (Round r30): a seam's mirror on a symmetric pair (mir; an older build would drop it, so it refuses the file). 27 (Round r29): a document's render settings (render, only once changed; an older build would drop them, so it refuses the file)
 // 26 (Round r26): Simulation Shrinkage 1 to 1000, a glue's Strength up to 100, a pattern's foldStay (an older build would clamp or drop them, so it refuses the file); 25 (Round r25): a pattern's Grain Orientation (grainWay), a Slant corner's Distance A / B (a, b), a Pocket corner's Style 3, Solidify's Strength (solid3s), a notch's Point (Center) direction (dir: "point"), (r25 follow-up, before any release of 25) a glue switched off (off) (an older build would drop them, so it refuses the file); 24 (Round r20): an annotation's own angle, colour and line (angle, color, link: an older build would drop them, so it refuses the file); 23 (Round r19 follow-up): the document's lights for the render (lights) and each fabric's own roll in Print Layout (layout.rolls; an older build would drop them, so it refuses the file); 22 (Round r18): the document's avatar edits (avedit: the joints turned by hand, …; an older build would drop them, so it refuses the file); 21 (Round r17b): the background image (backdrop), the display settings kept with the file (display); 20 (Round build-1): a pattern's own Particle Distance (res3), Simulation Shrinkage (shrink3), Solidify (solid3), a glue's strength and thick (an older build would drop them, so it refuses the file); 19 (Round perf-2): the history saved as changes, a list's items each on its own (history v3)
 //      // 18 (Round r15): the seam allowance corner types are the reference's eight (perp, turn, slant, env, pocket, … with their own values; an older build would not know them, so it refuses the file; older files' corners are renamed as they open: cornerMigrate()); 17 (Round r14): an internal line's fold angle (foldAngle, foldStrength, foldVar), more in later batches of the round (an older build would drop them, so it refuses the file); 16 (Round r13): a notch may also have its own len and flip (an older build would drop them, so it refuses the file); 15 (Round r12): a notch may be { t, type, angle } (files of 14 have plain numbers, which still are); 14 (Round r11): piping, binding, gluing (files of 13 open with none); 13 (Round r9): a fabric's Max Stretch, tacks, a pattern's Fill, buttons; files of 12 open with defaults
 // where the autosave is kept: the browser's localStorage, or in the desktop app
 // (window.desktop, from desktop/preload.js) files in its data folder behind the same calls
 function kv() { return window.desktop ? window.desktop.store : localStorage; }
 let storeT = null, saveFailed = false, recoverPending = null;
+/* (Round H1d / 0, the maintainer's answer to h1c question 3) no "Saved / Autosaved" words anywhere: while the document has changes that are
+   in no file, a small ● after the file's name in the 3D window's title strip (a shape, so not told by colour), gone once it is saved. */
+function dirtyMark() {
+  const d = document.getElementById("wt-dirty"); if (d) d.hidden = !S.dirty;
+}
 function saveState(k, why) {
   const el = document.getElementById("s-save");
-  el.className = k === "clean" ? "ok" : k;
+  // (Round H1c / A) the bar holds no information but a failure of the autosave, which must not go unseen (work was lost once)
+  el.className = (k === "clean" ? "ok" : k) + (k === "bad" ? "" : " gone");
   // (Round build-1) a failure is told in words and by a sign and a box, not by its red alone (for red / green colour-blind eyes),
   // and a click (or Enter) on it says why and what to do
   el.textContent = { clean: "SAVED", ok: "AUTOSAVED", pending: "SAVING…", bad: "⚠ Autosave failed — click for details" }[k];
   // (Round r20 / 11) Show Auto Save Time (Settings ▸ Display ▸ Environment): when the autosave last ran, beside its word
   if (k === "ok") S.autoAt = Date.now();
+  dirtyMark();
   if (S.ui && S.ui.autoTime && S.autoAt && (k === "ok" || k === "pending")) { const d = new Date(S.autoAt), two = (n) => String(n).padStart(2, "0"); el.textContent += " " + two(d.getHours()) + ":" + two(d.getMinutes()) + ":" + two(d.getSeconds()); }
   el.title = why || (k === "ok" ? (window.desktop ? "Autosaved to " + kv().where(AUTOSAVE_KEY) : "Autosaved to this browser") + ", for recovery: not saved to a file yet" : k === "clean" ? "Nothing unsaved" : "");
   const bad = k === "bad";
@@ -2240,7 +2379,7 @@ function renderDoc() {
 function docObj() {
   return { v: FILE_VERSION, cloth: S.cloth, nextId: S.nextId, nextSegId: S.nextSegId, nextShapeId: S.nextShapeId, notch: S.notch, grading: S.grading, guides: S.guides, measures: S.measures, links: S.lineLinks, tacks: S.tacks, buttons: S.buttons, pipings: S.pipings, bindings: S.bindings, glues: S.glues,
     pieces: withKnots(S.pieces), seams: S.seams, stitches: S.stitches, images: usedImages(), lib: S.lib, layout: S.layout, ...((S.lights || []).length ? { lights: S.lights } : {}), ...((S.puckers || []).length ? { puckers: S.puckers } : {}), scene: sceneOut(), display: displayOut(), ...(backdrop() ? { backdrop: S.backdrop } : {}), ...(avEditOn() ? { avedit: S.avedit } : {}),
-    render: renderDoc(), ...(S.renderSet ? { renderSet: true } : {}), defaults: fileDefaults(), ...((S.garMeas || []).length ? { garMeas: garMeasOut() } : {}) };
+    render: renderDoc(), ...(S.renderSet ? { renderSet: true } : {}), ...(S.histOn === false ? { histOff: true } : {}), ...(hgOn() ? { hgroups: S.hgroups } : {}), defaults: fileDefaults(), ...((S.garMeas || []).length ? { garMeas: garMeasOut() } : {}) };
 }
 /* (Round r17b / 2) The display settings kept with the file, as the reference keeps its 2D and 3D display settings in a project
    and offers them on opening (the manual's Open: Display Settings). Saved always (from version 21); put back on opening only with
@@ -2291,11 +2430,19 @@ function sceneIn(sc) {
   } catch (e) {}
 }
 // the document as text: what crash recovery keeps, and what files were up to version 11. opt.history: with its history timeline
+// opt.history: with the history; opt.apart: { sig, hist? } the autosave's way (Round H1b / 1): the cloth (the drape, the 3D states, the
+// history's kept cloth) is left out and named by its signature, and gathered into opt.apart only when opt.apart.want says it changed
 function docJSON(indent, opt) {
-  const d = docObj();
-  const drape = drapeOut(), hist = opt && opt.history ? histPack(histKeep()) : null, st3 = states3Out(false);
-  if (drape) d.drape = drape;
-  if (st3) d.states3 = st3;
+  const d = docObj(), ap = opt && opt.apart;
+  const hist = opt && opt.history ? histPack(histKeep(), null, ap ? (ap.want ? (ap.hist = {}, ap) : { hist: null }) : null) : null;
+  if (ap) {
+    d.clothSig = ap.sig;
+    if (ap.want) { ap.drape = drapeOut(); ap.states3 = states3Out(false); }
+  } else {
+    const drape = drapeOut(), st3 = states3Out(false);
+    if (drape) d.drape = drape;
+    if (st3) d.states3 = st3;
+  }
   if (hist) d.history = hist;
   return JSON.stringify(d, null, indent);
 }
@@ -2383,6 +2530,61 @@ function idbDo(mode, f) {
     tx.onabort = () => rej(tx.error || new Error("the write was aborted"));
   }));
 }
+/* (Round H1 / 1) ONE'S OWN AVATAR IN THE AUTOSAVE. A file always keeps one's own avatar (r31); the autosave kept none, so recovered work
+   came back without it (known since beta.3). It is kept beside the autosave under its own key (AUTOSAVE_AV: { name, hash, data } with the
+   file's bytes as base64), written only when the avatar changes (avSavedHash), never with every autosave: an avatar's file can be many
+   megabytes. It goes when the autosave goes. Recovery hands it to the document as a file's own avatar is handed (S.docAvFile). A write
+   that fails leaves the autosave itself as it is, and says so once. */
+const AUTOSAVE_AV = "pdraft:docav";
+let avSavedHash = "-", avSaveWarned = false;      // ("-": not known yet, so the first autosave of a session writes or removes it)
+// the avatar's entry when it changed since the last write: a text to write, "" to remove it, null to leave it as it is
+function autosaveAvNext(dirty) {
+  const e = dirty ? avatarEmbedded() : null, rec = e && avatarRecord(), h = e && rec && rec.hash ? rec.hash : "";
+  if (h === (avSavedHash || "")) return null;
+  return h ? JSON.stringify({ name: e.name, hash: h, data: b64Of(e.bytes) }) : "";
+}
+const avSaveFail = (e) => { avSavedHash = null; if (!avSaveWarned) { avSaveWarned = true; toast("Your own avatar could not be kept with the autosave (" + ((e && e.message) || e) + "): Save keeps it in the file", 9000); } };
+const avRecOf = (raw) => { try { const o = JSON.parse(raw); return o && typeof o.data === "string" && typeof o.name === "string" ? { name: o.name, hash: o.hash, bytes: bytesOf(o.data) } : null; } catch (e) { return null; } };
+// the autosave's own avatar for its document: only one of the hash its record names
+function recAvatar(rec, av) {
+  const want = rec && rec.d && rec.d.scene && rec.d.scene.avatar;
+  if (!av || !want || want.preset || !want.embed || fileHash(av.bytes) !== want.hash) return null;
+  return { name: av.name, bytes: av.bytes };
+}
+/* (Round H1b / 1) THE CLOTH BESIDE THE AUTOSAVE. The cloth (every draped pattern's points, the 3D states' and the history's kept
+   cloth) is most of a draped document's autosave, and most autosaves change none of it. It is kept beside the autosave under its own
+   key (AUTOSAVE_CLOTH: { sig, drape, states3, hist }), written only when its signature changes (clothSig(): the cloth's moves, its
+   snapshot, its patterns' meshes, the 3D states, the history's kept cloth); the autosave names that signature (clothSig). Recovery
+   puts it back only if the signatures agree; otherwise the document comes back without its cloth, which a Re-drape makes again. */
+const AUTOSAVE_CLOTH = "pdraft:doccloth";
+let clothSavedSig = "-";
+function clothSig() {
+  histFit();
+  const kept = histClothIds(), h = [];
+  for (const x of S.hoff.values()) if (kept.has(x.id) && x.st && x.st.drape3 != null) h.push(x.id + ":" + x.st.drape3);
+  S.un.forEach((nm, i) => { const st = S.undo[i + 1]; if (kept.has(nm.id) && st && st.drape3 != null) h.push(nm.id + ":" + st.drape3); });
+  S.rn.forEach((nm, i) => { const st = S.redo[i]; if (kept.has(nm.id) && st && st.drape3 != null) h.push(nm.id + ":" + st.drape3); });
+  const G = typeof G3 !== "undefined" ? G3 : null;
+  if (!G) return "|" + h.join(",");                         // (no 3D window at all: a page in a test)
+  return [G.moved || 0, G.drapeNow || 0, drapeList().map(x => x.id + "." + x.k + "." + x.n).join(","), (S.states3 || []).map(s => s.id + "." + s.pool + "." + s.name).join(","), h.join(",")].join("|");
+}
+// the autosave's text, and the cloth's entry when it changed (null: leave it; "": remove it)
+function autosaveTexts(dirty) {
+  if (!dirty) return { text: null, cloth: clothSavedSig === "" ? null : "" };
+  const sig = clothSig(), ap = { sig, want: sig !== clothSavedSig };
+  const text = docJSON(undefined, { history: true, apart: ap });
+  return { text, sig, cloth: ap.want ? JSON.stringify({ sig, drape: ap.drape || null, states3: ap.states3 || null, hist: ap.hist || {} }) : null };
+}
+// a recovered autosave's cloth put back from its entry (raw: the entry's text, or null)
+function autosaveClothIn(d, raw) {
+  if (!d || !d.clothSig) return;
+  let c = null; try { c = raw ? JSON.parse(raw) : null; } catch (e) {}
+  const ok = c && c.sig === d.clothSig;
+  if (ok && c.drape) d.drape = c.drape;
+  if (ok && c.states3) d.states3 = c.states3;
+  for (const n of (d.history && Array.isArray(d.history.nodes) ? d.history.nodes : [])) if (n && n.cloth === "apart") { if (ok && c.hist && c.hist[n.id]) n.cloth = c.hist[n.id]; else { delete n.cloth; n.drape = 1; } }
+  delete d.clothSig;
+}
 const mbOf = (text) => (text ? (text.length/1048576).toFixed(1) + " MB" : "");
 function autosaveFailed(e, text) {
   const full = e && (e.name === "QuotaExceededError" || /quota/i.test(String(e.message || "")));
@@ -2392,10 +2594,14 @@ function autosaveFailed(e, text) {
   saveFailed = true; saveState("bad", why);
 }
 function saveIdb() {
-  let text = null;
-  try { text = S.dirty ? docJSON(undefined, { history: true }) : null; } catch (e) { return autosaveFailed(e, null); }      // (Round H1a / 2: with its history)
+  let text = null, at = null;
+  try { at = autosaveTexts(S.dirty); text = at.text; } catch (e) { return autosaveFailed(e, null); }      // (Round H1a / 2: with its history; Round H1b / 1: its cloth apart)
+  if (at.cloth !== null) { const c = at.cloth, sig = at.sig || ""; clothSavedSig = sig; idbDo("readwrite", (st) => (c ? st.put(c, AUTOSAVE_CLOTH) : st.delete(AUTOSAVE_CLOTH))).catch((e) => { clothSavedSig = "-"; autosaveFailed(e, c); }); }
   const seq = ++idbSeq;
   idbBusy++;
+  // (Round H1 / 1) one's own avatar beside it, when it changed
+  const avNext = autosaveAvNext(text !== null);
+  if (avNext !== null) { avSavedHash = avNext ? JSON.parse(avNext).hash : null; idbDo("readwrite", (st) => (avNext ? st.put(avNext, AUTOSAVE_AV) : st.delete(AUTOSAVE_AV))).catch(avSaveFail); }
   (text === null ? idbDo("readwrite", (st) => st.delete(AUTOSAVE_KEY)) : idbDo("readwrite", (st) => st.put(text, AUTOSAVE_KEY))).then(() => {
     idbBusy--;
     try { localStorage.removeItem(AUTOSAVE_KEY); } catch (e) {}      // an older version's autosave is not the newest any more
@@ -2409,7 +2615,13 @@ function saveNow() {
   if (recoverPending) return;                                // the last session's unsaved work is waiting for an answer: nothing is written over it
   if (useIdb()) return saveIdb();
   try {
-    if (S.dirty) kv().setItem(AUTOSAVE_KEY, docJSON(undefined, { history: true })); else kv().removeItem(AUTOSAVE_KEY);      // (Round H1a / 2: with its history)
+    // (Round H1a / 2: with its history; Round H1b / 1: its cloth beside it, written only when it changed)
+    const at = autosaveTexts(S.dirty);
+    if (at.cloth !== null) { if (at.cloth) kv().setItem(AUTOSAVE_CLOTH, at.cloth); else kv().removeItem(AUTOSAVE_CLOTH); clothSavedSig = at.sig || ""; }
+    if (at.text !== null) kv().setItem(AUTOSAVE_KEY, at.text); else kv().removeItem(AUTOSAVE_KEY);
+    // (Round H1 / 1) one's own avatar beside it, when it changed
+    const avNext = autosaveAvNext(S.dirty);
+    if (avNext !== null) try { if (avNext) kv().setItem(AUTOSAVE_AV, avNext); else kv().removeItem(AUTOSAVE_AV); avSavedHash = avNext ? JSON.parse(avNext).hash : null; } catch (e) { avSaveFail(e); }
     saveFailed = false; saveState(S.dirty ? "ok" : "clean");
   } catch (e) {
     const why = (window.desktop ? "The autosave file couldn't be written" : e && e.name === "QuotaExceededError" ? "Browser storage is full" : "Browser storage is unavailable") +
@@ -2421,7 +2633,7 @@ function saveNow() {
 // the document changed: it has unsaved work, which goes to the autosave shortly
 function store() { S.dirty = true; saveState(saveFailed ? "bad" : "pending", saveFailed ? document.getElementById("s-save").title : ""); clearTimeout(storeT); storeT = setTimeout(saveNow, 500); }
 // the document is what its file holds (or is new and empty): there is nothing to recover
-function markClean() { S.dirty = false; saveNow(); }
+function markClean() { S.dirty = false; dirtyMark(); saveNow(); }
 window.addEventListener("pagehide", () => { if (storeT) saveNow(); });
 window.addEventListener("beforeunload", (e) => {
   if (storeT) saveNow();
@@ -2470,6 +2682,8 @@ function loadDoc(d) {
   S.pipings = validPipings(normPipings(d.pipings), S.seams); S.bindings = validBindings(normBindings(d.bindings), S.pieces); S.glues = validGlues(normGlues(d.glues), S.pieces, S.seams); S.selTrim = null;
   S.lights = normLights(d.lights);                           // (Round r19 follow-up, H22: none before version 23)
   S.garMeas = normGarMeas(d.garMeas, S.pieces);             // (Round H1a / 2) the garment measurements, from version 31
+  S.histOn = d.histOff !== true;                             // (Round H1b / 3) the project's history switched off
+  S.hgroups = normHGroups(d.hgroups, S.pieces);              // (Round H1d / B) the History Groups, from version 33
   // a file's darts are made of ordinary lines (Round F / 7). A drape the file has for such a pattern was made on the pattern
   // as it was: that is kept (S.bakeWas) to carry the drape over to the new cloth (drapeTake())
   const darted = new Set(S.pieces.filter(p => p.darts && p.darts.length).map(p => p.id));
@@ -2711,7 +2925,7 @@ const HINT = {
   walk: "Click a point or edge of the pattern to walk, then a point or edge of the pattern to walk it along. Move along that edge to walk; click to notch both, right-click to notch one side, Enter ends, Esc cancels.",
   measure: "Click two points. Shift on the second measures along the outline. Right-click a label to delete it.",
   edit_sewing: "Click a sewing line to select it. Drag an end to lengthen or shorten it, drag its middle to slide it. At the pointer: the difference and both lengths of the seam under it. Ctrl+B reverses, Delete removes; right-click for more, and to deactivate a seam (it stays, drawn white and dotted, and the simulation leaves it out).",
-  check_sewing: "Seams whose two sides differ by more than the limit are drawn red. Right-click SEW CHECK in the status bar for the limits.",
+  check_sewing: "Seams whose two sides differ by more than the limit are drawn red. The limits: Settings ▸ Check Sewing Length Limits…, or the right-click menu with Edit Sewing.",
   segment_sewing: "Click a segment near the end to sew from, then its partner the same way. For 1:N hold Shift while clicking the shorter segments and let go to finish. Delete takes one back, Esc all.",
   mn_segment_sewing: "Click the segments of the first side, Enter; click the segments of the other side, Enter. Delete takes one back, Esc all.",
   free_sewing: "Click where the sewing line starts and where it ends, then the same on the other line: a dot marks the matching length. Right-click after the first click to type a length. Hold Shift on the second side for 1:N.",
@@ -4875,10 +5089,18 @@ function cvDown(e) {
 cv.addEventListener("pointermove", (e) => cvMove(e));
 // the pointer has left the 2D window: what is written beside it goes (the selected lines' sum)
 cv.addEventListener("pointerleave", () => { S.mouseOut = true; draw(); });
+/* (Round H1c / A) THE POSITION READOUT: X and Y each in a slot of its own, as wide as the widest value (a sign, six digits, a point and
+   three decimals: 11 characters of the bar's monospaced face, digits of one width), the number at its right edge, so no label moves
+   whatever the value: 0, -0.5 or -12345.6. */
+function posShow(w) {
+  const x = document.getElementById("s-x"), y = document.getElementById("s-y");
+  if (x && y) { x.textContent = fmt(w.x); y.textContent = fmt(w.y); return; }
+  const p = document.getElementById("s-pos"); if (p) p.textContent = "X " + fmt(w.x) + "  Y " + fmt(w.y);
+}
 function cvMove(e) {
   S.mouseOut = false;
   const { sx, sy, w } = ev(e);
-  document.getElementById("s-pos").textContent = "X " + fmt(w.x) + "  Y " + fmt(w.y);
+  posShow(w);
   const d = S.drag;
   if (d && pushLater) pushFlush();
   if (!d) {
@@ -5251,7 +5473,7 @@ cv.addEventListener("wheel", (e) => {
   S.view.x = sx - (sx-S.view.x)*(ns/S.view.s);
   S.view.y = sy - (sy-S.view.y)*(ns/S.view.s);
   S.view.s = ns;
-  document.getElementById("s-zoom").textContent = "Z " + Math.round(S.view.s*100) + "%";
+  zoomShow();
   drawSoon();
 }, { passive: false });
 
@@ -13310,6 +13532,9 @@ function keyTable() {
   row("order:backward", "Ctrl+[", "Send Backward (the selected patterns, one step)", "Edit", () => orderSel("backward"), { hist: "Send Backward" });
   row("order:front", "Ctrl+Shift+]", "Bring to Front (the selected patterns)", "Edit", () => orderSel("front"), { hist: "Bring to Front" });
   row("order:back", "Ctrl+Shift+[", "Send to Back (the selected patterns)", "Edit", () => orderSel("back"), { hist: "Send to Back" });
+  // (Round H1c / A) the History panel: D, a key of its own (Shift+H turns patterns half round over the 3D window; U is Link Lines;
+  // O waits for Colorway, as the reference has it). It was U, giving way to Link Lines, in Round H1b
+  row("historyPanel", "D", "History panel", "View", () => setTimeline(!S.ui.timeline));
   row("linkLines", "U", "Edit Pattern: link the selected lines", "Edit", () => linkSelected(), { when: () => !KEYMAP.U && S.tool === "edit_pattern", pass: 1 });
   // View
   row("zoomSel", "F", "Zoom to the selection, or to fit (in 3D: Focus Zoom on the selected patterns)", "View", () => (S.over3d && sel3(true).length ? focusZoom3() : focusZoom()), { pass: 1 });
@@ -13734,7 +13959,7 @@ function zoomBy(f) {
   S.view.x = cx - (cx-S.view.x)*(ns/S.view.s);
   S.view.y = cy - (cy-S.view.y)*(ns/S.view.s);
   S.view.s = ns;
-  document.getElementById("s-zoom").textContent = "Z " + Math.round(S.view.s*100) + "%";
+  zoomShow();
   draw();
 }
 // Ctrl pressed or let go while a rectangle or ellipse is dragged: from the centre or from the corner, at once
@@ -15573,14 +15798,14 @@ function bootPieces() { return []; }
 // a new, empty document with every document setting at its default (the view, the preferences and the avatar are not the document's)
 function blankDoc() {
   S.known3 = null; S.home3 = null;
-  S.render = null; S.renderSet = false; S.pieces = []; S.seams = []; S.stitches = []; S.puckers = []; S.lineLinks = []; S.selMore = []; S.guides = []; S.measures = []; S.tacks = []; S.buttons = []; S.pipings = []; S.bindings = []; S.glues = []; S.selTrim = null; S.images = []; S.backdrop = null; S.avedit = normAvEdit(null); S.bgMode = null; S.lights = [];
+  S.render = null; S.renderSet = false; S.histOn = histNewOn(); S.hgroups = []; S.pieces = []; S.seams = []; S.stitches = []; S.puckers = []; S.lineLinks = []; S.selMore = []; S.guides = []; S.measures = []; S.tacks = []; S.buttons = []; S.pipings = []; S.bindings = []; S.glues = []; S.selTrim = null; S.images = []; S.backdrop = null; S.avedit = normAvEdit(null); S.bgMode = null; S.lights = [];
   S.notch = normNotch(null); S.grading = defaultGrading(); S.lib = normLib(null); S.layout = normLayout(null); S.cloth = normCloth(null); S.drapeIn = null;
   G3.look = null; S.states3 = [];
   S.docAv = null; S.docAvAsk = false; S.docAvTried = false; S.docAvFile = null; S.avEmbed = null; S.garMeas = []; S.docPose = null;
   avatarOwnBack();
   avatarNone();                                              // a new document starts with no avatar
   S.nextId = 1;
-  S.undo = []; S.redo = []; S.un = []; S.rn = [];
+  histNone();
   S.sel = []; S.selSeam = null; S.selPt = S.selSeg = S.selInt = -1; S.selKind = "outline"; S.hover = null; S.draft = null;
   G3.fresh = true;
 }
@@ -15599,9 +15824,10 @@ function askUnsaved(what, go) {
 // the autosave, if it holds a document: { raw, d }. Anything else found there is moved aside at once.
 // done(rec or null): at once from kv(); from IndexedDB a moment later (or an older version's autosave in localStorage)
 function peekAutosaveThen(done) {
-  if (!useIdb()) return done(peekAutosave());
+  // (Round H1 / 1) with one's own avatar, kept beside it
+  if (!useIdb()) { const rec = peekAutosave(); if (rec) { let a = null, c = null; try { a = kv().getItem(AUTOSAVE_AV); c = kv().getItem(AUTOSAVE_CLOTH); } catch (e) {} rec.av = recAvatar(rec, a && avRecOf(a)); autosaveClothIn(rec.d, c); } return done(rec); }
   idbDo("readonly", (st) => st.get(AUTOSAVE_KEY)).then((raw) => {
-    if (typeof raw === "string" && raw) return done(peekRaw(raw));
+    if (typeof raw === "string" && raw) { const rec = peekRaw(raw); if (!rec) return done(rec); return idbDo("readonly", (st) => st.get(AUTOSAVE_AV)).then((a) => { rec.av = recAvatar(rec, typeof a === "string" ? avRecOf(a) : null); return idbDo("readonly", (st) => st.get(AUTOSAVE_CLOTH)); }).then((c) => { autosaveClothIn(rec.d, typeof c === "string" ? c : null); done(rec); }, () => { autosaveClothIn(rec.d, null); done(rec); }); }
     let old = null;
     try { old = localStorage.getItem(AUTOSAVE_KEY); } catch (e) {}
     done(old ? peekRaw(old) : null);
@@ -15625,7 +15851,8 @@ function peekRaw(raw) {
 // put a recovered autosave on the screen; if it can't be drawn it is moved aside and the document is blank (false)
 function recoverDoc(rec) {
   // (Round H1a / 2) with the history it was autosaved with, as a file brings its own (an older autosave has none)
-  try { loadDoc(rec.d); checkDoc(S.pieces, S.seams); const h = histUnpack(rec.d.history, rec.d.v); S.undo = h ? h.undo : []; S.redo = h ? h.redo : []; S.un = h ? h.un : []; S.rn = h ? h.rn : []; showDoc(); return true; }
+  // (Round H1 / 1: S.docAvFile, one's own avatar kept beside the autosave)
+  try { loadDoc(rec.d); checkDoc(S.pieces, S.seams); S.docAvFile = rec.av || null; histTake(histUnpack(rec.d.history, rec.d.v)); showDoc(); return true; }
   catch (e) {
     quarantineAutosave(rec.raw, e);
     blankDoc(); showDoc();
@@ -15651,6 +15878,8 @@ function recoverChoice(yes) {
       S.dirty = true; if (!saveFailed) saveState("ok");
       if (DESK) { let p = null; try { p = localStorage.getItem(FILE_KEY); } catch (e) {} setFile(p); }
       toast("Recovered. Save it to keep it" + (curveNote() || "."), curveNote() ? 9000 : 5000);
+      // (Round H1 / 1) the document's avatar, as an opened file brings its own: the 3D window may have come up before the answer
+      if (typeof avatarCheck === "function") avatarCheck();
     } else if (!saveFailed) markClean();
   } else {
     // kept once more under another name, in case Discard was a slip of the hand
@@ -15766,52 +15995,178 @@ function histDeltaOf(prev, cur) {
   HIST_DELTA.set(cur, { prev, d });
   return d;
 }
-// the timeline as it goes into a file: the last `max` done steps and every undone one. null if there is nothing to save.
-function histPack(max) {
+/* The history as it goes into a file (Round H1 / 1: v4, the whole tree; a file of version 31 and older has v3, one strand): every
+   node, a parent before its children, with what it changed from its parent (the drape left out), its name and tool, its Save State's
+   name and its place in the panel when it has them; where the document is (at) and the end of the branch worked on (head). A node's
+   cloth goes with it only at a Save State or a branch point (cloth: each pattern's points, by offset into histcloth.bin, or as base64
+   in crash recovery's text: bin null); any other node that had one says so (drape: 1). null if there is nothing to keep (max 0: the
+   preference History in the File keeps none). */
+/* (Round H1b / 1) A Save State always keeps its cloth; a branch point only with Settings ▸ Preferences ▸ Keep Cloth at Branch Points (off:
+   a draped jacket's cloth is about 0.3 MB a node, histClothIds()). apart: the autosave's way (crash recovery's text), each node's cloth
+   left out as "apart" and the cloth gathered in apart.hist, written beside the autosave only when it changed (autosaveClothNext()). */
+function histClothIds() {
   histFit();
-  if (!(max > 0)) return null;
-  // (Round perf-2 / 5) every step in parts (a step kept as one text is put into parts first); what each changed is read off the
-  // parts, the drape left out
-  const states = [...S.undo, histState(), ...S.redo.slice().reverse()].map(t => (typeof t === "string" ? histState(histObj(t)) : t)), steps = [...S.un, ...S.rn.slice().reverse()];
-  let at = S.undo.length;
-  const drop = Math.max(0, at - max);
-  states.splice(0, drop); steps.splice(0, drop); at -= drop;
-  if (!steps.length) return null;
-  return { v: 3, fv: FILE_VERSION, at, steps: steps.map(s => (s.tool ? { n: s.n, tool: s.tool } : { n: s.n })), states: states.map((s, k) => histDeltaOf(k ? states[k-1] : null, s)) };
+  const k = new Set(S.hsave.keys());
+  if (S.prefs && S.prefs.keepBranchCloth) { const c = new Map(); for (const x of histNodes().nodes.values()) if (x.up != null) c.set(x.up, (c.get(x.up) || 0) + 1); for (const [id, n] of c) if (n > 1) k.add(id); }      // (a branch point: two children or more)
+  return k;
+}
+function histPack(max, bin, apart) {
+  histFit();
+  if (!(max > 0) || S.histOn === false) return null;                 // (Round H1b / 3: the project's history off: none in the file)
+  const { nodes, path, at } = histNodes();
+  if (nodes.size < 2) return null;
+  const parts = (t) => (typeof t === "string" ? histState(histObj(t)) : t);
+  nodes.get(path[at]).st = histState();
+  for (const x of nodes.values()) x.st = parts(x.st);
+  const kept = histClothIds(), LN = hgLanes(nodes, path, at);      // (Round H1d / B: every node's lane, written with it)
+  let o = 0;
+  const cloth = (st) => {
+    const d = st && st.drape3 != null ? poolGet(st.drape3) : null;
+    if (!d) return null;
+    const out = {};
+    for (const pid of Object.keys(d)) {
+      const e = d[pid], bytes = new Uint8Array(e.X.buffer, e.X.byteOffset, e.X.byteLength);
+      if (bin) { out[pid] = { k: e.k, n: e.n, o }; bin.push(bytes); o += bytes.length; } else out[pid] = { k: e.k, n: e.n, x: b64Of(bytes) };
+    }
+    return Object.keys(out).length ? out : null;
+  };
+  const list = [...nodes.values()].sort((a, b) => a.id - b.id).map((x) => {
+    const n = { id: x.id, n: x.n, d: histDeltaOf(x.up == null ? null : nodes.get(x.up).st, x.st) };
+    if (x.up != null) n.up = x.up;
+    if (x.tool) n.tool = x.tool;
+    if (S.hsave.has(x.id)) n.save = S.hsave.get(x.id);
+    if (S.hui[x.id]) n.ui = S.hui[x.id];
+    if (LN && LN.lane.get(x.id) !== "s") n.l = LN.lane.get(x.id);
+    if (S.hjump[x.id]) n.j = { g: S.hjump[x.id].g, to: S.hjump[x.id].to };
+    if (x.id !== path[at] && x.st.drape3 != null) {
+      const has = kept.has(x.id) && poolHas(x.st.drape3);
+      if (has && apart) { n.cloth = "apart"; if (apart.hist) apart.hist[x.id] = cloth(x.st); } else { const c = has ? cloth(x.st) : null; if (c) n.cloth = c; else n.drape = 1; }
+    }
+    return n;
+  });
+  return { v: 4, fv: FILE_VERSION, at: path[at], head: path[path.length - 1], next: S.histNext, nodes: list };
 }
 // the file versions whose saved history this build can replay: a step holds whole patterns, and 12 to 15 changed nothing in them
 // that can't be read with its defaults
-const HIST_FV = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31];
-// a file's timeline as the undo and redo stacks: { undo, un, redo, rn }, or null if it has none or it is not usable
-function histUnpack(h, fv) {
+const HIST_FV = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33];
+// a state of a file's history in parts, as the session keeps them; prev: the parts of the state it is to share its unchanged parts with
+function histPartsOf(s, prev) {
+  histLast = prev || null;
+  return histState({ pieces: s.pieces, seams: s.seams || [], lib: s.lib, layout: s.layout, stitches: s.stitches || [], guides: s.guides || [], measures: s.measures || [], grading: s.grading, links: s.links || [], tacks: s.tacks || [], buttons: s.buttons || [], pipings: s.pipings || [], bindings: s.bindings || [], glues: s.glues || [], backdrop: s.backdrop || null, avedit: normAvEdit(s.avedit), lights: normLights(s.lights), ...(Array.isArray(s.puckers) && s.puckers.length ? { puckers: s.puckers } : {}), ...(Array.isArray(s.home) && s.home.length === 2 && s.home.every(Number.isFinite) ? { home: s.home } : {}), ...(Array.isArray(s.hgroups) && s.hgroups.length ? { hgroups: s.hgroups } : {}) });      // (Round r21 / 1: the puckering was left out, so undo after opening took it away)
+}
+/* (Round H1c / A) A node's cloth from a file is read only when it is wanted (going to that step, a save): at opening the snapshot is only
+   named (G3.poolLazy: id -> { c, bin }, the file's bytes kept as they came), and poolGet() makes it a drape snapshot the first time.
+   An open with ten Save States does not unpack their cloth. */
+function histClothIn(c, bin) {
+  if (!c || typeof c !== "object" || typeof G3 === "undefined" || !G3.pool) return null;
+  if (!Object.keys(c).some(pid => c[pid] && Number.isInteger(c[pid].n) && c[pid].n > 0)) return null;
+  const id = (G3.poolId = (G3.poolId || 0) + 1);
+  (G3.poolLazy = G3.poolLazy || new Map()).set(id, { c, bin: bin || null });
+  return id;
+}
+// a drape snapshot by its id, one named only (a file's) read now; null if there is none
+function poolGet(id) {
+  if (typeof G3 === "undefined" || !G3.pool) return null;
+  if (G3.pool.has(id)) return G3.pool.get(id);
+  const z = G3.poolLazy && G3.poolLazy.get(id);
+  if (!z) return null;
+  G3.poolLazy.delete(id);
+  const d = histClothRead(z.c, z.bin);
+  if (!d) return null;
+  G3.pool.set(id, d);
+  return d;
+}
+const poolHas = (id) => typeof G3 !== "undefined" && !!G3.pool && (G3.pool.has(id) || !!(G3.poolLazy && G3.poolLazy.has(id)));
+function histClothRead(c, bin) {
+  const d = {};
+  for (const pid of Object.keys(c)) {
+    const e = c[pid];
+    if (!e || typeof e.k !== "string" || !Number.isInteger(e.n) || e.n <= 0) continue;
+    let X = null;
+    if (bin && Number.isInteger(e.o) && e.o >= 0 && e.o + 12*e.n <= bin.length) X = new Float32Array(bin.slice(e.o, e.o + 12*e.n).buffer);
+    else if (typeof e.x === "string" && /^[A-Za-z0-9+/]*={0,2}$/.test(e.x) && e.x.length === Math.ceil(e.n*12/3)*4) X = new Float32Array(bytesOf(e.x).buffer);
+    if (X) d[pid] = { k: e.k, n: e.n, X };
+  }
+  return Object.keys(d).length ? d : null;
+}
+/* A file's history as the session keeps it: { undo, un, redo, rn, off, save, ui, next } (the four lists of the path and the tree's
+   stores, as histLay() lays them), or null if it has none or it is not usable. v2 / v3 (version 31 and older): one strand, its steps
+   nodes 1 to N. v4: the tree. bin: the bytes of histcloth.bin (a node's cloth), none in crash recovery's text. */
+function histUnpack(h, fv, bin) {
   try {
-    if (!h || (h.v !== 2 && h.v !== 3) || !HIST_FV.includes(h.fv) || fv !== h.fv || !Array.isArray(h.steps) || !Array.isArray(h.states) || h.states.length !== h.steps.length + 1) return null;
-    const at = h.at, N = h.steps.length;
-    if (!Number.isInteger(at) || at < 0 || at > N || N > 400) return null;
-    const states = [];
-    for (let k = 0; k <= N; k++) states.push((h.v === 3 ? histApply3 : histApply)(k ? states[k-1] : null, h.states[k]));
-    // (Round H1a / 2) every state with the defaults the file was written with, as the document itself (loadDoc() set FILE_DEFS)
-    if (FILE_DEFS) for (const s of states) defaultsFill(s, FILE_DEFS);
-    // (Round perf-2 / 5) each step in parts, as the session keeps them (a v2 history of an older file is taken over so)
+    if (!h || !HIST_FV.includes(h.fv) || fv !== h.fv) return null;
+    const nodes = new Map(), save = new Map(), ui = {}, lane = {}, jump = {};
+    let at, head, next;
+    if (h.v === 2 || h.v === 3) {
+      if (!Array.isArray(h.steps) || !Array.isArray(h.states) || h.states.length !== h.steps.length + 1) return null;
+      const N = h.steps.length;
+      if (!Number.isInteger(h.at) || h.at < 0 || h.at > N || N > 400) return null;
+      let prev = null, parts = null;
+      for (let k = 0; k <= N; k++) {
+        const s = (h.v === 3 ? histApply3 : histApply)(prev, h.states[k]);
+        prev = s;
+        // (Round H1a / 2) every state with the defaults the file was written with, as the document itself (loadDoc() set FILE_DEFS)
+        if (FILE_DEFS) defaultsFill(s, FILE_DEFS);
+        parts = histPartsOf(s, parts);
+        const st = k ? h.steps[k - 1] : null;
+        nodes.set(k, { id: k, up: k ? k - 1 : null, n: k ? histClean(st && st.n) || "Edit" : "Start", tool: st && typeof st.tool === "string" ? st.tool : "", st: parts });
+      }
+      at = h.at; head = N; next = N + 1;
+    } else if (h.v === 4) {
+      if (!Array.isArray(h.nodes) || !h.nodes.length || h.nodes.length > 50000) return null;
+      const plain = new Map();
+      for (const x of h.nodes) {
+        if (!x || !Number.isInteger(x.id) || x.id < 0 || nodes.has(x.id)) return null;
+        const root = x.up === undefined || x.up === null;
+        if (root ? nodes.size : !plain.has(x.up)) return null;            // one start, and a parent before its children
+        const s = histApply3(root ? null : plain.get(x.up), x.d);
+        if (FILE_DEFS) defaultsFill(s, FILE_DEFS);
+        plain.set(x.id, s);
+        const st = histPartsOf(s, root ? null : nodes.get(x.up).st);
+        if (x.cloth) { const id = typeof x.cloth === "object" ? histClothIn(x.cloth, bin || null) : null; if (id) st.drape3 = id; else st.drape3 = -1; }
+        else if (x.drape) st.drape3 = -1;                                 // it had a cloth that was not kept: going there asks for a Re-drape
+        nodes.set(x.id, { id: x.id, up: root ? null : x.up, n: histClean(x.n) || (root ? "Start" : "Edit"), tool: typeof x.tool === "string" ? x.tool : "", st });
+        if (typeof x.save === "string" && x.save.trim()) save.set(x.id, x.save.trim().slice(0, 80));
+        if (x.ui && Number.isFinite(x.ui.x) && Number.isFinite(x.ui.y)) ui[x.id] = { x: x.ui.x, y: x.ui.y };
+        if (Number.isInteger(x.l) && x.l > 0) lane[x.id] = x.l; else if (!root) lane[x.id] = "s";      // (Round H1d / B)
+        if (x.j && Number.isInteger(x.j.g) && Number.isInteger(x.j.to)) jump[x.id] = { g: x.j.g, to: x.j.to };
+      }
+      at = h.at; head = h.head; next = Math.max(Number.isInteger(h.next) ? h.next : 1, Math.max(...nodes.keys()) + 1);
+      if (!nodes.has(at)) return null;
+    } else return null;
+    // the path: from the start to the end of the branch worked on, where the document is on it (else the branch through it)
+    const up = (id) => { const p = []; for (let k = id; k != null && nodes.has(k); k = nodes.get(k).up) p.unshift(k); return p; };
+    let path = nodes.has(head) ? up(head) : null, i = path ? path.indexOf(at) : -1;
+    if (i < 0) { const t = histPathThrough(nodes, at); path = t.path; i = t.at; }
+    const on = new Set(path), nm = (id) => ({ n: nodes.get(id).n, tool: nodes.get(id).tool, id }), off = new Map();
+    for (const x of nodes.values()) if (!on.has(x.id)) off.set(x.id, { id: x.id, up: x.up, n: x.n, tool: x.tool, st: x.st });
     histLast = null;
-    const text = states.map(s => histState({ pieces: s.pieces, seams: s.seams || [], lib: s.lib, layout: s.layout, stitches: s.stitches || [], guides: s.guides || [], measures: s.measures || [], grading: s.grading, links: s.links || [], tacks: s.tacks || [], buttons: s.buttons || [], pipings: s.pipings || [], bindings: s.bindings || [], glues: s.glues || [], backdrop: s.backdrop || null, avedit: normAvEdit(s.avedit), lights: normLights(s.lights), ...(Array.isArray(s.puckers) && s.puckers.length ? { puckers: s.puckers } : {}), ...(Array.isArray(s.home) && s.home.length === 2 && s.home.every(Number.isFinite) ? { home: s.home } : {}) }));      // (Round r21 / 1: the puckering was left out, so undo after opening took it away)
-    const steps = h.steps.map(s => ({ n: histClean(s && s.n) || "Edit", tool: s && typeof s.tool === "string" ? s.tool : "" }));
-    return { undo: text.slice(0, at), un: steps.slice(0, at), redo: text.slice(at + 1).reverse(), rn: steps.slice(at).reverse() };
+    return { undo: path.slice(0, i).map(id => nodes.get(id).st), un: path.slice(1, i + 1).map(nm), redo: path.slice(i + 1).reverse().map(id => nodes.get(id).st),
+      rn: path.slice(i + 1).reverse().map(nm), off, save, ui, next, lane, jump };
   } catch (e) { return null; }
 }
+// a file's history (histUnpack()) into the session, or none
+function histTake(h) {
+  S.undo = h ? h.undo : []; S.redo = h ? h.redo : []; S.un = h ? h.un : []; S.rn = h ? h.rn : [];
+  S.hoff = h ? h.off : new Map(); S.hsave = h ? h.save : new Map(); S.hui = h ? h.ui : {}; S.histNext = h ? h.next : Math.max(S.histNext || 1, 1);
+  S.hlane = h && h.lane ? h.lane : {}; S.hjump = h && h.jump ? h.jump : {};      // (Round H1d / B: each node's lane, the steps that took one group back)
+  histMade = []; hgAsk = null;
+}
+// no history at all: the tree's stores emptied too
+function histNone() { S.undo = []; S.redo = []; S.un = []; S.rn = []; S.hoff = new Map(); S.hsave = new Map(); S.hui = {}; S.hlane = {}; S.hjump = {}; histMade = []; hgAsk = null; }
 function clearHistory() {
   histFit();
-  const n = S.undo.length + S.redo.length;
-  S.undo = []; S.redo = []; S.un = []; S.rn = [];
+  const n = S.undo.length + S.redo.length + S.hoff.size;
+  histNone();
   renderTimeline(); if (n) store();
   toast(n ? "History cleared: " + n + (n === 1 ? " step" : " steps") + ". The document stays as it is." : "The history is empty");
 }
+// (Round H1: the file keeps the whole history or none; it kept the last n done steps. The preference's number stays: above 0 is all)
 function histKeepDialog(at) {
-  numDialog("History in the File", [{ k: "n", label: "Steps saved", val: histKeep(), unit: "", step: 1 }], at || { x: window.innerWidth/2 - 120, y: 110 }, (v) => {
-    const n = Math.round(v.n);
-    if (!(n >= 0 && n <= 90)) return toast("0 to 90 steps (0 saves no history)");
-    setPrefs({ histKeep: n }); toast(n ? "Save keeps the last " + n + " steps of the history in the file" : "Save keeps no history in the file");
-  }, { hint: "How many steps of the history timeline Save writes into the pattern file, to be there again when it is opened. Steps are stored as what changed, so most add little; 0 saves none. Edit → Clear History empties the timeline." });
+  numDialog("History in the File", [{ k: "n", label: "Save the history", val: histKeep() > 0 ? "all" : "none", options: [["all", "Every step and branch (up to 500 steps a branch)"], ["none", "None"]] }], at || { x: window.innerWidth/2 - 120, y: 110 }, (v) => {
+    const all = v.n !== "none";
+    setPrefs({ histKeep: all ? Math.max(histKeep(), 50) : 0 }); toast(all ? "Save keeps the whole history in the file" : "Save keeps no history in the file");
+  }, { hint: "Whether Save writes the history into the pattern file, to be there again when it is opened: every step, every branch and Save State, as what changed, so most steps add little. Edit → Clear History empties it." });
 }
 
 /* ---- the drape, in the file ---- */
@@ -15879,7 +16234,7 @@ function drapeCapture() {
 }
 // put the cloth into snapshot id: a cloth it has (the same mesh) takes its points, any other goes back flat where it is arranged
 function drapeApply(id) {
-  const d = G3.pool.get(id);
+  const d = poolGet(id);
   if (!d) return false;
   for (const p of S.pieces) {
     const it = G3.items.get(p.id);
@@ -15897,14 +16252,21 @@ function drapeApply(id) {
 function drapeBack() {
   const id = S.drapeWant;
   S.drapeWant = null;
-  if (!id || id === G3.drapeNow || !G3.pool.has(id) || !view3d.ready()) return;
+  // (Round H1 / 1) a step whose cloth was not kept (in a file: only Save States and branch points keep theirs; in the session the oldest
+  // snapshots are let go): the cloth stays as it is, and the 3D window says to Re-drape. Nothing simulates by itself.
+  if (id && id !== G3.drapeNow && !poolHas(id)) { G3.redrape = true; if (typeof note3d === "function") note3d(); return; }
+  if (!id || id === G3.drapeNow || !poolHas(id) || !view3d.ready()) return;
+  G3.redrape = false;
   if (G3.dirty) garmentSync();
   drapeApply(id);
 }
 // the snapshots no step names any more and no 3D state holds are let go (the newest are kept)
 function drapePrune() {
   if (G3.pool.size <= 24) return;
-  const named = [...S.undo, ...S.redo].map(st => (typeof st === "string" ? st : st.drape3 !== undefined ? '"drape3":' + st.drape3 + "}" : "")).join(" "), keep = new Set([G3.drapeNow, ...((S.states3 || []).map(st => st.pool)), ...(G3.look ? [G3.look.back] : [])]);
+  // (Round H1 / 1) the branches' steps name drapes too, and a Save State's or a branch point's cloth is never let go
+  const offSt = S.hoff instanceof Map ? [...S.hoff.values()].map(x => x.st) : [], kept = typeof histKeptIds === "function" ? histKeptIds() : new Set();
+  for (const x of S.hoff instanceof Map ? S.hoff.values() : []) if (kept.has(x.id) && x.st && x.st.drape3 != null) G3.pool.get(x.st.drape3) && kept.add("p" + x.st.drape3);
+  const named = [...S.undo, ...S.redo, ...offSt].map(st => (typeof st === "string" ? st : st.drape3 !== undefined ? '"drape3":' + st.drape3 + "}" : "")).join(" "), keep = new Set([G3.drapeNow, ...((S.states3 || []).map(st => st.pool)), ...(G3.look ? [G3.look.back] : []), ...[...kept].filter(k => typeof k === "string").map(k => +k.slice(1))]);
   for (const id of [...G3.pool.keys()].slice(0, -8)) if (!keep.has(id) && !named.includes('"drape3":' + id + "}") && !named.includes('"drape3":' + id + ",")) G3.pool.delete(id);
 }
 /* ---- 3D states (Round F / 10; W46, decision Q21) ----
@@ -18491,6 +18853,7 @@ function patternMenu(p, at, w, ro) {
     { n: "Mirror Paste (Position Only)", f: () => paste("pos") },
     { n: "Replace (by the Copied Pattern)", f: () => replaceFromClip(p) },
     !ro && { n: "Add Annotation…", f: () => noteDialog(at, p, null, w) },
+    !ro && { n: "Create History Group\u2026", f: () => hgCreate(S.sel.includes(p.id) ? S.sel.slice() : [p.id]) },      // (Round H1d / B)
     p.link && { n: p.link.kind === "instance" ? "Remove Instance" : "Unlink Symmetric Pattern", f: () => { push(); delete p.link; commit(); toast("Unlinked — it is now an ordinary pattern"); } },
     p.half && { n: "Remove Half Symmetry", f: () => { push(); delete p.half; commit(); toast("The two halves are now independent"); } },
     p.group && { n: "Ungroup", f: () => { if (!S.sel.includes(p.id)) S.sel = groupIds(p); ungroupSel(); } },      // (Round r34 / 7)
@@ -19280,13 +19643,15 @@ function pdraftFiles() {
   if (dr.length) { d.drape = {}; let o = 0; for (const x of dr) { d.drape[x.id] = { k: x.k, n: x.n, o }; all.set(x.bytes, o); o += x.bytes.length; } }
   const av = avatarEmbedded();
   if (av && d.scene.avatar) d.scene.avatar.file = "avatar/" + av.name.replace(/[^\w.-]+/g, "_");
-  const hist = histPack(histKeep()), st3 = states3Out(true);
+  const hcloth = [], hist = histPack(histKeep(), hcloth), st3 = states3Out(true);
   if (st3.list) d.states3 = st3.list;
   files.push({ name: "document.json", data: json(d) });
   if (hist) files.push({ name: "history.json", data: json(hist) });
   files.push(...pics);
   if (dr.length) files.push({ name: "drape.bin", data: all });
   if (st3.list && st3.bin.length) files.push({ name: "states3.bin", data: st3.bin });
+  // (Round H1 / 1) the cloth of the history's Save States and branch points, each node's patterns by offset (histPack())
+  if (hist && hcloth.length) { const all = new Uint8Array(hcloth.reduce((n, b) => n + b.length, 0)); let o = 0; for (const b of hcloth) { all.set(b, o); o += b.length; } files.push({ name: "histcloth.bin", data: all }); }
   if (av && d.scene.avatar) files.push({ name: d.scene.avatar.file, data: av.bytes });
   return files;
 }
@@ -19308,6 +19673,8 @@ function pdraftDoc(parts) {
   }
   d.drape = dr;
   d.states3Bin = parts.get("states3.bin") || null;
+  const hcloth = parts.get("histcloth.bin");                 // (Round H1 / 1) the cloth of the history's Save States and branch points
+  if (hcloth) d.histCloth = hcloth;
   const hist = parts.get("history.json");
   if (hist) try { d.history = JSON.parse(utf8Text(hist)); } catch (e) {}
   const rec = d.scene && d.scene.avatar, body = rec && typeof rec.file === "string" && parts.get(rec.file);
@@ -19558,14 +19925,13 @@ function openText(name, text, path, sure) {
 // a pattern document read from a file replaces the one that is open (after asking about unsaved work) and brings its own history timeline
 function openLoaded(name, d, path, sure) {
   if (sure !== true && unsavedWork()) return askUnsaved("open " + name, () => openLoaded(name, d, path, true));
-  const was = { doc: JSON.parse(docJSON()), undo: S.undo, redo: S.redo, un: S.un, rn: S.rn, images: S.images, av: [S.docAv, S.docAvAsk, S.docAvTried, S.docAvFile, S.avEmbed] };
+  const was = { doc: JSON.parse(docJSON()), undo: S.undo, redo: S.redo, un: S.un, rn: S.rn, tree: [S.hoff, S.hsave, S.hui, S.histNext], images: S.images, av: [S.docAv, S.docAvAsk, S.docAvTried, S.docAvFile, S.avEmbed] };
   try {
     loadDoc(d); checkDoc(S.pieces, S.seams);
     avatarOwnBack();                                           // the document before this one may have had the avatar stood its own way
     S.docAvFile = d.avatarFile || null;
     // (a file that names no avatar, as every file of version 11 and older, leaves the scene's avatar as it is: no record, no change)
-    const h = histUnpack(d.history, d.v);
-    S.undo = h ? h.undo : []; S.redo = h ? h.redo : []; S.un = h ? h.un : []; S.rn = h ? h.rn : [];
+    histTake(histUnpack(d.history, d.v, d.histCloth || null));      // (Round H1 / 1: the tree, with the cloth of its Save States and branch points)
     S.sel = []; S.selPt = S.selSeg = S.selInt = -1; S.selMore = []; S.hover = null; S.draft = null;
     commit(); fitAll(); markClean();
     const n = S.undo.length + S.redo.length;
@@ -19577,7 +19943,7 @@ function openLoaded(name, d, path, sure) {
     try { grainOffer(name, d.v || 0); } catch (e) { console.error(e); }      // (r25 follow-up) a file from before version 25 with imported grainlines: never in the way of opening it
   } catch (err) {
     // back to the document that was open
-    try { loadDoc(was.doc); S.images = was.images; S.undo = was.undo; S.redo = was.redo; S.un = was.un; S.rn = was.rn; [S.docAv, S.docAvAsk, S.docAvTried, S.docAvFile, S.avEmbed] = was.av; commit(); } catch (e) {}
+    try { loadDoc(was.doc); S.images = was.images; S.undo = was.undo; S.redo = was.redo; S.un = was.un; S.rn = was.rn; [S.hoff, S.hsave, S.hui, S.histNext] = was.tree; [S.docAv, S.docAvAsk, S.docAvTried, S.docAvFile, S.avEmbed] = was.av; commit(); } catch (e) {}
     toast("Couldn't open " + name + ": " + ((err && err.message) || "it is not a pattern file this program can draw"), 6000);
   }
 }
@@ -19700,39 +20066,760 @@ function setTimeline(on) {
   renderTimeline();
   if (S.mode === "layout") layoutResize(); else resize();
 }
+/* ================================================================
+   (Round H1b / 2) THE HISTORY PANEL
+   The history as a graph, in the place of the timeline strip: across the bottom of both windows, opened by the status bar's HISTORY
+   button, Edit ▸ History, Window ▸ History or U (keyTable(): not while Edit Pattern has lines selected, where U links them). It opens
+   at a third of the window's height; its top edge drags it taller or lower (S.ui.histH, a preference). A dark dot grid, panned by a
+   drag on empty space and zoomed by the wheel (forward in, as everywhere; Settings ▸ View controls turns it round), the view only for
+   the session (HP.view). Every node one card: its name on a strip at the top (a double-click there renames it, ✎), its body below
+   (a double-click there goes to that step: on another branch that branch becomes the one worked on; ⤺). A click only selects
+   (HP.sel); nothing happens in the windows. A card is dragged anywhere (its place kept in the file, S.hui); cables join a step to the
+   next and cannot be edited. A run of the same command on the same patterns is one card, "Edit Curve Point ×12", opened by a click on
+   its ×12 (HP.open) and closed the same way. The document's node has a thick frame and a ▼ "here" above it; what is after it on its
+   branch, and every other branch, is hatched and dimmed (not by colour alone). Only what is in view is drawn.
+   ================================================================ */
+const HP = { view: { x: 40, y: 34, s: 1 }, sel: null, open: new Set(), drag: null, lay: null, key: "", raf: 0 };
+const HP_W = 156, HP_H = 48, HP_NAME = 20, HP_GX = 196, HP_GY = 78, HP_DOT = 20;
+// the patterns a step changed (as a key), or null where it cannot be said (a step kept as one text, patterns added or taken away)
+const HP_TOUCH = new WeakMap();
+function histTouched(st, up) {
+  if (!st || !up || typeof st === "string" || typeof up === "string") return null;
+  const m = HP_TOUCH.get(st);
+  if (m && m.up === up) return m.k;
+  const a = st.k.pieces, b = up.k.pieces;
+  let k = null;
+  if (a && b && typeof a !== "string" && typeof b !== "string" && a.ids.length === b.ids.length && a.ids.every((id, i) => id === b.ids[i])) {
+    const ch = []; a.ids.forEach((id, i) => { if (a.t[i] !== b.t[i]) ch.push(id); });
+    k = ch.join(",");
+  }
+  HP_TOUCH.set(st, { up, k });
+  return k;
+}
+// the cards: every node, a run of the same command on the same patterns one card (unless opened), placed by depth and branch
+function hpLayout() {
+  histFit();
+  const { nodes, path, at } = histNodes(), here = path[at];
+  const key = [pushCount, S.un.length, S.rn.length, S.hoff.size, here, S.hsave.size, [...HP.open].join("."), JSON.stringify(S.hui), S.un.length ? S.un[S.un.length - 1].n : "", JSON.stringify(S.hgroups || []), Object.keys(S.hjump || {}).length].join("|");
+  if (HP.lay && HP.key === key) return HP.lay;
+  // (Round H1d / B) with History Groups: a band a lane
+  { const LN = hgLanes(nodes, path, at); if (LN) { HP.lay = hpLayoutLanes(nodes, path, at, LN); HP.key = key; return HP.lay; } }
+  const kids = histKids(nodes), onPath = new Map(path.map((id, i) => [id, i])), cards = [], byId = new Map();
+  const live = histState(), stOf = (id) => (id === here ? live : nodes.get(id).st);      // (the document's node: the document as it is)
+  const sameRun = (a, b) => {                                // b follows a on its own (a's one child), the same command on the same patterns
+    const A = nodes.get(a), B = nodes.get(b);
+    if (!A || !B || A.up == null || (kids.get(a) || []).length !== 1 || S.hsave.has(a) || S.hsave.has(b) || A.n !== B.n || A.id === here) return false;
+    const ka = histTouched(stOf(a), nodes.get(A.up).st), kb = histTouched(stOf(b), stOf(a));
+    return ka !== null && ka !== "" && ka === kb;
+  };
+  let rows = 0;
+  // (opened: a run opened by its count stays open all along, each of its steps its own card)
+  const place = (id, col, row, up, opened) => {
+    const ids = [id], open = opened || HP.open.has(id);
+    if (!open) while ((kids.get(ids[ids.length - 1]) || []).length === 1 && sameRun(ids[ids.length - 1], kids.get(ids[ids.length - 1])[0])) ids.push(kids.get(ids[ids.length - 1])[0]);
+    const last = ids[ids.length - 1], n = nodes.get(id);
+    const after = ids.every(k => !onPath.has(k) || onPath.get(k) > at);
+    // (its kind as the strip had it, Round C / C8: a tool's step its tool's icon, every other kind its own glyph, by shape)
+    const kd = id === 0 ? null : histKind({ n: n.n, tool: n.tool }), tl = n.tool ? REG.tools.find(t => t.id === n.tool) : null;
+    const c = { id, ids, last, n: n.n, tool: n.tool, col, row, up, here: ids.includes(here), later: after, save: S.hsave.get(id) || null, x: col*HP_GX, y: row*HP_GY,
+      kind: kd ? kd.k : "start", kindName: kd ? kd.name : "Start", glyph: tl ? REG.glyphs[String(tl.icon || "").split("+")[0]] || null : null,
+      kindD: kd ? (HIST_KINDS.find(x => x[0] === kd.k) || [, , , HIST_GLYPH])[3] : HIST_START };
+    if (S.hui[id]) { c.x = S.hui[id].x; c.y = S.hui[id].y; }
+    cards.push(c); for (const k of ids) byId.set(k, c);
+    const ks = (kids.get(last) || []).slice().sort((p, q) => (onPath.has(q) ? 1 : 0) - (onPath.has(p) ? 1 : 0) || p - q);   // the path's child first, on this row
+    ks.forEach((k, i) => place(k, col + 1, i === 0 ? row : ++rows, c, open && ks.length === 1 && sameRun(last, k)));
+  };
+  if (nodes.has(0)) place(0, 0, 0, null);
+  HP.lay = { cards, byId, here, path, at }; HP.key = key;
+  return HP.lay;
+}
+// the panel's canvas, and a frame for it at the next screen frame
+const hpCanvas = () => document.getElementById("hp-cv");
+function hpSoon() { if (HP.raf) return; HP.raf = 1; const f = () => { HP.raf = 0; hpDraw(); }; if (typeof requestAnimationFrame === "function") requestAnimationFrame(f); else f(); }
+const hpToScreen = (x, y) => ({ x: x*HP.view.s + HP.view.x, y: y*HP.view.s + HP.view.y });
+const hpToWorld = (x, y) => ({ x: (x - HP.view.x)/HP.view.s, y: (y - HP.view.y)/HP.view.s });
+// what is under a point of the canvas: { card, part: "name" | "body" | "count" } or null
+function hpHit(px, py) {
+  const L = hpLayout(), w = hpToWorld(px, py);
+  for (let i = L.cards.length - 1; i >= 0; i--) {
+    const c = L.cards[i];
+    if (w.x < c.x || w.x > c.x + HP_W || w.y < c.y || w.y > c.y + HP_H) continue;
+    if (c.ids.length > 1 || HP.open.has(c.id)) { if (w.x > c.x + HP_W - 40 && w.y > c.y + HP_NAME) return { card: c, part: "count" }; }
+    return { card: c, part: w.y < c.y + HP_NAME ? "name" : "body" };
+  }
+  return null;
+}
+function hpDraw() {
+  const cv = hpCanvas();
+  if (!cv || !S.ui.timeline || typeof cv.getContext !== "function") return;
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1, W = Math.max(1, Math.round(r.width)), H = Math.max(1, Math.round(r.height));
+  if (cv.width !== W*dpr || cv.height !== H*dpr) { cv.width = W*dpr; cv.height = H*dpr; }
+  const g = cv.getContext("2d"), v = HP.view, s = v.s;
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.fillStyle = "#1c1c1e"; g.fillRect(0, 0, W, H);
+  // the dot grid
+  const step = HP_DOT*s;
+  if (step >= 6) { g.fillStyle = "#3a3a3d"; for (let x = ((v.x % step) + step) % step; x < W; x += step) for (let y = ((v.y % step) + step) % step; y < H; y += step) g.fillRect(x - 0.75, y - 0.75, 1.5, 1.5); }
+  const L = hpLayout(), seen = (c) => { const p = hpToScreen(c.x, c.y); return p.x < W + 20 && p.y < H + 20 && p.x + HP_W*s > -20 && p.y + HP_H*s > -20; };
+  if (L.bands) hpDrawBands(g, L, W);                         // (Round H1d / B: the lanes)
+  // (Round H1d / C) a Split Off group's first step, dotted back to the step it was split off from
+  for (const k of L.links || []) { const a = hpToScreen(k.a.x + HP_W/2, k.a.y + HP_H), b = hpToScreen(k.b.x, k.b.y + HP_H/2); g.strokeStyle = "#c8c8cc"; g.lineWidth = Math.max(1, 1.5*s); g.setLineDash([2*s, 4*s]); g.beginPath(); g.moveTo(a.x, a.y); g.bezierCurveTo(a.x, b.y, a.x, b.y, b.x, b.y); g.stroke(); g.setLineDash([]); }
+  // cables: from a card's right edge to the next one's left edge; to a step after the document's node or on another branch, dashed
+  g.lineWidth = Math.max(1, 1.5*s);
+  for (const c of L.cards) {
+    if (!c.up || (!seen(c) && !seen(c.up))) continue;
+    const a = hpToScreen(c.up.x + HP_W, c.up.y + HP_H/2), b = hpToScreen(c.x, c.y + HP_H/2), m = Math.max(20, (b.x - a.x)/2);
+    g.strokeStyle = c.later ? "#6a6a6e" : "#a8a8ad"; g.setLineDash(c.later ? [5*s, 4*s] : []);
+    g.beginPath(); g.moveTo(a.x, a.y); g.bezierCurveTo(a.x + m, a.y, b.x - m, b.y, b.x, b.y); g.stroke();
+  }
+  g.setLineDash([]);
+  const font = (px, bold) => (bold ? "600 " : "") + Math.max(7, Math.round(px*s)) + "px " + LBL_FACE;
+  for (const c of L.cards) {
+    if (!seen(c)) continue;
+    const p = hpToScreen(c.x, c.y), w = HP_W*s, h = HP_H*s, nh = HP_NAME*s;
+    g.globalAlpha = c.later ? 0.5 : 1;
+    g.fillStyle = "#2b2b2e"; g.fillRect(p.x, p.y, w, h);
+    g.fillStyle = "#3a3a3f"; g.fillRect(p.x, p.y, w, nh);
+    if (c.gc) { g.fillStyle = c.gc; g.fillRect(p.x, p.y, 4*s, h); }      // (Round H1d / B: its group's colour along its left edge; the band says the name)
+    // the future and other branches: hatched as well as dimmed
+    if (c.later) { g.save(); g.beginPath(); g.rect(p.x, p.y, w, h); g.clip(); g.strokeStyle = "#555559"; g.lineWidth = 1; for (let k = -h; k < w; k += 7*s) { g.beginPath(); g.moveTo(p.x + k, p.y + h); g.lineTo(p.x + k + h, p.y); g.stroke(); } g.restore(); }
+    g.fillStyle = "#e6e6e6"; g.font = font(10.5, true); g.textBaseline = "middle";
+    const name = c.ids.length > 1 ? c.n : c.n;
+    g.fillText(hpFit(g, name, w - 22*s), p.x + 6*s, p.y + nh/2);
+    g.fillStyle = "#9a9aa0"; g.font = font(10); g.fillText("✎", p.x + w - 14*s, p.y + nh/2);                  // ✎ rename
+    // the body: the tool's icon (or the kind's glyph) with the kind's glyph small in its corner, then ⤴ (go here) and the tool or kind
+    const by = p.y + nh + (h - nh)/2, gs = 16*s;
+    hpGlyph(g, c.glyph || c.kindD, p.x + 6*s, by - gs/2, gs, "#d0d0d4");
+    if (c.glyph) hpGlyph(g, c.kindD, p.x + 2*s, p.y + nh + 1*s, 8*s, "#9a9aa0");
+    g.fillStyle = "#b9b9be"; g.font = font(9.5);
+    g.fillText(hpFit(g, c.id === 0 ? "Start" : "⤴ " + (c.tool ? histToolName(c.tool) : c.kindName), w - 70*s), p.x + 26*s, by);    // ⤴ go here
+    if (c.ids.length > 1 || HP.open.has(c.id)) { g.fillStyle = "#d6d6d6"; g.font = font(10, true); g.fillText(HP.open.has(c.id) ? "▾ open" : "×" + c.ids.length + " ▸", p.x + w - 40*s, p.y + nh + (h - nh)/2); }
+    g.globalAlpha = 1;
+    // frames: the document's node thick and yellow with "▼ here" above it; the selected one doubled
+    if (c.here) { g.strokeStyle = "#ffd400"; g.lineWidth = 3; g.strokeRect(p.x - 1, p.y - 1, w + 2, h + 2); g.fillStyle = "#ffd400"; g.font = font(10, true); g.fillText("▼ here", p.x + 4*s, p.y - 9*s); }
+    else { g.strokeStyle = c.later ? "#5c5c60" : "#77777c"; g.lineWidth = 1; g.strokeRect(p.x + 0.5, p.y + 0.5, w - 1, h - 1); }
+    // a Save State: a pennant on the card's top edge with its name
+    if (c.save) { g.fillStyle = "#f0f0f0"; g.strokeStyle = "#f0f0f0"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(p.x + w - 30*s, p.y); g.lineTo(p.x + w - 30*s, p.y - 16*s); g.stroke(); g.beginPath(); g.moveTo(p.x + w - 30*s, p.y - 16*s); g.lineTo(p.x + w - 18*s, p.y - 12*s); g.lineTo(p.x + w - 30*s, p.y - 8*s); g.closePath(); g.fill(); g.font = font(10, true); g.fillText(hpFit(g, c.save, 120*s), p.x + w - 15*s, p.y - 12*s); }
+    if (HP.sel != null && c.ids.includes(HP.sel)) { g.strokeStyle = "#ffffff"; g.lineWidth = 1; g.strokeRect(p.x - 4, p.y - 4, w + 8, h + 8); g.strokeRect(p.x - 6.5, p.y - 6.5, w + 13, h + 13); }
+  }
+}
+// a 24-unit path (a tool's icon, a kind's glyph) drawn at x, y in a square of size px
+function hpGlyph(g, d, x, y, size, col) {
+  if (!d || typeof Path2D !== "function") return;
+  g.save(); g.translate(x, y); g.scale(size/24, size/24); g.strokeStyle = col; g.lineWidth = 1.6; g.lineCap = "round"; g.lineJoin = "round"; g.stroke(new Path2D(d)); g.restore();
+}
+function hpFit(g, t, w) { t = String(t || ""); if (!g.measureText || g.measureText(t).width <= w) return t; while (t.length > 1 && g.measureText(t + "…").width > w) t = t.slice(0, -1); return t + "…"; }
+// a node's name changed (all of a card's when it is one run)
+function histRename(ids, name) {
+  const nm = histClean(name);
+  if (!nm) return;
+  histFit();
+  for (const x of [...S.un, ...S.rn]) if (ids.includes(x.id)) x.n = nm;
+  for (const id of ids) { const o = S.hoff.get(id); if (o) o.n = nm; }
+  HP.lay = null; store(); renderTimeline();
+}
+// the panel's own gestures (with S: the canvas's pixels)
+function hpDown(e) {
+  const cv = hpCanvas(), r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, h = hpHit(x, y);
+  if (e.button === 2) { HP.drag = null; if (h) { HP.sel = h.card.last; hpSoon(); hpMenu(h.card, e.clientX, e.clientY); } else { const b = hpBandHit(x, y); if (b) hgLaneMenu(b, e.clientX, e.clientY); } return; }
+  HP.drag = { x0: x, y0: y, h, vx: HP.view.x, vy: HP.view.y, moved: false, at: h ? { x: h.card.x, y: h.card.y } : null };
+  if (cv.setPointerCapture && e.pointerId != null) try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+}
+// a card's tooltip, as the strip's markers had it: its number, the tool in hand, its name, the kind of step, and whether it is ahead
+function hpTitle(c) {
+  if (!c) return "";
+  if (c.id === 0) return "Start: before the first step";
+  return "#" + c.id + " · " + (c.tool ? histToolName(c.tool) + ": " : "") + c.n + (c.ids.length > 1 ? " ×" + c.ids.length : "") + (c.here ? ", the document is here" : c.later ? ", ahead of the document or on another branch" : "") + (c.save ? ", Save State " + c.save : "") + " (" + c.kindName + ")";
+}
+function hpMove(e) {
+  const d = HP.drag;
+  if (!d) { const cv = hpCanvas(), r = cv.getBoundingClientRect(), h = hpHit(e.clientX - r.left, e.clientY - r.top); cv.title = h ? hpTitle(h.card) + (h.part === "name" ? " — double-click to rename" : h.part === "count" ? " — click to open or close" : " — double-click to go here") : ""; return; }
+  const cv = hpCanvas(), r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  if (!d.moved && Math.hypot(x - d.x0, y - d.y0) < 4) return;
+  d.moved = true;
+  if (d.h) { S.hui[d.h.card.id] = { x: Math.round(d.at.x + (x - d.x0)/HP.view.s), y: Math.round(d.at.y + (y - d.y0)/HP.view.s) }; HP.lay = null; }
+  else { HP.view.x = d.vx + x - d.x0; HP.view.y = d.vy + y - d.y0; }
+  hpSoon();
+}
+// a card's right-click menu (the maintainer's brief: Go to, Save States, Rename; Split Off and Cut Off Branch come with Round H1b / 5)
+function hpMenu(c, x, y) {
+  const id = c.last, has = S.hsave.has(id);
+  const g = c.lane && c.lane !== "s" ? hgById(c.lane) : null;
+  listMenu([{ hd: c.n + (c.ids.length > 1 ? " \u00d7" + c.ids.length : "") },
+    // (Round H1d / B) in a group's lane: only its patterns go there, or the whole document
+    ...(c.lane && c.lane !== "s" ? [{ n: "Go to This Step (" + (g ? g.name : "ungrouped") + " Only)", off: !g || c.here, f: () => hgGo(c.lane, id) }, { n: "Go to This Step (Whole Document)", f: () => treeGo(id), off: c.doc && c.ids.length === 1 }]
+      : [{ n: "Go to This Step", f: () => treeGo(id), off: c.here && c.ids.length === 1 }]),
+    // (Round H1d / C) a group's step: copies of its patterns as they were, or its lane started here
+    ...(c.lane && c.lane !== "s" ? [{ n: "Split Off…", off: !g, f: () => hgSplitOff(c.lane, id) }, { n: "Cut Off Branch…", off: !g || c.later, f: () => hgCutOffAsk(c.lane, id) }] : []),
+    { n: "Rename Step\u2026", f: () => askText("Rename Step", c.n, (t) => histRename(c.ids, t)) },
+    { sep: 1 },
+    has ? { n: "Rename Save State\u2026", f: () => askText("Rename Save State", S.hsave.get(id), (t) => { S.hsave.set(id, histClean(t) || S.hsave.get(id)); HP.lay = null; store(); renderTimeline(); }) }
+      : { n: "Add Save State\u2026", f: () => saveStateAdd(id) },
+    ...(has ? [{ n: "Remove Save State", f: () => { S.hsave.delete(id); HP.lay = null; store(); renderTimeline(); } }] : [])], x, y);
+}
+/* (Round H1b / 3) A SAVE STATE: a named pin on a node of the history, drawn as a pennant with its name. Never dropped by the cap or by
+   Condense History; its cloth is always kept in the file. Making, renaming and removing one is no undo step (as with 3D states). */
+function saveStateAdd(id) {
+  if (id == null) id = histAtId();
+  const n = S.hsave.size + 1;
+  askText("Add Save State", "Save State " + n, (t) => { S.hsave.set(id, histClean(t) || "Save State " + n); HP.lay = null; store(); renderTimeline(); toast("Save State \"" + S.hsave.get(id) + "\" kept: it is never dropped from the history"); });
+}
+/* (Round H1b / 3) CONDENSE HISTORY: only the start, the Save States, the branch points, the ends of branches and the step the document is
+   at stay; every other step goes, its change kept in the step after it. Asked first, with the history's size; cannot be undone. */
+const histTextSize = () => { const h = histPack(1, null, { hist: null }); return h ? JSON.stringify(h).length : 0; };
+const mbText = (n) => (n/1048576).toFixed(2) + " MB";
+function histCondenseAsk() {
+  if (!histOn()) return toast("The history is off for this project");
+  const { nodes, path, at } = histNodes(), n = nodes.size - 1, size = histTextSize(), LN = hgLanes(nodes, path, at), hid = LN ? [...LN.hidden].filter(id => id !== 0 && id !== path[at]).length : 0;
+  // (Round H1e / 3) the steps a Cut Off Branch hid go too, for good: said in the box and counted in the sizes
+  askModal("Condense History", "Keep only the start, the Save States, the branch points, the ends of branches and the step the document is at. Of the history's " + n + " steps every other one goes (each one's change stays in the step after it)" +
+    (hid ? ", and the " + hid + (hid === 1 ? " step" : " steps") + " a Cut Off Branch hid from a History Group's lane go for good" : "") + ". The history is " + mbText(size) + " now. This cannot be undone.",
+    [{ k: "condense", n: "Condense", f: () => { const r = histCondense(); toast("History condensed: " + r.before + " \u2192 " + r.after + " steps" + (r.hidden ? " (" + r.hidden + " hidden by Cut Off Branch among them)" : "") + ", " + mbText(size) + " \u2192 " + mbText(histTextSize()), 8000); } },
+     { k: "cancel", n: "Cancel", primary: true, esc: true, f: () => {} }]);
+}
+function histCondense() {
+  pushFlush();
+  { const t = histNodes(); hgLanes(t.nodes, t.path, t.at); }      // (Round H1d / B: a step keeps its lane when the steps before it go)
+  const { nodes, path, at } = histNodes(), here = path[at], kids = histKids(nodes);
+  nodes.get(here).st = histState();
+  // (Round H1e / 3) a step a Cut Off Branch hid from its lane is kept until now (undo still reaches it, and the file keeps it hidden); here
+  // it goes for good, a Save State or a branch point too: only the start and the step the document is at are never dropped
+  // a History Group's cut (where its lane starts) and a Split Off's step it came from (its link, for H3) are kept as Save States are
+  const LN = hgLanes(nodes, path, at), hid = LN ? LN.hidden : new Set(), pin = new Set();
+  for (const g of S.hgroups || []) { if (Number.isInteger(g.cut)) pin.add(g.cut); if (g.from) pin.add(g.from.node); }
+  const keep = (id) => id === 0 || id === here || (!hid.has(id) && (S.hsave.has(id) || pin.has(id) || (kids.get(id) || []).length !== 1));
+  const before = nodes.size - 1, up = (id) => { let k = nodes.get(id).up; while (k != null && !keep(k)) k = nodes.get(k).up; return k; };
+  const out = new Map();
+  for (const x of nodes.values()) if (keep(x.id)) out.set(x.id, { ...x, up: x.up == null ? null : up(x.id) });
+  const p = path.filter(keep);
+  histLay(out, p, p.indexOf(here));
+  for (const id of Object.keys(S.hui)) if (!out.has(+id)) delete S.hui[id];
+  for (const id of [...S.hsave.keys()]) if (!out.has(id)) S.hsave.delete(id);
+  for (const id of Object.keys(S.hjump)) if (!out.has(+id)) delete S.hjump[id];
+  histMade = []; histAskFuture = null; HP.lay = null; HP.open.clear();
+  store(); renderTimeline();
+  return { before, after: out.size - 1, hidden: [...hid].filter(id => !out.has(id)).length };
+}
+// (Round H1b / 3) the project's history on or off: off, undo works as it always did and the file keeps none; on again, it starts there
+function histSwitch(on) {
+  S.histOn = !!on; HP.lay = null; store(); renderTimeline();
+  toast(on ? "This project's history is kept from now on" : "This project's history is off: undo works, nothing of it is kept in the file");
+}
+// the history for a new project: the preference, asked when it is "Ask Each Time" (the box after New)
+const histNewOn = () => !(S.prefs && S.prefs.histNew === "off");
+function histNewAsk() {
+  if (!S.prefs || (S.prefs.histNew || "ask") !== "ask") return;
+  if (modalNow || recoverPending) return;                    // (never over another question: the history stays on, as the default)
+  askModal("Keep a History?", "With the history on you can go back a long way and keep variants of this project side by side as branches. It makes big files bigger.<br><br><label><input type=\"checkbox\" id=\"hist-remember\"> Remember my choice (Settings \u25b8 Preferences \u25b8 History for New Projects)</label>",
+    [{ k: "on", n: "Enable", primary: true, f: () => { histNewChoice(true); } }, { k: "off", n: "Don't Enable", esc: true, f: () => { histNewChoice(false); } }]);
+}
+function histNewChoice(on) {
+  const r = document.getElementById("hist-remember");
+  if (r && r.checked) setPrefs({ histNew: on ? "on" : "off" });
+  S.histOn = on; HP.lay = null; renderTimeline();
+}
+function hpUp() {
+  const d = HP.drag; HP.drag = null;
+  if (!d) return;
+  if (d.moved) { if (d.h) store(); return; }                 // a card moved: kept in the file (no step)
+  if (!d.h) { HP.sel = null; return hpSoon(); }
+  if (d.h.part === "count") { const id = d.h.card.id; if (HP.open.has(id)) HP.open.delete(id); else HP.open.add(id); HP.lay = null; return hpSoon(); }
+  HP.sel = d.h.card.last; hpSoon();                          // a click only selects
+}
+function hpDbl(e) {
+  const cv = hpCanvas(), r = cv.getBoundingClientRect(), h = hpHit(e.clientX - r.left, e.clientY - r.top);
+  if (!h) { const b = hpBandHit(e.clientX - r.left, e.clientY - r.top); if (b && b.lane !== "s") hgRename(b.lane); return; }
+  if (h.part === "count") return;
+  if (h.part === "name") return askText("Rename Step", h.card.n, (t) => histRename(h.card.ids, t));
+  if (h.card.lane && h.card.lane !== "s") return hgGo(h.card.lane, h.card.last);      // (Round H1d / B: in a group's lane, only that group)
+  treeGo(h.card.last);                                       // the body: back (or forward) to that step
+}
+function hpWheel(e) {
+  if (e.preventDefault) e.preventDefault();
+  const cv = hpCanvas(), r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  const inward = (e.deltaY < 0) !== !!(S.prefs && S.prefs.wheelRev), k = inward ? 1.12 : 1/1.12, s = Math.max(0.25, Math.min(3, HP.view.s*k));
+  HP.view.x = x - (x - HP.view.x)*s/HP.view.s; HP.view.y = y - (y - HP.view.y)*s/HP.view.s; HP.view.s = s;
+  hpSoon();
+}
+// the document's node in view
+function hpShowHere() {
+  const L = hpLayout(), c = L.byId.get(L.here), cv = hpCanvas();
+  if (!c || !cv) return;
+  const r = cv.getBoundingClientRect(), p = hpToScreen(c.x, c.y);
+  if (p.x < 10 || p.x + HP_W*HP.view.s > r.width - 10) HP.view.x += r.width*0.6 - p.x - HP_W*HP.view.s;
+  if (p.y < 20 || p.y + HP_H*HP.view.s > r.height - 10) HP.view.y += 34 - p.y;
+}
+/* ================================================================
+   (Round H1d / B) HISTORY GROUPS
+   Patterns selected, right-click ▸ More ▸ Create History Group…, a name: from that step on the history of those patterns is a lane of
+   its own in the History panel (a band with the group's colour, its icon's shape and its name; never told by colour alone). Every
+   step goes to the lane of the patterns it changed: all in one group, that group's lane; patterns of several groups, patterns in none,
+   or anything of the document as a whole (fabrics, grading, sewing to a pattern of another group, the avatar, …), the Shared lane.
+   The steps before the first group are the Shared lane's, so a document without groups is one strand as before.
+   S.hgroups (document data, in undo and the file): [{ id, name, col, icon, pieces: [ids], cut?, from? }]; a pattern in at most one.
+   A new pattern made by a step that changed only the patterns of one group joins that group (Cut, Trace, Clone as Pattern: guess
+   h1d/3). S.hlane: a node's lane, worked out once it is done ("s" or a group's id, kept in the file: a lane never changes when the
+   steps around it are condensed). S.hjump: the steps that took one group back (below), { g, to }.
+   EACH LANE HAS ITS OWN POSITION. A double-click on a step in a group's lane takes only that group's patterns (and the sewing,
+   topstitches, … wholly among them) back or forward to what they were after that step: the other lanes stay where they are. That is a
+   step of its own, "⤺ Shirt: <step>" (hgGo()), a card in the lane after the step gone to, so the lane's later steps are a branch of it
+   there; going on in the lane hangs on from it. Another double-click in the same lane straight after takes the same step's place.
+   The lane's position is its newest step in the document's own history; its active branch the steps up from there. The rest of the
+   lane is hatched and dimmed. The Shared lane goes with the whole document: a double-click there goes to that step as before.
+   CTRL+Z (guess h1d/1, said in the panel): undoes the last step in the whole document, whichever lane it is in; a "⤺" step is undone
+   like any other.
+   ================================================================ */
+// colours apart for red / green colour-blind eyes (Okabe and Ito's set), each group also a shape and its name
+const HG_COLS = ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7"];
+const HG_ICONS = ["circle", "square", "triangle", "diamond", "star", "hexagon", "cross"];
+function normHGroups(v, pieces) {
+  if (!Array.isArray(v)) return [];
+  const ids = pieces ? new Set(pieces.map(p => p.id)) : null, seen = new Set(), taken = new Set(), out = [];
+  for (const g of v) {
+    if (!g || !Number.isInteger(g.id) || g.id < 1 || seen.has(g.id)) continue;
+    seen.add(g.id);
+    const o = { id: g.id, name: String(g.name || "Group " + g.id).slice(0, 60), col: HG_COLS.includes(g.col) ? g.col : HG_COLS[(g.id - 1) % HG_COLS.length],
+      icon: HG_ICONS.includes(g.icon) ? g.icon : HG_ICONS[(g.id - 1) % HG_ICONS.length],
+      pieces: (Array.isArray(g.pieces) ? g.pieces : []).filter(id => Number.isInteger(id) && (!ids || ids.has(id)) && !taken.has(id) && taken.add(id)) };
+    if (Number.isInteger(g.cut)) o.cut = g.cut;
+    if (g.from && Number.isInteger(g.from.node) && Number.isInteger(g.from.group)) o.from = { node: g.from.node, group: g.from.group };
+    out.push(o);
+  }
+  return out;
+}
+const hgOn = () => Array.isArray(S.hgroups) && S.hgroups.length > 0;
+const hgById = (id) => (S.hgroups || []).find(g => g.id === id) || null;
+// the groups a state of the history holds (parsed once a text)
+const HG_PARSE = new Map();
+function hgList(st) {
+  if (!st) return [];
+  if (typeof st === "string") { const d = JSON.parse(st); return Array.isArray(d.hgroups) ? d.hgroups : []; }
+  const v = st.k && st.k.hgroups;
+  if (!v) return [];
+  if (typeof v === "string") return JSON.parse(v);
+  if (HG_PARSE.size > 4000) HG_PARSE.clear();
+  return v.t.map(t => { let g = HG_PARSE.get(t); if (!g) { g = JSON.parse(t); HG_PARSE.set(t, g); } return g; });
+}
+// the lane of a step: from what it changed against the step before it
+const HG_REF = /"piece":(\d+)/g, HG_NONE = { ids: [], t: [] };
+function hgLaneCalc(id, st, up) {
+  if (S.hjump[id]) return S.hjump[id].g;
+  if (!st || !up || typeof st === "string" || typeof up === "string") return "s";
+  const gs = hgList(st), gu = hgList(up);
+  if (!gs.length && !gu.length) return "s";
+  if (st.k.hgroups !== up.k.hgroups) {                       // a group made, ungrouped, renamed or cut off: that group's step
+    const A = new Map(gs.map(g => [g.id, g])), B = new Map(gu.map(g => [g.id, g]));
+    for (const g of gs) if (!B.has(g.id)) return g.id;
+    for (const g of gu) if (!A.has(g.id)) return g.id;
+    for (const g of gs) { const o = B.get(g.id); if (o.name !== g.name || o.cut !== g.cut || JSON.stringify(o.from) !== JSON.stringify(g.from)) return g.id; }
+  }
+  const of = new Map();
+  for (const g of gs) for (const p of g.pieces) of.set(p, g.id);
+  for (const g of gu) for (const p of g.pieces) if (!of.has(p)) of.set(p, g.id);
+  const lanes = new Set();
+  let shared = false;
+  const look = (key, id, t) => {
+    if (key === "pieces") { const g = of.get(id); if (g == null) shared = true; else lanes.add(g); return; }
+    let any = false;
+    for (const m of t.matchAll(HG_REF)) { any = true; const g = of.get(+m[1]); if (g == null) shared = true; else lanes.add(g); }
+    if (!any) shared = true;
+  };
+  for (const key of SNAP_KEYS) {
+    if (key === "hgroups") continue;
+    let a = st.k[key], b = up.k[key];
+    if (a === b) continue;
+    if ((a === undefined || typeof a === "object") && (b === undefined || typeof b === "object")) { a = a || HG_NONE; b = b || HG_NONE; }
+    else return "s";
+    const old = new Map(b.ids.map((x, i) => [x, b.t[i]])), now = new Set(a.ids);
+    a.ids.forEach((x, i) => { if (old.get(x) !== a.t[i]) look(key, x, a.t[i]); });
+    b.ids.forEach((x, i) => { if (!now.has(x)) look(key, x, b.t[i]); });
+    if (shared) return "s";
+  }
+  return lanes.size === 1 ? [...lanes][0] : "s";
+}
+/* Every node's lane, its parent in the lane, its depth in the tree; each lane's position (its newest node on the document's own path,
+   hereOf); the lanes' looks (a group ungrouped since: its last look); the nodes a Cut Off Branch left out of a lane. null without
+   groups (the panel is the one strand, as before). */
+function hgLanes(nodes, path, at) {
+  histFit();
+  const here = path[at], live = histState(), stOf = (id) => (id === here ? live : nodes.get(id).st), lane = new Map();
+  let any = hgOn();
+  for (const x of nodes.values()) {
+    let l;
+    if (x.up == null) l = "s";
+    else if (x.id !== here && S.hlane[x.id] !== undefined) l = S.hlane[x.id];
+    else { l = hgLaneCalc(x.id, stOf(x.id), stOf(x.up)); if (x.id !== here) S.hlane[x.id] = l; }
+    lane.set(x.id, l);
+    if (l !== "s") any = true;
+  }
+  if (!any) return null;
+  const kids = histKids(nodes), lp = new Map(), depth = new Map(), hereOf = new Map();
+  const stack = [[0, new Map(), 0]];
+  while (stack.length) {
+    const [id, last, dp] = stack.pop();
+    if (!nodes.has(id)) continue;
+    const l = lane.get(id), j = S.hjump[id];
+    depth.set(id, dp);
+    lp.set(id, j && nodes.has(j.to) ? j.to : last.has(l) ? last.get(l) : null);
+    const next = new Map(last); next.set(l, id);
+    if (id === here) for (const [k, v] of next) hereOf.set(k, v);
+    for (const c of kids.get(id) || []) stack.push([c, next, dp + 1]);
+  }
+  const defs = new Map();
+  for (const g of S.hgroups || []) defs.set(g.id, { ...g, gone: false });
+  for (const x of [...nodes.values()].sort((a, b) => b.id - a.id)) {
+    const l = lane.get(x.id);
+    if (l === "s" || defs.has(l)) continue;
+    const g = hgList(stOf(x.id)).find(q => q.id === l) || (x.up != null && hgList(stOf(x.up)).find(q => q.id === l));
+    defs.set(l, g ? { ...g, gone: true } : { id: l, name: "Group " + l, col: HG_COLS[(l - 1) % HG_COLS.length], icon: HG_ICONS[(l - 1) % HG_ICONS.length], pieces: [], gone: true });
+  }
+  // (Round H1d / C) a lane cut off at a step: only that step and what hangs from it in the lane
+  const hidden = new Set();
+  for (const [l, d] of defs) {
+    if (!Number.isInteger(d.cut) || lane.get(d.cut) !== l) continue;
+    const vis = new Map([[d.cut, true]]), ok = (id) => { if (vis.has(id)) return vis.get(id); const p = lp.get(id); const v = p != null && ok(p); vis.set(id, v); return v; };
+    for (const x of nodes.values()) if (lane.get(x.id) === l && !ok(x.id)) hidden.add(x.id);
+  }
+  return { lane, lp, depth, hereOf, defs, here, live, stOf, hidden };
+}
+// a group's id that was never used in this document's history
+function hgNextId() {
+  let m = 0;
+  for (const g of S.hgroups || []) m = Math.max(m, g.id);
+  for (const k of Object.keys(S.hlane || {})) if (Number.isInteger(S.hlane[k])) m = Math.max(m, S.hlane[k]);
+  for (const k of Object.keys(S.hjump || {})) m = Math.max(m, S.hjump[k].g || 0);
+  return m + 1;
+}
+function hgCreate(ids) {
+  ids = (ids || []).filter(id => byId(id));
+  if (!ids.length) return toast("Select the patterns of the group first");
+  if (!histOn()) return toast("The history is off for this project: switch it on (Edit ▸ Keep History for This Project) to make History Groups");
+  const id = hgNextId();
+  askText("Create History Group", "Group " + id, (t) => {
+    push("Create History Group");
+    S.hgroups = (S.hgroups || []).map(g => ({ ...g, pieces: g.pieces.filter(x => !ids.includes(x)) }));
+    S.hgroups.push({ id, name: histClean(t) || "Group " + id, col: HG_COLS[(id - 1) % HG_COLS.length], icon: HG_ICONS[(id - 1) % HG_ICONS.length], pieces: ids.slice() });
+    commit(); HP.lay = null;
+    toast("History Group \"" + hgById(id).name + "\" made with " + ids.length + (ids.length === 1 ? " pattern" : " patterns") + ": its steps are a lane of their own in the History panel (" + keyOf("historyPanel") + ")", 6000);
+  });
+}
+function hgRename(gid) {
+  const g = hgById(gid);
+  if (!g) return;
+  askText("Rename History Group", g.name, (t) => { const n = histClean(t); if (!n || n === g.name) return; push("Rename History Group"); hgById(gid).name = n; commit(); HP.lay = null; });
+}
+// Ungroup: the group's patterns go back to the Shared lane from this step on; its lane stays in the panel up to here, "(ungrouped)"
+function hgUngroup(gid) {
+  if (!hgById(gid)) return;
+  push("Ungroup History Group"); S.hgroups = S.hgroups.filter(g => g.id !== gid); commit(); HP.lay = null;
+}
+/* commit(): a group keeps only patterns that are there; a pattern made by a step that changed only patterns of one group joins it.
+   Only once after each new step (pushCount), never after undo, redo or opening, so going about the history changes nothing. */
+let hgSeen = -1;
+function hgTidy() {
+  if (!hgOn()) return;
+  const have = new Set(S.pieces.map(p => p.id));
+  for (const g of S.hgroups) if (g.pieces.some(id => !have.has(id))) g.pieces = g.pieces.filter(id => have.has(id));
+  if (pushCount === hgSeen) return;
+  hgSeen = pushCount;
+  const top = S.undo[S.undo.length - 1];
+  if (!top || typeof top === "string" || !top.k.pieces || typeof top.k.pieces === "string") return;
+  const before = new Map(top.k.pieces.ids.map((id, i) => [id, top.k.pieces.t[i]])), inG = new Map();
+  for (const g of S.hgroups) for (const id of g.pieces) inG.set(id, g);
+  const fresh = S.pieces.filter(p => !before.has(p.id) && !inG.has(p.id));
+  if (!fresh.length) return;
+  const gs = new Set();
+  for (const p of S.pieces) if (before.has(p.id) && JSON.stringify(p) !== before.get(p.id)) gs.add(inG.get(p.id) || null);
+  for (const id of before.keys()) if (!have.has(id)) gs.add(inG.get(id) || hgList(top).find(g => g.pieces.includes(id)) || null);
+  if (gs.size !== 1 || gs.has(null)) return;
+  const g = [...gs][0];
+  for (const p of fresh) g.pieces.push(p.id);
+}
+// the lists whose items name patterns: what goes with a group's patterns when the group goes to another step
+const HG_LISTS = [["seams", "seams"], ["stitches", "stitches"], ["puckers", "puckers"], ["measures", "measures"], ["tacks", "tacks"], ["buttons", "buttons"], ["pipings", "pipings"], ["bindings", "bindings"], ["glues", "glues"], ["links", "lineLinks"]];
+function hgRefsIn(it, G) { let any = false; for (const m of JSON.stringify(it).matchAll(HG_REF)) { any = true; if (!G.has(+m[1])) return false; } return any; }
+// the group's patterns, and what lies wholly among them, as they were in the document d (a state's object)
+function hgCompose(gid, d) {
+  const gt = (d.hgroups || []).find(g => g.id === gid), gn = hgById(gid);
+  const inT = new Set(gt ? gt.pieces : []), G = new Set([...inT, ...(gn ? gn.pieces : [])]);
+  const at = S.pieces.findIndex(p => G.has(p.id)), rest = S.pieces.filter(p => !G.has(p.id)), back = (d.pieces || []).filter(p => inT.has(p.id));
+  S.pieces = at < 0 ? [...rest, ...back] : [...rest.slice(0, S.pieces.slice(0, at).filter(p => !G.has(p.id)).length), ...back, ...rest.slice(S.pieces.slice(0, at).filter(p => !G.has(p.id)).length)];
+  for (const [key, sk] of HG_LISTS) {
+    const now = (S[sk] || []).filter(it => !hgRefsIn(it, G)), ids = new Set(now.map(it => it && it.id));
+    S[sk] = [...now, ...((d[key] || []).filter(it => hgRefsIn(it, G) && !(it && it.id != null && ids.has(it.id))))];
+  }
+  if (gn) gn.pieces = gt ? gt.pieces.filter(id => S.pieces.some(p => p.id === id)) : [];
+  S.sel = S.sel.filter(id => byId(id)); S.selPt = S.selSeg = S.selInt = -1; S.selCp = null; S.tps = null;
+}
+// a group's patterns to what they were after a node of its lane: a step of its own ("⤺ <group>: <step>")
+let hgAsk = null;
+function hgGo(gid, target) {
+  pushFlush();
+  const { nodes, path, at } = histNodes(), here = path[at], LN = hgLanes(nodes, path, at);
+  const gn = hgById(gid);
+  if (!gn) { toast("That History Group was ungrouped: its patterns go with the Shared lane now"); return false; }
+  if (!LN || !nodes.has(target) || LN.lane.get(target) !== gid) return false;
+  if (LN.hereOf.get(gid) === target) { toast(gn.name + " is at that step already"); return false; }
+  const tst = target === here ? LN.live : nodes.get(target).st, d = histObj(tst);
+  if (typeof simHalt === "function") simHalt();
+  if (typeof G3 !== "undefined" && G3.look) look3End();
+  const name = histClean("⤺ " + gn.name + ": " + nodes.get(target).n), j = S.hjump[here];
+  if (j && j.g === gid && !S.redo.length && S.un.length && S.un[S.un.length - 1].id === here && !(histKids(nodes).get(here) || []).length) {
+    unsnap(S.undo[S.undo.length - 1]); S.un[S.un.length - 1].n = name; j.to = target;      // straight after another ⤺ of this group: in its place
+    hgAsk = { g: gid, to: target, j: here };
+  } else {
+    push(name);
+    const nid = S.un[S.un.length - 1].id;
+    S.hjump[nid] = { g: gid, to: target };
+    hgAsk = { g: gid, to: target, j: nid };
+  }
+  hgCompose(gid, d);
+  commit(); HP.lay = null;
+  if (typeof drapeBack === "function") drapeBack();
+  return true;
+}
+/* The Keep / Delete box for a lane: the first step made in a group's lane after a ⤺ asks about the lane's old future (its steps that hang
+   from the step gone to, in the lane, but not on the way taken now): Keep them as a branch of the lane, or Delete them, which asks
+   again. Deleting takes them out of the history, each one's change kept in the step after it (as Condense does; Save States and branch
+   points stay). With Remember my choice (Keep), as the document's own box. */
+function hgFutureIds(gid, to) {
+  const { nodes, path, at } = histNodes(), LN = hgLanes(nodes, path, at);
+  if (!LN) return [];
+  const lk = new Map();
+  for (const [id, p] of LN.lp) if (p != null && LN.lane.get(id) === gid) { if (!lk.has(p)) lk.set(p, []); lk.get(p).push(id); }
+  const act = new Set();
+  for (let k = LN.hereOf.get(gid); k != null && !act.has(k); k = LN.lp.get(k)) act.add(k);
+  const out = [], go = (id) => { for (const c of lk.get(id) || []) { if (act.has(c)) continue; out.push(c); go(c); } };
+  go(to);
+  return out.filter(id => id !== LN.here);
+}
+function hgFutureAsk() {
+  const a = hgAsk; hgAsk = null;
+  if (!a || !hgById(a.g)) return;
+  const { nodes, path, at } = histNodes(), LN = hgLanes(nodes, path, at);
+  const cur = path[at];
+  if (cur === a.j) { hgAsk = a; return; }                    // asked at the lane's first step after the ⤺, not before
+  if (!LN || !nodes.has(cur) || nodes.get(cur).up !== a.j || LN.lane.get(cur) !== a.g) return;
+  const ids = hgFutureIds(a.g, a.to), n = ids.length, gname = hgById(a.g).name;
+  if (!n || (S.prefs && S.prefs.keepFuture)) return;
+  askModal("Keep the Old Future of " + gname + "?", "You took " + esc(gname) + " back and made a change. The " + n + (n === 1 ? " step" : " steps") + " of " + esc(gname) + " after the step you went to can stay as a branch of its lane, or be deleted. The other lanes are not touched." +
+    "<br><br><label><input type=\"checkbox\" id=\"keep-remember\"> Remember my choice when it is Keep (Settings ▸ Preferences ▸ Keep the Old Future Without Asking); Delete always asks</label>",
+    [{ k: "keep", n: "Keep the old future as a branch", primary: true, esc: true, f: () => { const r = document.getElementById("keep-remember"); if (r && r.checked) setPrefs({ keepFuture: true }); } },
+     { k: "delete", n: "Delete the future", f: () => askModal("Delete the Future of " + gname + "?", "The " + n + (n === 1 ? " step" : " steps") + " will be gone from the history (each one's change stays in the step after it). This cannot be undone.",
+       [{ k: "delete", n: "Delete", f: () => { const r = hgFold(ids); toast("The old future of " + gname + " is deleted: " + r.gone + (r.gone === 1 ? " step" : " steps") + (r.kept ? "; " + r.kept + " kept (Save States, branch points)" : "")); } }, { k: "keep", n: "Keep it", primary: true, esc: true, f: () => {} }]) }]);
+}
+// nodes taken out of the history, each one's change kept in the step after it; Save States and branch points stay
+function hgFold(ids) {
+  const { nodes, path, at } = histNodes();
+  hgLanes(nodes, path, at);                                  // (every node's lane kept first: a step that takes a change keeps its own lane)
+  const kept = histKeptIds(), set = new Set(ids);
+  let gone = 0, keptN = 0;
+  for (const id of ids) if (kept.has(id)) keptN++;
+  for (let i = S.un.length; i >= 1; i--) {
+    const id = S.un[i - 1].id;
+    if (!set.has(id) || kept.has(id) || i === S.un.length) continue;
+    S.undo.splice(i, 1); S.un.splice(i - 1, 1); gone++;
+    delete S.hui[id]; delete S.hlane[id]; delete S.hjump[id];
+  }
+  for (const id of ids) if (S.hoff.has(id) && !kept.has(id)) { S.hoff.delete(id); delete S.hui[id]; delete S.hlane[id]; gone++; }
+  HP.lay = null; store(); renderTimeline();
+  return { gone, kept: keptN };
+}
+/* (Round H1d / C) SPLIT OFF: a step of a group's lane, its card's right-click ▸ Split Off…: copies of the group's patterns as they were
+   after that step hang on the pointer (placeStart(): a click sets them down, Esc gives it up and nothing changed); set down, they are a
+   new History Group, "<group> (split)", whose lane starts there and keeps its link to the step it came from (from: { node, group }:
+   a dotted cable in the panel; kept in the file for H3, where an edit before the split will reach both). One step, "Split Off". The
+   copies are patterns of their own (new ids, no linked editing, not placed in 3D). (Round H1e / 2, the maintainer's answer to h1d question 3)
+   The seams with both ends among the group's patterns at that step are copied onto the copies (new ids; a symmetric tie left out); a seam
+   to a pattern outside the group is not. */
+function hgSplitOff(gid, node) {
+  const { nodes, path, at } = histNodes(), here = path[at];
+  if (!nodes.has(node)) return false;
+  const d = histObj(node === here ? histState() : nodes.get(node).st), gt = (d.hgroups || []).find(g => g.id === gid);
+  if (!gt || !gt.pieces.length) { toast("That step has no patterns of the group to split off"); return false; }
+  const src = (d.pieces || []).filter(p => gt.pieces.includes(p.id)), made = src.map(p => { const q = clone(p); q.name = p.name + " (split)"; delete q.link; delete q.half; delete q.p3; delete q.group; q.lock = false; return q; });
+  // (Round H1e / 2) the seams with both ends among the group's patterns at that step come too; a seam to a pattern outside the group does not
+  const inG = new Set(src.map(p => p.id)), sewn = (d.seams || []).filter(sm => seamParts(sm).length && seamParts(sm).every(x => inG.has(x.piece))).map(clone);
+  const b = bboxOf(made), dx = (b.x1 - b.x0) + 60;
+  for (const q of made) mapPiece(q, (r) => V(r.x + dx, r.y));
+  const from = { node, group: gid }, nm = gt.name;
+  placeStart({ name: "Split Off", shapes: made, hint: "Click to set the split-off copies down (" + nm + " as after “" + nodes.get(node).n + "”). Shift keeps it level, upright or at 45°, Esc cancels",
+    drop: (dv) => {
+      push("Split Off");
+      const ids = [];
+      const idOf = new Map();
+      made.forEach((q, i) => { q.id = S.nextId++; idOf.set(src[i].id, q.id); mapPiece(q, (r) => add(r, dv)); S.pieces.push(q); ids.push(q.id); });
+      let next = S.seams.reduce((m, sm) => Math.max(m, sm.id), 0);
+      for (const sm0 of sewn) { const sm = clone(sm0); sm.id = ++next; delete sm.mir; for (const x of seamParts(sm)) x.piece = idOf.get(x.piece); S.seams.push(sm); }
+      const id = hgNextId();
+      S.hgroups = (S.hgroups || []).map(g => ({ ...g, pieces: g.pieces.filter(x => !ids.includes(x)) }));
+      S.hgroups.push({ id, name: histClean(nm + " (split)"), col: HG_COLS[(id - 1) % HG_COLS.length], icon: HG_ICONS[(id - 1) % HG_ICONS.length], pieces: ids, from });
+      S.sel = ids; S.selPt = S.selSeg = S.selInt = -1; S.selKind = "outline";
+      commit(); HP.lay = null;
+      toast("Split off: " + ids.length + (ids.length === 1 ? " pattern" : " patterns") + ", a History Group of their own, linked to the step they came from", 6000);
+    } });
+  return true;
+}
+/* (Round H1d / C) CUT OFF BRANCH: a step on a group's active branch, its card's right-click ▸ Cut Off Branch…, asked first: the group's lane
+   starts at that step from then on; the lane's steps before it (and the branches hanging from them) are dropped from the lane, and a
+   Split Off group's link to where it came from goes. One step ("Cut Off Branch", undone like any other: the steps come back). The
+   document is not changed; the steps stay in the document's own history for Ctrl+Z (guess h1d/5). */
+function hgCutOffAsk(gid, node) {
+  const g = hgById(gid);
+  if (!g) return toast("That History Group was ungrouped");
+  const { nodes, path, at } = histNodes(), LN = hgLanes(nodes, path, at);
+  if (!LN || LN.lane.get(node) !== gid) return false;
+  const act = new Set(); for (let k = LN.hereOf.get(gid); k != null && !act.has(k); k = LN.lp.get(k)) act.add(k);
+  if (!act.has(node)) return toast("Go to that branch first (double-click its last step): only the branch the group is on can be cut off");
+  let before = 0; for (const [id, l] of LN.lane) if (l === gid && id !== node && !LN.hidden.has(id)) { let k = id, under = false; for (; k != null; k = LN.lp.get(k)) if (k === node) { under = true; break; } if (!under) before++; }
+  askModal("Cut Off Branch", "From now on " + esc(g.name) + "'s history starts at “" + esc(nodes.get(node).n) + "”. The " + before + (before === 1 ? " step" : " steps") + " of its lane before it" + (g.from ? ", and its link to the step it was split off from," : "") + " will be dropped from the lane. Its patterns stay as they are. Undo brings them back.",
+    [{ k: "cut", n: "Cut Off Branch", f: () => { push("Cut Off Branch"); const q = hgById(gid); q.cut = node; delete q.from; commit(); HP.lay = null; } }, { k: "cancel", n: "Cancel", primary: true, esc: true, f: () => {} }]);
+  return true;
+}
+// the lane's own right-click menu (on its name at the left of the panel)
+function hgLaneMenu(b, x, y) {
+  if (b.lane === "s") return listMenu([{ hd: "Shared" }, { n: "Steps of patterns in no group, of several groups, or of the whole document", off: true }], x, y);
+  const g = hgById(b.lane);
+  listMenu([{ hd: b.def.name + (g ? "" : " (ungrouped)") },
+    { n: "Rename History Group…", off: !g, f: () => hgRename(b.lane) },
+    { n: "Select Its Patterns", off: !g || !g.pieces.length, f: () => { S.sel = g.pieces.filter(id => byId(id)); S.selKind = "outline"; ui(); drawSoon(); } },
+    { sep: 1 },
+    { n: "Ungroup", off: !g, f: () => hgUngroup(b.lane) }], x, y);
+}
+// a group's mark: its shape, in its colour, with a dark rim
+function hgIcon(g, icon, x, y, r, col) {
+  g.save(); g.fillStyle = col; g.strokeStyle = "#111"; g.lineWidth = 1; g.beginPath();
+  const P = (pts) => { pts.forEach(([a, b], i) => (i ? g.lineTo(x + a*r, y + b*r) : g.moveTo(x + a*r, y + b*r))); g.closePath(); };
+  if (icon === "circle") g.arc(x, y, r, 0, Math.PI*2);
+  else if (icon === "square") P([[-0.85, -0.85], [0.85, -0.85], [0.85, 0.85], [-0.85, 0.85]]);
+  else if (icon === "triangle") P([[0, -1], [1, 0.8], [-1, 0.8]]);
+  else if (icon === "diamond") P([[0, -1], [1, 0], [0, 1], [-1, 0]]);
+  else if (icon === "star") P(Array.from({ length: 10 }, (_, k) => { const a = -Math.PI/2 + k*Math.PI/5, q = k % 2 ? 0.45 : 1; return [Math.cos(a)*q, Math.sin(a)*q]; }));
+  else if (icon === "hexagon") P(Array.from({ length: 6 }, (_, k) => [Math.cos(k*Math.PI/3), Math.sin(k*Math.PI/3)]));
+  else P([[-0.35, -1], [0.35, -1], [0.35, -0.35], [1, -0.35], [1, 0.35], [0.35, 0.35], [0.35, 1], [-0.35, 1], [-0.35, 0.35], [-1, 0.35], [-1, -0.35], [-0.35, -0.35]]);
+  g.fill(); g.stroke(); g.restore();
+}
+/* The panel with groups: a band a lane, the Shared lane first, then each group (its colour, shape and name at the band's left; a step
+   gone from the group's lane by a Cut Off Branch not drawn); a card's place across by its depth in the history, so one moment lines up
+   in every lane; each lane's position framed with ▼ here, its active branch plain, the rest hatched and dimmed. */
+const HP_LANE = 170, HP_BAND = 30;
+function hpLayoutLanes(nodes, path, at, LN) {
+  const { lane, lp, depth, hereOf, defs, here, stOf, hidden } = LN;
+  const order = ["s", ...[...defs.keys()].sort((a, b) => a - b)], lk = new Map();
+  for (const x of [...nodes.values()].sort((a, b) => a.id - b.id)) {
+    if (hidden.has(x.id)) continue;
+    const p = lp.get(x.id);
+    if (p != null && !hidden.has(p)) { if (!lk.has(p)) lk.set(p, []); lk.get(p).push(x.id); }
+  }
+  const active = new Set();
+  for (const h of hereOf.values()) for (let k = h; k != null && !active.has(k); k = lp.get(k)) active.add(k);
+  const cards = [], byId = new Map(), bands = [];
+  let row0 = 0;
+  for (const l of order) {
+    const roots = [...nodes.values()].filter(x => !hidden.has(x.id) && lane.get(x.id) === l && (lp.get(x.id) == null || hidden.has(lp.get(x.id)))).map(x => x.id).sort((a, b) => a - b);
+    if (!roots.length) continue;
+    const def = l === "s" ? null : defs.get(l), top = row0*HP_GY + bands.length*HP_BAND, bandY = top + HP_BAND;
+    let rows = 0;
+    const sameRun = (a, b) => {
+      const A = nodes.get(a), B = nodes.get(b);
+      if (!A || !B || A.up == null || B.up == null || (lk.get(a) || []).length !== 1 || S.hsave.has(a) || S.hsave.has(b) || A.n !== B.n || hereOf.get(l) === a || S.hjump[a] || S.hjump[b]) return false;
+      const ka = histTouched(stOf(a), stOf(A.up)), kb = histTouched(stOf(b), stOf(B.up));
+      return ka !== null && ka !== "" && ka === kb;
+    };
+    const place = (id, row, up, opened) => {
+      const ids = [id], open = opened || HP.open.has(id);
+      if (!open) while ((lk.get(ids[ids.length - 1]) || []).length === 1 && sameRun(ids[ids.length - 1], lk.get(ids[ids.length - 1])[0])) ids.push(lk.get(ids[ids.length - 1])[0]);
+      const last = ids[ids.length - 1], n = nodes.get(id);
+      const kd = id === 0 ? null : histKind({ n: n.n, tool: n.tool }), tl = n.tool ? REG.tools.find(t => t.id === n.tool) : null;
+      const c = { id, ids, last, n: n.n, tool: n.tool, col: depth.get(id) || 0, row, up, lane: l, gc: def ? def.col : null, here: ids.includes(hereOf.get(l)), doc: ids.includes(here),
+        later: !ids.some(k => active.has(k)), save: S.hsave.get(id) || null, x: HP_LANE + (depth.get(id) || 0)*HP_GX, y: bandY + row*HP_GY, jump: !!S.hjump[id],
+        kind: kd ? kd.k : "start", kindName: kd ? kd.name : "Start", glyph: tl ? REG.glyphs[String(tl.icon || "").split("+")[0]] || null : null,
+        kindD: kd ? (HIST_KINDS.find(x => x[0] === kd.k) || [, , , HIST_GLYPH])[3] : HIST_START };
+      if (S.hui[id]) { c.x = S.hui[id].x; c.y = S.hui[id].y; }
+      cards.push(c); for (const k of ids) byId.set(k, c);
+      const ks = (lk.get(last) || []).slice().sort((p, q) => (active.has(q) ? 1 : 0) - (active.has(p) ? 1 : 0) || p - q);
+      ks.forEach((k, i) => place(k, i === 0 ? row : ++rows, c, open && ks.length === 1 && sameRun(last, k)));
+    };
+    roots.forEach((r, i) => place(r, i === 0 ? 0 : ++rows, null));
+    bands.push({ lane: l, def, y0: top, y1: bandY + (rows + 1)*HP_GY - 18, gone: !!(def && def.gone) });
+    row0 += rows + 1;
+  }
+  // (Round H1d / C) a Split Off group's link to the step it was split off from: a dotted cable
+  const links = [];
+  for (const [l, d] of defs) if (d.from && byId.has(d.from.node)) { const first = cards.find(c => c.lane === l && !c.up); if (first) links.push({ a: byId.get(d.from.node), b: first }); }
+  return { cards, byId, here, path, at, bands, links, lanes: true };
+}
+// a band's name at the panel's left, under the point (screen pixels)
+function hpBandHit(px, py) {
+  const L = hpLayout();
+  if (!L.bands) return null;
+  for (const b of L.bands) { const p = hpToScreen(0, b.y0); if (px >= 0 && px <= 200 && py >= p.y && py <= p.y + 24) return b; }
+  return null;
+}
+function hpDrawBands(g, L, W) {
+  const s = HP.view.s;
+  for (const b of L.bands) {
+    const p = hpToScreen(0, b.y0), q = hpToScreen(0, b.y1);
+    g.fillStyle = b.lane === "s" ? "#202023" : "#232327"; g.fillRect(0, p.y, W, q.y - p.y);
+    g.strokeStyle = "#3e3e43"; g.lineWidth = 1; g.beginPath(); g.moveTo(0, p.y + 0.5); g.lineTo(W, p.y + 0.5); g.stroke();
+    // the name stays at the panel's left edge however the view is panned
+    const y = p.y + 13, x = 10;
+    if (b.def) hgIcon(g, b.def.icon, x + 6, y, 6, b.def.col);
+    g.fillStyle = b.gone ? "#9a9aa0" : "#ececec"; g.font = "600 " + Math.max(9, Math.round(11*Math.min(1, s + 0.2))) + "px " + LBL_FACE; g.textBaseline = "middle";
+    g.fillText(b.def ? b.def.name + (b.gone ? " (ungrouped)" : "") : "Shared", x + (b.def ? 18 : 0), y);
+  }
+}
+
 function renderTimeline() {
   const el = document.getElementById("timeline");
   if (!el) return;
   if (el.classList) el.classList.toggle("open", !!S.ui.timeline);
-  if (!S.ui.timeline) { el.innerHTML = ""; return; }
+  if (!S.ui.timeline) { el.innerHTML = ""; if (el.style) el.style.height = ""; return; }
+  const H = Math.round(S.ui.histH || Math.max(160, window.innerHeight/3));
+  if (el.style) el.style.height = H + "px";
   const { steps, at } = histSteps();
+  const cv = hpCanvas() || Object.assign(document.createElement("canvas"), { id: "hp-cv" });
   el.innerHTML = "";
-  const btn = (cls, html, tip, f) => { const b = document.createElement("button"); b.className = cls; b.innerHTML = html; b.title = tip; b.onclick = f; el.appendChild(b); return b; };
-  btn("tl-nav", "\u25c0", "Step back (Ctrl+Z)", undo).disabled = !at;
-  btn("tl-nav", "\u25b6", "Step forward (Ctrl+Y)", redo).disabled = at >= steps.length;
+  // the top edge: drags the panel taller or lower
+  const grip = document.createElement("div"); grip.className = "hp-grip"; grip.title = "Drag to make the History panel taller or lower"; grip.onpointerdown = hpGripDown; el.appendChild(grip);
+  const head = document.createElement("div"); head.className = "hp-head"; el.appendChild(head);
+  const btn = (cls, html, tip, f) => { const b = document.createElement("button"); b.className = cls; b.innerHTML = html; b.title = tip; b.onclick = f; head.appendChild(b); return b; };
+  const lab0 = document.createElement("span"); lab0.className = "hp-title"; lab0.textContent = "History"; head.appendChild(lab0);
+  btn("tl-nav", "◀", "Step back (" + keyOf("undo") + ")", undo).disabled = !at;
+  btn("tl-nav", "▶", "Step forward (" + keyOf("redo") + ")", redo).disabled = at >= steps.length;
   // the 3D states (Round F / 10): one chip each, a click opens its menu; while one is looked at, Back to Now
   btn("tl-nav tl-s3add", "3D State +", "Keep the garment as it is now as a 3D state, to look at or go back to later; kept in the file", state3Add);
-  for (const st of S.states3 || []) { const looking = G3.look && G3.look.id === st.id, b = btn("tl-nav tl-s3" + (looking ? " on" : ""), (looking ? "\u25c9 " : "") + st.name.replace(/[<&]/g, ""), st.name + ": click for Look at It, Go Back to It, Rename, Delete; double-click to open it" + (looking ? " (being looked at)" : ""), (e) => state3Menu(st.id, e && e.clientX || 0, e && e.clientY || 0)); b.dataset.s3 = st.id; b.ondblclick = (e) => state3Open(st.id, e && e.clientX || 0, e && e.clientY || 0); }
+  for (const st of S.states3 || []) { const looking = G3.look && G3.look.id === st.id, b = btn("tl-nav tl-s3" + (looking ? " on" : ""), (looking ? "◉ " : "") + st.name.replace(/[<&]/g, ""), st.name + ": click for Look at It, Go Back to It, Rename, Delete; double-click to open it" + (looking ? " (being looked at)" : ""), (e) => state3Menu(st.id, e && e.clientX || 0, e && e.clientY || 0)); b.dataset.s3 = st.id; b.ondblclick = () => state3Open(st.id); }
   if (G3.look) btn("tl-nav tl-s3back", "Back to Now", "Stop looking at the 3D state: the garment as it is", look3End);
-  const track = document.createElement("div"); track.className = "tl-track"; el.appendChild(track);
-  const mark = (j, st) => {
-    const b = document.createElement("button"), en = j ? histEntry(st) : null, kind = en ? en.kind : null;
-    b.className = "tl-step" + (j === at ? " cur" : j > at ? " later" : "");
-    b.title = j ? j + " \u00b7 " + (en.tool ? en.tool + ": " : "") + st.n + " (" + kind.name + ")" + (j > at ? " (undone)" : "") : "Start: before the first step";
-    b.innerHTML = (en ? en.html : svgIcon(HIST_START)) + '<i>' + (j || "") + '</i>';
-    if (kind) b.dataset.kind = kind.k;
-    b.dataset.j = j; b.onclick = () => histGo(j);
-    track.appendChild(b);
-    if (j === at) { const h = document.createElement("span"); h.className = "tl-head"; h.title = "The document is here"; track.appendChild(h); }
-    return b;
-  };
-  mark(0, null);
-  steps.forEach((st, k) => mark(k + 1, st));
-  const lab = document.createElement("span"); lab.className = "tl-name"; lab.textContent = at ? at + " / " + steps.length + " \u00b7 " + steps[at - 1].n : steps.length ? "0 / " + steps.length + " \u00b7 Start" : "No steps yet"; el.appendChild(lab);
-  btn("tl-nav tl-clear", "Clear", "Clear the history: the document stays as it is. Save keeps the last " + histKeep() + " steps in the file (Edit \u2192 History Saved in the File).", clearHistory).disabled = !steps.length;
-  btn("tl-nav", "\u00d7", "Close the timeline", () => setTimeline(false));
-  const cur = Array.prototype.find.call(track.children || [], c => c.dataset && +c.dataset.j === at);
-  if (track.scrollWidth) track.scrollLeft = Math.max(0, (cur && cur.offsetLeft ? cur.offsetLeft : at*60) - track.clientWidth/2);
+  // (Round H1c / A: the two numbers each in a slot of fixed width, right-aligned, digits of one width: the name never moves)
+  const lab = document.createElement("span"); lab.className = "tl-name";
+  lab.innerHTML = steps.length ? '<span class="num">' + at + '</span> / <span class="num">' + steps.length + '</span> \u00b7 ' + esc(at ? steps[at - 1].n : "Start") : "No steps yet"; head.appendChild(lab);
+  const help = document.createElement("span"); help.className = "hp-help"; help.textContent = "Click: select · double-click the body (⤴): go to that step · double-click the name (✎): rename · drag: move a card or the view · wheel: zoom"; head.appendChild(help);
+  // (Round H1d / B, guess h1d/1) the undo rule, said where the lanes are
+  if (hgOn() || Object.keys(S.hjump || {}).length) help.textContent = "Lanes: double-click a step to take only that group there · Ctrl+Z undoes the last step, whichever lane it is in · right-click a lane's name: rename, ungroup";
+  btn("tl-nav tl-clear", "Here", "Show the step the document is at", () => { hpShowHere(); hpSoon(); });
+  if (histOn()) btn("tl-nav tl-clear", "Condense\u2026", "Condense the history: keep only the start, Save States, branch points, the ends of branches and the step the document is at", histCondenseAsk);
+  else { help.textContent = "The history is off for this project: undo works, nothing of it is kept in the file."; btn("tl-nav tl-clear", "Switch On", "Keep this project's history from now on (going back keeps variants; the file keeps it)", () => histSwitch(true)); }
+  btn("tl-nav tl-clear", "Clear", "Clear the history: the document stays as it is. Save keeps " + (histKeep() ? "the whole history" : "no history") + " in the file (Edit → History Saved in the File).", clearHistory).disabled = !steps.length && !S.hoff.size;
+  btn("tl-nav", "×", "Close the History panel (" + keyOf("historyPanel") + ")", () => setTimeline(false));
+  cv.className = "hp-cv"; el.appendChild(cv);
+  if (!cv.hpWired) {
+    cv.hpWired = true;
+    cv.addEventListener("pointerdown", hpDown); cv.addEventListener("pointermove", hpMove); cv.addEventListener("pointerup", hpUp);
+    cv.addEventListener("dblclick", hpDbl); cv.addEventListener("wheel", hpWheel, { passive: false });
+    // drawn again whenever it is laid out at another size (it opens at none, the windows above give way, its top edge is dragged)
+    if (typeof ResizeObserver === "function") new ResizeObserver(() => hpSoon()).observe(cv);
+  }
+  HP.lay = null;
+  if (HP.sel != null && !histNodes().nodes.has(HP.sel)) HP.sel = null;
+  hpShowHere(); hpSoon();
+}
+// the panel's height, by its top edge (a preference: S.ui.histH)
+function hpGripDown(e) {
+  const y0 = e.clientY, h0 = Math.round(S.ui.histH || Math.max(160, window.innerHeight/3)), el = document.getElementById("timeline");
+  const mv = (ev) => { const h = Math.max(120, Math.min(Math.round(window.innerHeight*0.8), h0 + y0 - ev.clientY)); S.ui.histH = h; if (el && el.style) el.style.height = h + "px"; if (S.mode === "layout") layoutResize(); else resize(); hpSoon(); };
+  const up = () => { window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); saveUI(); };
+  window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up);
 }
 // buttons and fields outside the canvas name the step they make
 function histWire() {
@@ -20289,6 +21376,7 @@ function layOverStatus(n) {
   const el = document.getElementById("s-over");
   if (!el) return;
   el.hidden = !n; el.textContent = n ? "⚠ " + n + (n === 1 ? " overlap" : " overlaps") : "";
+  if (typeof winTitles === "function") winTitles();                 // (Round H1c / A: said in Print Layout's title strip)
 }
 // where a manual move of copy key towards (x, y) ends: there if clear, else as far along the way as is clear, then sliding across
 function layManualTo(key, x, y) {
@@ -20970,6 +22058,7 @@ function newDoc(sure) {
   blankDoc(); commit(); fitAll(); markClean();
   if (DESK) setFile(null);
   toast("New document");
+  histNewAsk();
 }
 // File → New from Starter Pattern: the front bodice the program used to start with, to try things on
 function starterDoc(sure) {
@@ -20977,6 +22066,7 @@ function starterDoc(sure) {
   blankDoc(); S.pieces = [starter()]; bakeDarts(S.pieces); showDoc(); commit();
   if (DESK) setFile(null);
   toast("Starter pattern: a front bodice half");
+  histNewAsk();
 }
 /* ---- File ▸ Snapshot (Round r17b / 4; windows W41, W42 of the recordings, the manual's 3D Snapshot) ----
    2D Patterns (1:1): the patterns at their true size as a picture (PNG, JPEG) or a PDF, or as a DXF of the chosen kind (through
@@ -23175,7 +24265,7 @@ function menuDisplay() {
       { n: "BOM Editor", on: !!panes()[1], f: () => panes()[1] ? bomView(true) : bomView() }, nbRow("Pattern Drafter"),
       { n: "Library", k: keyOf("library"), f: () => libraryDialog() }, nbRow("Modular Library"),
       { n: "Object Browser", on: true, off: true, f: () => toast("The Object Browser is always shown here") }, { n: "Property Editor", on: true, off: true, f: () => toast("The Property Editor is always shown here") },
-      nbRow("Animation Editor"), { n: "History", on: !!S.ui.timeline, f: () => setTimeline(!S.ui.timeline) }, nbRow("USD Layer"), { sep: 1 },
+      nbRow("Animation Editor"), { n: "History", k: keyOf("historyPanel"), on: !!S.ui.timeline, f: () => setTimeline(!S.ui.timeline) }, nbRow("USD Layer"), { sep: 1 },
       { n: "Reset to Default Layout", f: resetLayout }])];      // (Round r23 / 2, 4: the layout reset; the toolbars stay where they were moved)
 }
 /* ---- Settings ▸ Preferences (Round D / D8), as W31 has it ----
@@ -23192,6 +24282,10 @@ function menuPreferences() {
     { n: "Snap to Pattern", on: !!S.prefs.snapPts, f: () => setPrefs({ snapPts: !S.prefs.snapPts }) },
     { n: "Snap to Grid", on: S.snapG > 0, f: () => { if (S.snapG > 0) { lastGrid = S.snapG; setPrefs({ grid: 0 }); } else setPrefs({ grid: lastGrid || 10 }); toast(S.snapG > 0 ? "Snap to Grid: every " + S.snapG + " mm" : "Snap to Grid: off"); } },
     { n: "Grid Properties\u2026", f: () => gridDialog({ x: 200, y: 140 }) }, { sep: 1 },
+    { n: "History for New Projects", menu: () => [["ask", "Ask Each Time"], ["on", "On"], ["off", "Off"]].map(([k, n]) => ({ n, on: (S.prefs.histNew || "ask") === k, f: () => setPrefs({ histNew: k }) })) },
+    { n: "Show Tool Hints", on: !!S.prefs.showHints, f: () => setPrefs({ showHints: !S.prefs.showHints }) },
+    { n: "Keep the Old Future Without Asking", on: !!S.prefs.keepFuture, f: () => { setPrefs({ keepFuture: !S.prefs.keepFuture }); toast(S.prefs.keepFuture ? "Going back and making a change keeps the old future as a branch without asking" : "Going back and making a change asks whether to keep the old future"); } },
+    { n: "Keep Cloth at Branch Points", on: !!S.prefs.keepBranchCloth, f: () => { setPrefs({ keepBranchCloth: !S.prefs.keepBranchCloth }); toast(S.prefs.keepBranchCloth ? "Save keeps the cloth of every branch point of the history (larger files); Save States always keep theirs" : "Save keeps the cloth of the history's Save States only; a branch point asks for a Re-drape when you go to it"); } },
     { n: "Open Files with Their Display Settings", on: !!S.prefs.openDisplay, f: () => { setPrefs({ openDisplay: !S.prefs.openDisplay }); toast(S.prefs.openDisplay ? "A file opened from now on shows itself as it was saved (but Show Sewing)" : "Files open with this computer's display settings"); } }, { sep: 1 },
     subRow("Camera Properties", () => [nbRow("Default Camera (Main)")]),
     { n: "Simulation Properties\u2026", f: () => simSettingsDialog() }, { sep: 1 },
@@ -23243,8 +24337,8 @@ function menuFile() {
 const MENUS = {
   file: () => menuFile(),
   edit: () => [
-    { n: "Undo", k: keyOf("undo"), f: undo, off: !S.undo.length }, { n: "Redo", k: keyOf("redo"), f: redo, off: !S.redo.length }, { n: "History Timeline", on: !!S.ui.timeline, f: () => setTimeline(!S.ui.timeline) },
-    { n: "Clear History", f: clearHistory, off: !(S.undo.length + S.redo.length) }, { n: "History Saved in the File\u2026 (" + (histKeep() ? histKeep() + " steps" : "none") + ")", f: () => histKeepDialog() }, { sep: 1 },
+    { n: "Undo", k: keyOf("undo"), f: undo, off: !S.undo.length }, { n: "Redo", k: keyOf("redo"), f: redo, off: !S.redo.length }, { n: "History", k: keyOf("historyPanel"), on: !!S.ui.timeline, f: () => setTimeline(!S.ui.timeline) },
+    { n: "Clear History", f: clearHistory, off: !(S.undo.length + S.redo.length) }, { n: "Keep History for This Project", on: histOn(), f: () => histSwitch(!histOn()) }, { n: "Condense History\u2026", f: histCondenseAsk, off: !histOn() || histNodes().nodes.size < 3 }, { sep: 1 },
     { n: "Copy", k: keyOf("copy"), f: copySel }, { n: "Paste", k: keyOf("paste"), f: () => paste(false) }, { n: "Mirror Paste", k: keyOf("mirror"), f: () => paste(true) },
     { n: "Delete", k: keyOf("delete"), f: del }, { sep: 1 },
     { n: "Select All", k: keyOf("selectAll"), f: selectAll }, { n: "Select All Sewn", k: keyOf("selectSewn"), f: () => selectAllWith("sewn") }, { n: "Invert Selection", k: keyOf("invert"), f: invertSel },
@@ -23296,7 +24390,7 @@ function normUI(o) {
   o = o && typeof o === "object" ? o : {};
   const show3d = {};
   if (o.show3d && typeof o.show3d === "object") for (const k of Object.keys(o.show3d)) if (o.show3d[k] === false) show3d[k] = false;
-  return { layout: ["2d", "3d", "both"].includes(o.layout) ? o.layout : "both", arrPts: o.arrPts === true, timeline: o.timeline === true, unbuilt: o.unbuilt !== false, render: RENDER.some(r => r[0] === o.render) ? o.render : "front", mesh2: o.mesh2 === true,
+  return { layout: ["2d", "3d", "both"].includes(o.layout) ? o.layout : "both", arrPts: o.arrPts === true, timeline: o.timeline === true, ...(Number.isFinite(o.histH) && o.histH >= 120 && o.histH <= 4000 ? { histH: Math.round(o.histH) } : {}),      /* (Round H1b / 2: the History panel's height, a preference, kept only once it was dragged) */ unbuilt: o.unbuilt !== false, render: RENDER.some(r => r[0] === o.render) ? o.render : "front", mesh2: o.mesh2 === true,
     render3: RENDER3.some(r => r[0] === o.render3) ? o.render3 : "front", wire3: o.wire3 === true, joints3: o.joints3 === true, jointSize: Number.isFinite(o.jointSize) && o.jointSize >= 2 && o.jointSize <= 30 ? Math.round(o.jointSize) : 8, jointMode: o.jointMode === "ik" ? "ik" : "fk", jointLimits: o.jointLimits !== false, ...(Number.isFinite(o.grid3b) && o.grid3b !== 1 ? { grid3b: Math.max(0.2, Math.min(2, o.grid3b)) } : {}), ...(normGrid3(o.grid3s) ? { grid3s: normGrid3(o.grid3s) } : {}), ikEdit: o.ikEdit === "full" ? "full" : "part",
     ikSym: o.ikSym !== false, quality3: o.quality3 === true, schem3: o.schem3 === true && o.quality3 !== true, bv3: o.bv3 === true, meas3: o.meas3 !== false, suit3: o.suit3 === true, blendFav: Array.isArray(o.blendFav) ? o.blendFav.filter(x => typeof x === "string").slice(0, 200) : [], avW: o.avW === "weight" ? "weight" : "chest", avH: ["hps", "inseam"].includes(o.avH) ? o.avH : "total", avUnit: ["cm", "in"].includes(o.avUnit) ? o.avUnit : "mm", avLinkW: o.avLinkW !== false, avLinkH: o.avLinkH !== false, show3d, strain3: o.strain3 === true, fit3: o.fit3 === true && o.strain3 !== true,
     // (Round r20 continued (4)) the Stress and Pressure Maps, their units and scales: kept only when not the default
@@ -23373,14 +24467,16 @@ function wirePanels() {
 function winTitles() {
   const t3 = document.getElementById("wt3d-n"), t2 = document.getElementById("wt2d-n"), tl = document.getElementById("wtlay-n");
   if (t3) t3.textContent = typeof filePath === "string" && filePath ? filePath.replace(/^.*[\\/]/, "") : "3D Garment Window";
-  if (t2) t2.textContent = "2D Pattern Window";
-  if (tl) tl.textContent = "Print Layout";
+  // (Round H1c / A) the zoom and Print Layout's overlaps, said here now that the bottom bar holds no information
+  if (t2) t2.textContent = "2D Pattern Window" + (S.view && S.view.s > 0 ? " \u00b7 " + Math.round(S.view.s*100) + " %" : "");
+  const ov = document.getElementById("s-over");
+  if (tl) tl.textContent = "Print Layout" + (ov && !ov.hidden && ov.textContent ? " \u00b7 " + ov.textContent : "");
 }
 /* (Round r23 / 1: every start looks the same) S.ui holds two kinds of thing. Preferences, chosen in Settings or by moving a
    toolbar, are kept per machine and come back at every start: UI_PREFS. Everything else is view state (the window layout and its
    split, the panels' sizes, windows taken out, the timeline shown, display styles and modes, the 3D maps, the joints shown, the
    Avatar Editor's modes): every start has it at its default, and it is not written anywhere. */
-const UI_PREFS = ["unbuilt", "dock2", "dock3", "jointSize", "jointLimits", "grid3b", "grid3s", "ikSym", "blendFav", "avW", "avH", "avUnit", "avLinkW", "avLinkH", "mapUnit", "mapRange"];
+const UI_PREFS = ["histH", "unbuilt", "dock2", "dock3", "jointSize", "jointLimits", "grid3b", "grid3s", "ikSym", "blendFav", "avW", "avH", "avUnit", "avLinkW", "avLinkH", "mapUnit", "mapRange"];
 const uiPrefsOf = (o) => { const out = {}; if (o && typeof o === "object") for (const k of UI_PREFS) if (o[k] !== undefined) out[k] = o[k]; return out; };
 function loadUI() { try { return normUI(uiPrefsOf(JSON.parse(localStorage.getItem(UI_KEY) || "{}"))); } catch (e) { return normUI(null); } }
 function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify(uiPrefsOf(S.ui))); } catch (e) {} }
@@ -23856,7 +24952,7 @@ function note3d(msg) {
   const n = document.getElementById("note3d");
   if (!n) return;
   const lk = typeof G3 !== "undefined" && G3.look && state3(G3.look.id);
-  n.textContent = msg || (lk ? "Looking at " + lk.name + " (Back to Now in the history timeline) · " : "") + (S.av ? S.av.name + " · " : S.avErr ? "⚠ " + S.avErr + " · " : "No avatar (Avatar → Load Avatar…) · ") + viewHelp();
+  n.textContent = msg || (lk ? "Looking at " + lk.name + " (Back to Now in the history timeline) · " : "") + (typeof G3 !== "undefined" && G3.redrape ? "⟳ This step's cloth was not kept: Re-drape or Simulate · " : "") + (S.av ? S.av.name + " · " : S.avErr ? "⚠ " + S.avErr + " · " : "No avatar (Avatar → Load Avatar…) · ") + viewHelp();
 }
 // a camera view by name, with the avatar (or the home place) in view
 function cam3d(name) {
@@ -24703,7 +25799,7 @@ function ikMove(d, e) {
 function ikEnd(d, keep) {
   TOOL3.select_move.d = null; note3d();
   if (!keep || !d.moved) { S.avedit.joints = d.j0; jointPose(); return; }
-  histFit(); S.undo.push(d.undo); S.un.push({ n: "Move Joint", tool: "" }); if (S.undo.length > 90) { S.undo.shift(); S.un.shift(); } S.redo.length = 0; S.rn.length = 0;
+  pushState(d.undo, "Move Joint");
   commit();
 }
 // Esc while a joint is dragged in IK: the drag given up
@@ -27239,7 +28335,7 @@ TOOL3.select_move = {
     note3d();
     if (!d.moved) { if (d.one && S.sel.length > 1) { S.sel = [d.one]; ui(); draw(); view3d.ask(); } return; }
     // one undo step: the document as it was before the drag
-    histFit(); S.undo.push(d.undo); S.un.push({ n: "Move in 3D", tool: "" }); if (S.undo.length > 90) { S.undo.shift(); S.un.shift(); } S.redo.length = 0; S.rn.length = 0;
+    pushState(d.undo, "Move in 3D");
     commit();
   },
   cancel() { if (this.d && this.d.giz) return void gizEnd(this.d, false); if (this.d && this.d.ik) return void ikEnd(this.d, false); this.d = null; },
@@ -27833,13 +28929,13 @@ function gizEnd(d, keep) {
   if (d.light) {
     const l = (S.lights || []).find(x => x.id === d.light);
     if (!keep || !d.moved) { if (l) Object.assign(l, d.l0); view3d.ask(); if (rwinOpen()) rwinSide(); return; }
-    histFit(); S.undo.push(d.undo); S.un.push({ n: "Move Light", tool: "" }); if (S.undo.length > 90) { S.undo.shift(); S.un.shift(); } S.redo.length = 0; S.rn.length = 0;
+    pushState(d.undo, "Move Light");
     return void commit();
   }
   if (d.joint) {
     if (!keep || !d.moved) { S.avedit.joints = d.j0; jointPose(); return; }
     S.avedit = normAvEdit(S.avedit);
-    histFit(); S.undo.push(d.undo); S.un.push({ n: "Turn Joint", tool: "" }); if (S.undo.length > 90) { S.undo.shift(); S.un.shift(); } S.redo.length = 0; S.rn.length = 0;
+    pushState(d.undo, "Turn Joint");
     return void commit();
   }
   if (!keep || !d.moved) {
@@ -27852,7 +28948,7 @@ function gizEnd(d, keep) {
     garmentLines(); view3d.ask();
     return;
   }
-  histFit(); S.undo.push(d.undo); S.un.push({ n: d.h.kind === "turn" ? "Turn in 3D" : "Move in 3D", tool: "" }); if (S.undo.length > 90) { S.undo.shift(); S.un.shift(); } S.redo.length = 0; S.rn.length = 0;
+  pushState(d.undo, d.h.kind === "turn" ? "Turn in 3D" : "Move in 3D");
   commit();
 }
 // a right-click while a handle is dragged: the value is typed. Enter applies it and ends the drag, Esc goes back to dragging.
@@ -28465,6 +29561,7 @@ function simShow() {
 function simStart() {
   look3End();                                                // the simulation runs on the garment as it is
   if (SIM.on) return;
+  if (G3.redrape) { G3.redrape = false; note3d(); }          // (Round H1 / 1) a simulation drapes it again
   if (typeof RWIN !== "undefined" && (RWIN.live || RWIN.busy)) { rwinStop(); toast("The render stopped: it does not run while simulating", 5000); }
   { const gd = gizDrag(); if (gd) gizEnd(gd, true); }
   if (S.ui.layout === "2d") setLayout("both");
@@ -31240,7 +32337,7 @@ TOOL3.edit_measure_avatar = {
     const d = this.d; this.d = null;
     if (!d || !d.moved) return;
     S.avedit = normAvEdit(S.avedit);
-    histFit(); S.undo.push(d.undo); S.un.push({ n: "Edit Avatar Measure", tool: "" }); if (S.undo.length > 90) { S.undo.shift(); S.un.shift(); } S.redo.length = 0; S.rn.length = 0;
+    pushState(d.undo, "Edit Avatar Measure");
     commit(); G3.selMeas = d.k; showMeasures();
     const m = S.avMeas[d.k]; if (m) toast(measName(m) + ": " + measText(m));
   },

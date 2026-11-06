@@ -1,5 +1,6 @@
 // Round r11: bending across the seams (1), Fill as a tool (2), piping (3), binding (4), gluing (5). A test (or more) a batch.
 "use strict";
+const FV = require("./harness").FILE_VERSION;      // (Round H1) this build's file version, read from the app's FILE_VERSION
 const assert = require("assert");
 const path = require("path");
 const { spawnSync } = require("child_process");
@@ -252,7 +253,7 @@ test("r11 / 3: Piping (3D): a click on a seam on the cloth opens its box (cord d
   near(o.rod[0][1], o.perMm*320/(o.rod[0][0] - 1), 1e-4, "its weight a node: the cord and its strip");
   assert.ok(o.simRods > 0, "the running solver has its links");
   assert.deepStrictEqual([o.edit, o.editTitle, o.edited], [true, "Edit Piping \u2014 seam 1", [6, "out", "Edit Piping"]]);
-  assert.strictEqual(o.inFile[0], 31);      /* ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1;) */ assert.deepStrictEqual(o.inFile[1].map(t => [t.id, t.seam, t.d]), [[1, 1, 6]]);      // (version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
+  assert.strictEqual(o.inFile[0], FV);      /* (Round H1: this build's version read from the app, FV) ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1;) */ assert.deepStrictEqual(o.inFile[1].map(t => [t.id, t.seam, t.d]), [[1, 1, 6]]);      // (version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
   assert.deepStrictEqual(o.opened, o.inFile[1], "opened as saved");
   assert.deepStrictEqual(o.deleted, [0, "Delete Piping"]); assert.strictEqual(o.undone, 1); assert.strictEqual(o.withSeam, 0);
 });

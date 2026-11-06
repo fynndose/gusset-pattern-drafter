@@ -9,6 +9,7 @@
 // pref (a preference), view (view state), session (work in progress, not the document) or derived (rebuilt from the file). State
 // that is in none fails the test: a new kind of state must be decided on.
 "use strict";
+const FV = require("./harness").FILE_VERSION;      // (Round H1) this build's file version, read from the app's FILE_VERSION
 const assert = require("assert");
 const { spawnSync } = require("child_process");
 const path = require("path");
@@ -36,10 +37,11 @@ const CLASS = {
     // the document
     pieces: "file", seams: "file", stitches: "file", puckers: "file", guides: "file", measures: "file", grading: "file", lineLinks: "file", tacks: "file",
     buttons: "file", pipings: "file", bindings: "file", glues: "file", lib: "file", layout: "file", notch: "file", images: "file", backdrop: "file",
-    avedit: "file", lights: "file", render: "file", renderSet: "file", cloth: "file", states3: "file", home3: "file", nextId: "file", nextSegId: "file", nextShapeId: "file",
+    avedit: "file", lights: "file", render: "file", renderSet: "file", histOn: "file", cloth: "file", states3: "file", home3: "file", nextId: "file", nextSegId: "file", nextShapeId: "file",
     garMeas: "file", docPose: "file", docAv: "file", docAvFile: "file", avEmbed: "file", drapeIn: "file",
     // the history (in the file: history.json)
-    undo: "file", redo: "file", un: "file", rn: "file",
+    undo: "file", redo: "file", un: "file", rn: "file", hoff: "file", hsave: "file", hui: "file", histNext: "file",      // (Round H1: the tree)
+    hgroups: "file", hlane: "file", hjump: "file",      // (Round H1d / B: the History Groups, each node's lane, the steps that took one group back)
     // preferences
     prefs: "pref", unit: "pref", dec: "pref", print: "pref", poses: "pref", sewCheck: "pref", avSet: "pref", avOwn: "pref", show: "pref", pdfSet: "pref",
     // view state
@@ -65,7 +67,7 @@ const CLASS = {
     avMeas: "derived", arr: "derived",
   },
   // the 3D window's own state: all of it is the session's or rebuilt from the file (the cloth: from drape.bin)
-  G3: { items: "derived", pool: "derived", poolId: "derived", drapeNow: "derived", restBody: "derived", fresh: "derived", dirty: "derived", look: "session", sel: "session", giz: "session",
+  G3: { items: "derived", pool: "derived", poolLazy: "derived" /* (Round H1c / A: a file's Save States' cloth, read when wanted) */, redrape: "session" /* (Round H1: a step whose cloth was not kept is shown; the 3D window asks for a Re-drape) */, poolId: "derived", drapeNow: "derived", restBody: "derived", fresh: "derived", dirty: "derived", look: "session", sel: "session", giz: "session",
     gizHot: "session", gizObj: "session", joint: "session", jointHot: "session", selPin: "session", selTack: "session", selMeas: "session", selVol: "session", isolate: "view",
     probe: "session", probeObj: "session", mapLeg: "view", strain: "derived", strainLeg: "view", strainTop: "view", ov: "derived", ovCache: "derived", ovExtra: "derived",
     hovKey: "session", hotLine: "session", hotPt: "session", garFrom: "session", tackFrom: "session", suitPick: "session", suitLine: "session", ikSlot: "session", ikOpen: "view",
@@ -83,15 +85,15 @@ CLASS.avSet = { path: "session", name: "session", height: "file", pose: "file", 
 // stored keys (localStorage in the test page: the desktop store and IndexedDB hold the same)
 const STORE = { "pdraft:doc": "session", "pdraft:file": "session", "pdraft:prefs": "pref", "pdraft:ui": "pref", "pdraft:view": "pref", "pdraft:avatar": "pref", "pdraft:poses": "pref",
   "pdraft:sewcheck": "pref", "pdraft:library": "pref", "pdraft:flags": "pref", "pdraft:welcome": "pref", "pdraft:render": "pref", "pdraft:snapshot": "pref", "pdraft:ptfail": "pref",
-  "pdraft:print": "pref", "pdraft:grainask": "pref", "pdraft:avsizes": "pref" };
+  "pdraft:print": "pref", "pdraft:grainask": "pref", "pdraft:avsizes": "pref", "pdraft:docav": "session" /* (Round H1 / 1: one's own avatar beside the autosave) */ };
 
 /* ---------- differences known and not yet put right ----------
    Each: the path it shows at (a regular expression), why, and where it is to be put right. Kept to the paths it really covers. */
 const KNOWN = [
   // (put right in H1a batch 2, file version 31: the garment measurements, the avatar record's collision detail and pose file, the render
   // settings of a document never rendered are in the file now)
-  { at: /^history\.(steps|states|at|n)$/, why: "the file keeps only the last 50 done steps of the history (Settings: History in the File)", fix: "H1 (the history's storage, h0 spec §7)" },
-  { at: /^history\.drapes$/, why: "the drape of each history step is not in the file: undo past a Simulate after opening leaves the cloth as it is", fix: "H1 (h0 spec §7.3)" },
+  // (put right in H1: the file keeps the whole history, a tree, up to 500 steps a branch, and the cloth of its Save States and branch
+  // points; any other step that had a cloth is marked, and going to it asks for a Re-drape: compared as such in the dump, history.drapes)
 ];
 
 const FNV = `
@@ -114,11 +116,19 @@ const DUMP = FNV + `
       skin: hashF(Array.from(app.ev("avatarTris")(av)).map(v => Math.round(v*100)/100)) } : null;
     out.avMeas = (S.avMeas || []).map(m => [m.kind, Math.round((m.tape || m.len || m.surface || 0)*10)/10]);
     out.garMeas = (S.garMeas || []).map(m => { const r = app.ev("garMeasValue")(m); return [m.kind, m.name || "", r ? Math.round(r.v*10)/10 : null]; });
-    const st = app.histSteps();
-    out.history = { at: st.at, n: st.steps.length };
-    out["history.steps"] = st.steps.map(s => s.n);
-    out["history.states"] = S.undo.map(t => J(JSON.parse(app.ev("histText")(t))));
-    out["history.drapes"] = S.undo.map(t => !!(typeof t === "string" ? JSON.parse(t).drape3 : t.drape3));
+    // (Round H1) the whole tree: every node, its parent, name and tool, Save State and place in the panel; the document after each (its
+    // drape snapshot's id is the session's own and is left out); the path's end and where the document is; the cloth of every node that
+    // keeps one (Save States and branch points), and for the others only whether they had one (the current one's is the cloth above)
+    const nd = app.ev("histNodes")(), kept = app.ev("histClothIds")();      // (Round H1b / 1: the nodes whose cloth the file keeps)
+    nd.nodes.get(nd.path[nd.at]).st = app.ev("histState")();
+    const ns = [...nd.nodes.values()].sort((a, b) => a.id - b.id);
+    out.history = { at: nd.path[nd.at], head: nd.path[nd.path.length - 1], n: ns.length };
+    const LN = app.ev("hgLanes")(nd.nodes, nd.path, nd.at);      // (Round H1d / B: each node's lane and ⤺ too)
+    out["history.tree"] = ns.map(x => ({ id: x.id, up: x.up, n: x.n, tool: x.tool || "", save: S.hsave.get(x.id) || null, ui: S.hui[x.id] || null, lane: LN ? LN.lane.get(x.id) : "s", jump: S.hjump[x.id] || null }));
+    out["history.lanes"] = LN ? [...LN.hereOf.entries()].sort((a, b) => String(a[0]).localeCompare(String(b[0]))) : null;
+    out["history.states"] = ns.map(x => { const o = JSON.parse(app.ev("histText")(x.st)); delete o.drape3; return J(o); });
+    out["history.drapes"] = ns.filter(x => x.id !== nd.path[nd.at]).map(x => { const d3 = x.st && x.st.drape3, d = kept.has(x.id) && d3 != null ? app.ev("poolGet")(d3) : null;
+      return [x.id, d3 != null, d ? Object.keys(d).sort().map(k => k + ":" + hashF(d[k].X)) : null]; });
     return out;
   };
   // the keys of every piece of state the page holds now
@@ -171,7 +181,7 @@ const SCENE = DUMP + `
     // the avatar edited and posed: a pose file of this machine's own as the base pose, a slider, a joint turned, the waist sized
     S.poses = app.ev("normPoses")([{ name: "Walk", q: { upperarm_l: [0.2, 0, 0, 0.98], upperarm_r: [-0.2, 0, 0, 0.98] } }]);
     app.setAvatar({ base: "Walk", pose: { armL: [20, 0, 0] } });
-    app.push("Turn Joint"); S.avedit.joints = { lowerarm_l: [0, 0, 0.17, 0.985] }; app.commit();
+    app.push("Turn Joint"); S.avedit.joints = { lowerarm_l: [0, 0, 0.6, 0.8] }; app.commit();      // (a unit quaternion, as a turn by the ring makes: a history keeps it normalized)
     app.ev("sizeTyped")("waist", 820);
     app.ev("measAdd")({ kind: "tape", type: "basic", at: [{ v: [100, 100, 100], w: [1, 0, 0] }, { v: [2000, 2000, 2000], w: [1, 0, 0] }] });
     // simulated, a 3D state kept, then the garment measurements on the draped cloth
@@ -181,8 +191,20 @@ const SCENE = DUMP + `
     const T0 = S.pieces[0];
     app.ev("addGarMeas")({ kind: "glin", a: { piece: T0.id, x: T0.pts[0].x, y: T0.pts[0].y }, b: { piece: T0.id, x: T0.pts[2].x, y: T0.pts[2].y } });
     app.ev("addGarMeas")({ kind: "vol", ids: [T0.id] });
-    // more steps than the file keeps
+    // (Round H1) a Save State on the draped step, its node moved in the panel; 55 more steps; then three undone and a step made there:
+    // the three kept as a branch, its branch point a node whose cloth is kept
+    const draped = app.ev("histAtId")(); S.hsave.set(draped, "Draped"); S.hui[draped] = { x: 40, y: 12 };
     for (let k = 0; k < 55; k++) { app.push("Move"); C.pts.forEach(q => { q.y += 1; }); app.commit(); }
+    app.undo(); app.undo(); app.undo();
+    app.push("Rename"); C.name = "Panel C (variant)"; app.commit();
+    // (Round H1d / B) a History Group of C, a step in its lane, and the group taken back to its first step
+    app.promptAnswer = "Panel"; app.ev("hgCreate")([C.id]); app.promptAnswer = undefined;
+    const gid = S.hgroups[S.hgroups.length - 1].id, made = app.ev("histAtId")();
+    app.push("Move C"); C.pts.forEach(q => { q.x += 1; }); app.commit();
+    app.ev("hgGo")(gid, made);
+    // (Round H1d / C) the group split off at its first step, and the split-off group cut off there
+    app.ev("hgSplitOff")(gid, made); S.place.drop({ x: 0, y: 0 }); S.place = null;
+    app.modalAnswer = (t) => (t === "Cut Off Branch" ? "cut" : "discard"); app.ev("hgCutOffAsk")(S.hgroups[S.hgroups.length - 1].id, app.ev("histAtId")()); app.modalAnswer = undefined;
     const file = await new Promise((res) => { app.setDownload((n, b) => res(b)); app.saveDoc(false); app.setDownload(null); });
     return { file: Array.from(file), dump: dump(), keys: keysNow(), ui: Object.keys(S.ui), uiPrefs: app.ev("UI_PREFS"), prefs: Object.keys(S.prefs), avSet: Object.keys(S.avSet) };
   })();`;
@@ -251,6 +273,9 @@ test("h1a / 2: a rich scene saved and opened on a fresh profile is the same stat
   const stale = KNOWN.filter(x => !found.some(p => x.at.test(p)));
   // PDRAFT_RESTORE_DEEP=1: each unknown difference with its two values
   const valueAt = (side, p) => { const k = Object.keys(side.dump).filter(q => p === q || p.startsWith(q + ".")).sort((x, y) => y.length - x.length)[0]; return p.slice(k.length + 1).split(".").filter(Boolean).reduce((o, q) => o && o[q], side.dump[k]); };
+  // (the history's states: which node, which of its keys, and for pieces which pattern and key)
+  if (process.env.PDRAFT_RESTORE_DEEP && unknown.includes("history.states")) A.dump["history.states"].forEach((a, i) => { const b = B.dump["history.states"][i]; if (a === b) return; const x = JSON.parse(a), y = JSON.parse(b || "{}");
+    for (const k of new Set([...Object.keys(x), ...Object.keys(y)])) if (canon(x[k]) !== canon(y[k])) console.log("  state " + i + " (node " + A.dump["history.tree"][i].id + " " + A.dump["history.tree"][i].n + "): " + k + " " + (k === "pieces" ? diffs(x[k], y[k], k, 3, []).slice(0, 6).join(", ") : String(canon(x[k])).slice(0, 160) + " / " + String(canon(y[k])).slice(0, 160))); });
   if (process.env.PDRAFT_RESTORE_DEEP) for (const p of unknown) console.log("  " + p + ": " + String(JSON.stringify(valueAt(A, p))).slice(0, 200) + "  /  " + String(JSON.stringify(valueAt(B, p))).slice(0, 200));
   if (process.env.PDRAFT_RESTORE_REPORT) console.log("  file " + size + " bytes; known differences: " + (known.join(", ") || "none") + "; KNOWN entries that no longer differ: " + (stale.map(x => String(x.at)).join(", ") || "none"));
   assert.deepStrictEqual(unknown, [], "differences after reopening that are not known faults: " + unknown.join(", "));
@@ -260,35 +285,106 @@ test("h1a / 2: a rich scene saved and opened on a fresh profile is the same stat
   assert.ok(d["doc.pieces"].length >= 7 && d["doc.seams"].some(s => s.zip) && d["doc.stitches"].length && d["doc.measures"].length && d["doc.lights"].length === 2, "the scene's document: " + JSON.stringify([d["doc.pieces"].length, d["doc.seams"].some(s => s.zip), d["doc.stitches"].length, d["doc.measures"].length, d["doc.lights"].length]));
   assert.ok(d["doc.pieces"].some(p => (p.internals || []).some(x => x.block)) && d["doc.pieces"].some(p => (p.blocks || []).length) && d["doc.pieces"].some(p => (p.internals || []).some(x => x.fold)), "pleats and Seamless Blocking");
   assert.ok(Object.values(d.cloth).some(Boolean) && d.states3.length === 1 && d.garMeas.length === 2 && d.avatar && d.avatar.base === "Walk", "draped, a 3D state, garment measurements, a pose file");
-  assert.ok(d.history.n > 60, "a history longer than the file keeps: " + d.history.n);
+  assert.ok(d.history.n > 60, "a history longer than 50 steps: " + d.history.n);
+  const ups = d["history.tree"].map(x => x.up), forks = ups.filter((u, i) => u != null && ups.indexOf(u) !== i);
+  assert.ok(d["history.tree"].some(x => x.save === "Draped") && forks.length === 1 && d["history.drapes"].some(x => x[2]), "a Save State, a branch, a kept cloth: " + JSON.stringify([d.history, forks]));
 });
 
 /* Crash recovery is the same rule: what the autosave brings back is the document and its history. RECOVERY_KNOWN as KNOWN. */
 const RECOVERY_KNOWN = [
   // (put right in H1a batch 2: the autosave keeps the history, and the 2D origin of 3D in it, as a file does)
 ];
-test("h1a / 3: crash recovery brings back the document and its history: every difference a known one", () => {
-  const a = boot({ blank: true, script: `
+// (Round H1 / 1) on an avatar of one's own, posed, a joint turned: until H1 the autosave kept no avatar, so recovered work came back
+// without it (known since beta.3). This case was not on RECOVERY_KNOWN: it had no avatar at all, so it could not see it. Now it has one.
+test("h1a / 3: crash recovery brings back the document, its history and one's own avatar (posed, a joint turned): every difference a known one" + (hasMarty ? "" : " (Marty is not here: skipped)"), () => {
+  if (!hasMarty) return;
+  const AV = `
+    const av = () => S.av ? { name: S.av.name, hash: S.av.hash, preset: S.av.preset || null, pose: S.avSet.pose, joints: S.avedit.joints, rec: app.ev("avatarRecord")() } : null;`;
+  const a = boot({ blank: true, three: true, script: AV + `
+    return (async () => {
     const J = app.ev("canonJSON");
+    app.ev("avatarLoaded")(app.read("../assets/avatar/presets/marty.glb"), "my-body.glb", null, true, true); await app.wait(() => S.av, "the avatar");
+    app.ev("avatarDocSet")(null, { armL: [25, 0, 0] });
+    // (a unit quaternion, as a turn by the ring makes: a file's history keeps a joint's turn normalized)
+    app.push("Turn Joint"); S.avedit.joints = { lowerarm_l: [0, 0, 0.6, 0.8] }; app.commit();
     for (let k = 0; k < 4; k++) { app.push("Rectangle"); S.pieces.push(app.mkPiece("R" + k, app.mkShape([{ x: 500*k, y: 0 }, { x: 500*k + 300, y: 0 }, { x: 500*k + 300, y: 200 }, { x: 500*k, y: 200 }], true))); app.commit(); }
     app.push("Move"); S.pieces[1].pts.forEach(q => { q.x += 20; }); app.commit();
     app.undo();                                     // one step undone: the redo side is history too
     app.ev("saveNow")();
     const st = app.histSteps(), d = JSON.parse(JSON.stringify(app.ev("docObj")())); delete d.display; delete d.scene;
-    return { seed: app.storage.get("pdraft:doc"), doc: J(d), history: { at: st.at, steps: st.steps.map(s => s.n), states: S.undo.map(t => J(JSON.parse(app.ev("histText")(t)))) } };` });
-  assert.deepStrictEqual(a.errors, []);
+    return { seed: app.storage.get("pdraft:doc"), avKept: app.storage.get("pdraft:docav"), doc: J(d), av: av(), history: { at: st.at, steps: st.steps.map(s => s.n), states: S.undo.map(t => J(JSON.parse(app.ev("histText")(t)))) } };
+    })();` });
+  assert.deepStrictEqual(a.errors, [], "A: " + JSON.stringify(a.errors));
   assert.ok(typeof a.result.seed === "string" && a.result.seed.length > 100, "an autosave was written");
-  const b = boot({ blank: true, seed: a.result.seed, script: `
+  assert.ok(typeof a.result.avKept === "string" && a.result.avKept.length > 1000, "the avatar's own file was kept beside it");
+  const b = boot({ blank: true, three: true, seed: a.result.seed, storage: { "pdraft:docav": a.result.avKept }, script: AV + `
+    return (async () => {
+    await app.wait(() => S.av && S.av.hash === ${JSON.stringify(a.result.av.hash)}, "the avatar of one's own");
     const J = app.ev("canonJSON"), st = app.histSteps(), d = JSON.parse(JSON.stringify(app.ev("docObj")())); delete d.display; delete d.scene;
-    return { doc: J(d), history: { at: st.at, steps: st.steps.map(s => s.n), states: S.undo.map(t => J(JSON.parse(app.ev("histText")(t)))) } };` });
-  assert.deepStrictEqual(b.errors, []);
+    return { doc: J(d), av: av(), history: { at: st.at, steps: st.steps.map(s => s.n), states: S.undo.map(t => J(JSON.parse(app.ev("histText")(t)))) } };
+    })();` });
+  assert.deepStrictEqual(b.errors, [], "B: " + JSON.stringify(b.errors));
   assert.ok(b.modals.some(m => m.title === "Recover unsaved work?"), "recovery was offered");
   const found = [];
   if (a.result.doc !== b.result.doc) found.push("doc");
   if (JSON.stringify(a.result.history) !== JSON.stringify(b.result.history)) found.push("history");
+  if (JSON.stringify(a.result.av) !== JSON.stringify(b.result.av)) found.push("avatar");
   const unknown = found.filter(p => !RECOVERY_KNOWN.some(x => x.at.test(p))), stale = RECOVERY_KNOWN.filter(x => !found.some(p => x.at.test(p)));
   assert.deepStrictEqual(unknown, [], "recovered state differs: " + unknown.join(", "));
   assert.deepStrictEqual(stale.map(x => String(x.at)), [], "these RECOVERY_KNOWN entries no longer differ: take them out of the list");
+});
+
+/* (Round H1e / 1) Crash recovery with History Groups: two groups, one taken back (a ⤺ step), a Split Off, a Cut Off Branch, on an avatar of
+   one's own. The recovered document, its whole tree (every node, its parent, name, lane, ⤺, state), each lane's position and the avatar
+   must be what they were. */
+test("h1e / 1: crash recovery with History Groups (two groups, one gone back, a Split Off, a Cut Off Branch, one's own avatar) brings back the document, the whole tree, every lane and its position" + (hasMarty ? "" : " (Marty is not here: skipped)"), () => {
+  if (!hasMarty) return;
+  const TREE = `
+    const av = () => S.av ? { name: S.av.name, hash: S.av.hash, rec: app.ev("avatarRecord")() } : null;
+    const tree = () => {
+      const J = app.ev("canonJSON"), nd = app.ev("histNodes")(), LN = app.ev("hgLanes")(nd.nodes, nd.path, nd.at);
+      nd.nodes.get(nd.path[nd.at]).st = app.ev("histState")();
+      const ns = [...nd.nodes.values()].sort((a, b) => a.id - b.id);
+      return { at: nd.path[nd.at], head: nd.path[nd.path.length - 1], nodes: ns.map(x => { const o = JSON.parse(app.ev("histText")(x.st)); delete o.drape3; return [x.id, x.up, x.n, LN ? LN.lane.get(x.id) : "s", S.hjump[x.id] || null, LN && LN.hidden.has(x.id), J(o)]; }),
+        here: LN ? [...LN.hereOf.entries()].map(([k, v]) => String(k) + ":" + v).sort() : null, groups: J(S.hgroups) };
+    };`;
+  const a = boot({ blank: true, three: true, script: TREE + `
+    return (async () => {
+    const J = app.ev("canonJSON");
+    app.ev("avatarLoaded")(app.read("../assets/avatar/presets/marty.glb"), "my-body.glb", null, true, true); await app.wait(() => S.av, "the avatar");
+    const rect = (k) => { app.push("Rectangle " + k); S.pieces.push(app.mkPiece("R" + k, app.mkShape([{ x: 500*k, y: 0 }, { x: 500*k + 300, y: 0 }, { x: 500*k + 300, y: 200 }, { x: 500*k, y: 200 }], true))); app.commit(); };
+    const P = (k) => S.pieces.find(p => p.name === "R" + k), move = (k, n) => { app.push(n); P(k).pts.forEach(q => { q.y += 10; }); app.commit(); };
+    rect(0); rect(1); rect(2);
+    app.promptAnswer = "Shirt"; app.ev("hgCreate")([P(0).id, P(1).id]); app.promptAnswer = "Pants"; app.ev("hgCreate")([P(2).id]); app.promptAnswer = undefined;
+    const shirt = S.hgroups[0].id, pants = S.hgroups[1].id;
+    // a seam between the Shirt's two patterns, so the Split Off has sewing to take (Round H1e / 2)
+    app.push("Sew"); S.seams.push({ id: 1, a: [{ piece: P(0).id, shape: 0, sids: [P(0).segs[1].id], t0: 0, t1: 1, rev: false }], b: [{ piece: P(1).id, shape: 0, sids: [P(1).segs[3].id], t0: 0, t1: 1, rev: true }] }); app.commit();
+    move(0, "Shirt 1"); move(2, "Pants 1"); move(1, "Shirt 2"); move(2, "Pants 2");
+    const nodeOf = (n) => [...app.ev("histNodes")().nodes.values()].find(x => x.n === n).id;
+    app.ev("hgGo")(shirt, nodeOf("Shirt 1"));
+    app.ev("hgSplitOff")(shirt, nodeOf("Shirt 2")); S.place.drop({ x: 0, y: 0 }); S.place = null;
+    move(0, "Shirt 3");
+    app.modalAnswer = (t) => (t === "Cut Off Branch" ? "cut" : "keep"); app.ev("hgCutOffAsk")(pants, nodeOf("Pants 2")); app.modalAnswer = undefined;
+    app.undo(); app.redo();
+    app.ev("saveNow")();
+    const d = JSON.parse(JSON.stringify(app.ev("docObj")())); delete d.display; delete d.scene;
+    return { seed: app.storage.get("pdraft:doc"), avKept: app.storage.get("pdraft:docav"), doc: J(d), av: av(), tree: tree() };
+    })();` });
+  assert.deepStrictEqual(a.errors, [], "A: " + JSON.stringify(a.errors));
+  assert.ok(a.result.tree.nodes.some(x => x[4]), "a ⤺ step"); assert.ok(a.result.tree.nodes.some(x => x[5]), "steps a Cut Off Branch hid");
+  assert.ok(JSON.parse(a.result.tree.groups).some(g => g.from) && JSON.parse(a.result.tree.groups).some(g => Number.isInteger(g.cut)), "a Split Off and a Cut Off Branch");
+  assert.strictEqual(JSON.parse(a.result.doc).seams.length, 2, "the Split Off copied the Shirt's own seam (Round H1e / 2)");
+  const b = boot({ blank: true, three: true, seed: a.result.seed, storage: { "pdraft:docav": a.result.avKept }, script: TREE + `
+    return (async () => {
+    await app.wait(() => S.av && S.av.hash === ${JSON.stringify(a.result.av.hash)}, "the avatar of one's own");
+    const J = app.ev("canonJSON"), d = JSON.parse(JSON.stringify(app.ev("docObj")())); delete d.display; delete d.scene;
+    return { doc: J(d), av: av(), tree: tree() };
+    })();` });
+  assert.deepStrictEqual(b.errors, [], "B: " + JSON.stringify(b.errors));
+  assert.ok(b.modals.some(m => m.title === "Recover unsaved work?"), "recovery was offered");
+  assert.strictEqual(b.result.doc, a.result.doc, "the document");
+  assert.deepStrictEqual(b.result.av, a.result.av, "the avatar");
+  assert.deepStrictEqual(b.result.tree, a.result.tree, "the whole tree, every lane and its position");
 });
 
 /* (Round H1a / 2) The defaults a file was written with. A version 30 file (written by the last build of version 30) opens with the
@@ -323,7 +419,7 @@ test("h1a / 4: a file opens with the defaults it was written with: version 30's 
   const r = o.result;
   assert.strictEqual(r.same, true, "this build's defaults are version 30's (when a default is changed on purpose, DEFAULTS_BY_VERSION keeps the old one and this expectation changes)");
   assert.deepStrictEqual(r.render, [256, "window", true], "a version 30 file never rendered: version 30's render defaults, not this machine's last choices (96 samples, a colour)");
-  assert.deepStrictEqual(r.saved, [31, true, 256, false], "saved as version 31 with the render settings and the defaults said; nothing filled in");
+  assert.deepStrictEqual(r.saved, [FV, true, 256, false], "saved as this build's version with the render settings and the defaults said; nothing filled in");      // (Round H1: FV, this build's version)
   assert.strictEqual(r.stable, true, "saved, opened and saved again: the same bytes");
   assert.deepStrictEqual(r.filled, [9e6, 70000, 0.5, true, 70, 8, 10, 80], "the file's own defaults, each a value of its own; the Custom fabric as it was");
   assert.strictEqual(r.redo, 2, "a state of its history: the glue's Strength as it was written");
