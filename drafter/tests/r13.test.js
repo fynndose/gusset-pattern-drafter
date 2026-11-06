@@ -128,7 +128,7 @@ test("r13 / 2: the Property Editor's Selected Notch has Length (greyed with Perp
   assert.strictEqual(o.enabled, false, "with a Custom angle Length stays greyed");
   assert.deepStrictEqual(o.own[0], [{ t: 0.5, angle: 15, len: 14, flip: true }]); near(o.own[1], 14, 1e-3, "drawn its own length");
   assert.deepStrictEqual(o.steps, ["Notch", "Notch", "Notch", "Notch"]);
-  assert.strictEqual(o.inFile[0], 28);      /* (version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1;) */ assert.deepStrictEqual(o.inFile[1], [{ t: 0.5, angle: 15, len: 14, flip: true }]);      // (version 19 since Round perf-2; 18 since Round r15; 17 since Round r14)
+  assert.strictEqual(o.inFile[0], 31);      /* ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1;) */ assert.deepStrictEqual(o.inFile[1], [{ t: 0.5, angle: 15, len: 14, flip: true }]);      // (version 19 since Round perf-2; 18 since Round r15; 17 since Round r14)
   assert.deepStrictEqual(o.opened, o.inFile[1]);
   assert.deepStrictEqual(o.perp, [{ t: 0.5, flip: true }]); assert.deepStrictEqual(o.back, [0.5]);
 });
@@ -143,7 +143,7 @@ test("r13 / 2: a version 15 file's notches with their own look open as they were
     // a container file (every file since version 12) whose document says 17
     const part = (v) => new Map([["document.json", new TextEncoder().encode(JSON.stringify({ ...doc, v }))]]), pd = app.ev("pdraftDoc");
     out.v16 = pd(part(16)).v;
-    try { pd(part(29)); out.v17 = "opened"; } catch (e) { out.v17 = e.message; }      // (Round r30: 28 is this build's version; Round r29: 27 was; Round r26: 26 was this build's version; Round r25: 25 was; Round r20: 24 was; the r19 follow-up: 23 was; Round r18: 22 was this build's version; Round r17b: 21 was this build's version; Round build-1: 20 was this build's version (19 since Round perf-2, 18 since Round r15); the one after it is refused)
+    try { pd(part(32)); out.v17 = "opened"; } catch (e) { out.v17 = e.message; }      // ((Round H1a: 32, one past this build's 31) (Round r34: 31, one past this build's 30) ((Round r33b: 30, one past this build's 29) Round r30: 28 is this build's version; Round r29: 27 was; Round r26: 26 was this build's version; Round r25: 25 was; Round r20: 24 was; the r19 follow-up: 23 was; Round r18: 22 was this build's version; Round r17b: 21 was this build's version; Round build-1: 20 was this build's version (19 since Round perf-2, 18 since Round r15); the one after it is refused)
     return out;` }).result;
   assert.strictEqual(o.v16, 16);
   assert.deepStrictEqual(o.v15, [0.25, { t: 0.75, type: "V", angle: 20 }]);
@@ -156,8 +156,9 @@ const LINES = DOC + `
   const menu = (x, y, name) => { const s = at(x, y); app.menuClick(s.x, s.y, name, "edit_pattern"); };
   const P = (sh) => sh.pts.map(q => [+q.x.toFixed(3), +q.y.toFixed(3)]);
 `;
+// (Round r33 / 4) graded on the size run every document had before r33 (a document starts with none since): oldSizeRun
 test("r13 / 3: Divide Internal Point (an internal line's point menu) splits an open line in two at the point: ids kept, a seam across it becomes two parts, grading and a measurement follow their points; one undo step; not at an end; a closed shape opens there", () => {
-  const o = boot({ script: LINES + `
+  const o = boot({ oldSizeRun: true,  script: LINES + `
     const L = line([{x:20,y:100},{x:100,y:100},{x:180,y:100}]); L.fold = "valley";
     const ids = L.segs.map(s => s.id);
     S.seams.push({ id: 1, a: [{ piece: A.id, shape: L.id, sids: ids.slice(), t0: 0.5, t1: 0.5, rev: false }], b: [{ piece: B.id, shape: 0, sids: [B.segs[0].id], t0: 0, t1: 1, rev: false }] });
@@ -271,7 +272,8 @@ test("r13 / 4: Base Rectangle and Base Ellipse are built tools: a drag inside a 
   assert.deepStrictEqual(o.rect, [1, [[20, 40], [120, 40], [120, 90], [20, 90]], true, true, ["Base Rectangle"]]);
   assert.strictEqual(o.title, "Create Ellipse");
   assert.deepStrictEqual(o.ell, [3, [[true, 4, 30, 60], [true, 4, 90, 120]], "Base Ellipse"]);
-  assert.ok(/attach to a pattern/.test(o.none[0]), o.none[0]); assert.strictEqual(o.none[1], 3);
+  // (Round r34 / 3: base lines are drawn only inside a pattern, the third session's wish; the message says so now. It was "attach to a pattern")
+  assert.ok(/drawn inside a pattern/.test(o.none[0]), o.none[0]); assert.strictEqual(o.none[1], 3);
 });
 
 /* ---------- 5: Rotate ▸ X-Axis, Y-Axis ---------- */

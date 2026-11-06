@@ -241,6 +241,7 @@ test("r32 / 3: a file asking for 5 mm and Path Traced at 6000 x 6000, opened in 
     return app.wait(() => app.view3d.ready(), "the 3D window").then(() => {
       const doc = JSON.parse(app.docJSON()); doc.cloth = { ...doc.cloth, res: 5 };
       doc.render = { mode: "quality", size: "custom", w: 6000, h: 6000 };
+      doc.renderSet = true;      // (Round H1a / 2: from version 31 every file says its render settings; renderSet says they were chosen)
       app.ev("loadDoc")(doc); app.ev("showDoc")();
       for (const f of app.ev("globalThis").__timers || []) f();
       out.res = [app.ev("S.cloth.res"), app.ev("clothRes()"), app.ev("particleOf")(null)];

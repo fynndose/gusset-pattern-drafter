@@ -323,9 +323,11 @@ test("r29 / 3: a document's render settings and custom views are in its file (ve
       const b1 = saveBytes(); app.ev("openFile")("r.pdraft", b1, null, true); const b2 = saveBytes(); out.same = b1.length === b2.length && b1.every((x, i) => x === b2[i]);
       return out;
     });` }).result;
-  assert.strictEqual(o.none, false, "untouched: no key, so older documents keep their bytes");
+  // (Round H1a / 2: every file says its render settings from version 31, so a later change of a default or of this machine's last choices
+  // changes no file; it was "untouched: no key" until then. A document never rendered is saved with the settings it would render with here.)
+  assert.strictEqual(o.none, true, "every file says its render settings");
   assert.strictEqual(o.steps, 0, "no history step");
-  assert.deepStrictEqual(o.file, [28, "640x480", "portrait", 25, "Front 3/4"]);      // (Round r30: the file version is 28)
+  assert.deepStrictEqual(o.file, [31, "640x480", "portrait", 25, "Front 3/4"]);      // ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) Round r30: the file version is 28)
   assert.strictEqual(o.inHistory, false);
   assert.deepStrictEqual(o.fresh, [null, "640x480", 40, 0, "now"], "the machine's size, but no lens or custom view of another document");
   assert.deepStrictEqual(o.back, ["640x480", 25, 1, 25]);

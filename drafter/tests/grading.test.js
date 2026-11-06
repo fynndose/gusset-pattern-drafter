@@ -2,6 +2,7 @@
 // inserting sizes, and grading following a piece through turns, linked copies and
 // symmetric unfolds.
 "use strict";
+const { oldSizeRun } = require("./harness");      // (Round r33 / 4) the size run every document had before r33: a document starts with none since (harness.js)
 const assert = require("assert");
 const { load } = require("./harness");
 
@@ -29,16 +30,16 @@ const samePt = (p, q, msg, tol = 1e-9) => { near(p.x, q.x, tol, (msg || "") + " 
 const T = [];
 const test = (name, fn) => T.push({ name, fn });
 // sizes: 1 XS, 2 S, 3 M (base), 4 L, 5 XL
-function reset() { S.pieces = []; S.seams = []; S.nextSegId = 1; S.nextShapeId = 1; S.nextId = 1; S.grading = defaultGrading(); return S.grading; }
+function reset() { S.pieces = []; S.seams = []; S.nextSegId = 1; S.nextShapeId = 1; S.nextId = 1; S.grading = oldSizeRun(); return S.grading; }
 function panel(w = 200, h = 100) { const p = mkPiece("P" + (S.pieces.length + 1), rectShape(0, 0, w, h)); S.pieces.push(p); return p; }
 // grade a point with the same step per size: step × (size − base)
 const stepped = (G, p, sh, i, sx, sy) => { for (const z of [1, 2, 4, 5]) setPtDelta(G, p, sh, i, z, sx*(z - 3), sy*(z - 3)); };
 
-test("a new document has a placeholder size run with a base; a file's own grading is kept, a broken one replaced", () => {
+// (Round r33 / 4, the maintainer's brief) a new document has no size group: the user adds them. Until r33 it had the
+// placeholder run XS–XL (harness.js oldSizeRun() keeps it for the tests below)
+test("a new document has no size group; a file's own grading is kept, a broken one replaced", () => {
   const G = defaultGrading();
-  assert.deepStrictEqual(G.groups[0].sizes.map(z => z.name), ["XS", "S", "M", "L", "XL"]);
-  assert.strictEqual(gSize(G, G.groups[0].base).name, "M"); assert.strictEqual(G.groups[0].name, "Size Group", "called as the file's program calls its own (Round I2; it was \"Sizes (placeholder)\")");
-  assert.strictEqual(new Set(G.groups[0].sizes.map(z => z.color)).size, 5, "a colour per size");
+  assert.deepStrictEqual(G, { groups: [], tables: [], active: null, nest: false, nextId: 1 }, "no size group at start");
   assert.deepStrictEqual(normGrading(undefined), defaultGrading()); assert.deepStrictEqual(normGrading({ groups: [] }), defaultGrading());
   const mine = { groups: [{ id: 7, name: "EU", base: 99, sizes: [{ id: 8, name: "36", color: "#123456" }, { id: 9, name: "38" }, null, { id: "x", name: "40" }] }],
     tables: [{ id: 12, name: "Bodice", rules: { A: { 9: { dx: 5, dy: 0 } } } }, { name: "no id" }], active: 9, nest: true, nextId: 3 };
@@ -275,7 +276,7 @@ test("grading is saved with the document and is part of every undo snapshot", ()
   assert.deepStrictEqual(gradedPiece(S.grading, S.pieces[0], 5).pts, want);
   const old = JSON.parse(text); delete old.grading; delete old.pieces[0].grade;
   loadDoc(old);
-  assert.deepStrictEqual(S.grading, defaultGrading(), "a file from before grading gets the placeholder size run");
+  assert.deepStrictEqual(S.grading, defaultGrading(), "a file from before grading gets no size group (Round r33 / 4; it got the placeholder run before)");
   assert.strictEqual(gradedPiece(S.grading, S.pieces[0], 4), null);
   const src = require("./harness").appSource();
   // (Round perf-2 / 5) the snapshot is made from snapObj(), which every undo step is kept from (in parts) and snap() writes out

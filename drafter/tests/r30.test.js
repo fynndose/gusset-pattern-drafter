@@ -297,7 +297,7 @@ test("r30 / 4: a version 27 file with sewing on one side of a symmetric pair ope
     out.v = doc.v; out.mir = (doc.seams || []).filter(sm => sm.mir !== undefined).length;
     return out;` }).result;
   assert.deepStrictEqual(o.seams, [[1, 1, true]]); assert.strictEqual(o.after, 1);
-  assert.strictEqual(o.v, 28); assert.strictEqual(o.mir, 0);
+  assert.strictEqual(o.v, 31); assert.strictEqual(o.mir, 0);      // ((Round H1a: version 31) (Round r34: version 30) (Round r33b: version 29)
 });
 
 /* ---------- Batch 5: Trace ▸ Cut, Cut & Sew, Convert to Hole ---------- */

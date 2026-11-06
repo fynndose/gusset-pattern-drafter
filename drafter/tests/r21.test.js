@@ -103,8 +103,9 @@ const DOC2 = `
 
 const show = (rep) => rep.filter(r => r.problems.length).map(r => r.name + ": " + r.problems.join("; ")).join("\n");
 
+// (Round r33 / 4) graded on the size run every document had before r33 (a document starts with none since): oldSizeRun
 test("r21 / 1, 2: the 2D document data of r17b–r20 (annotations, puckering, symbols, topstitch specification, a size's lock, a corner notch's direction, points of measure, graphics, render thickness, glue fill, a button's type): one step each, undo / redo / undo exact, saved and opened the same, the file's history undone", () => {
-  const o = boot({ script: AUDIT + DOC2 + `
+  const o = boot({ oldSizeRun: true,  script: AUDIT + DOC2 + `
     // annotations (r20 / 4)
     audit("Annotation: Rotate", () => app.ev("noteTurn")(P(0), P(0).notes[0], 90), { prep: () => { P(0).notes = [{ text: "Cut 2", x: 250, y: 200, size: 10 }]; } });
     audit("Annotation: Colour", () => app.ev("noteColor")(P(0), P(0).notes[0], app.ev("NOTE_COLORS")[2][0]));
@@ -397,7 +398,7 @@ const WALK = `
 `;
 test("r21 / 3: every test file (versions 11, 12, 18 to 24) opens with no error, saves and opens again the same, saves again to the same bytes, and its whole history undoes and redoes", () => {
   const files = FILES.map(n => [n, Array.from(fs.readFileSync(path.join(__dirname, "files", n)))]);
-  assert.ok(["v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27"].every(v => files.some(([n]) => n.startsWith(v + "/"))), "a file of each version: " + files.map(x => x[0]));
+  assert.ok(["v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28" /* (Round r33b) */, "v29" /* (Round r34) */, "v30" /* (Round H1a) */].every(v => files.some(([n]) => n.startsWith(v + "/"))), "a file of each version: " + files.map(x => x[0]));
   const o = boot({ blank: true, three: true, script: AUDIT + WALK + `
     const files = ${JSON.stringify(files)};
     for (const [n, b] of files) { app.ev("openFile")(n, new Uint8Array(b), null, true); walk(n); }

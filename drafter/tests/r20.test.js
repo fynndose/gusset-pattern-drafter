@@ -275,8 +275,9 @@ test("r20 / 9: Show Ground Grid hides the floor grid, 3D Grid Brightness lighten
 });
 
 /* ---- Batch 6 (part): the POM tab ---- */
+// (Round r33 / 4) graded on the size run every document had before r33 (a document starts with none since): oldSizeRun
 test("r20 / 6: the POM tab: each point of measure's length in every shown size of a graded pattern; ✎ renames (one step); Names from CSV names them in order", () => {
-  const o = boot({ blank: true, script: `
+  const o = boot({ oldSizeRun: true,  blank: true, script: `
     const out = {};
     app.ev("addBlock")("skirt", "simple", null, { x: 0, y: 0 });
     const A = S.pieces[0], G = S.grading, g = G.groups[0], base = g.base;
@@ -352,17 +353,17 @@ test("r20 / 4: a version 23 file (written by the build before the bump: two patt
     app.ev("openFile")("annotations-sewn-history.pdraft", bytes, null, true);
     return app.wait(() => S.pieces.length === 2, "the file opened").then(() => {
       const J = app.ev("canonJSON"), now = app.ev("docObj")();
-      const strip = (d) => { const c = JSON.parse(JSON.stringify(d)); delete c.v; delete c.scene; delete c.drape; delete c.states3; delete c.states3Bin; delete c.history; return J(c); };
+      /* (Round H1a / 2: from version 31 every document says its render settings and the defaults it was written with, as its version) */ const strip = (d) => { const c = JSON.parse(JSON.stringify(d)); delete c.v; delete c.render; delete c.defaults; delete c.scene; delete c.drape; delete c.states3; delete c.states3Bin; delete c.history; return J(c); };
       out.v = [was.v, now.v]; out.same = strip(was) === strip(now);
       out.undo = S.un.map(x => x.n);
       return new Promise((res) => { app.setDownload((n, b) => res(b)); app.saveDoc(false); })
         .then((again) => new Promise((res) => app.ev("zipUnpack")(again, (e, p) => res(p)))).then((parts) => app.ev("pdraftDoc")(parts))
         .then((d) => { out.again = d.v; app.ev("undo")(); out.undone = S.pieces[1].name; return out; });
     });` });
-  assert.deepStrictEqual(o.v, [23, 28]);      // (Round r30: 28; Round r29: 27)
+  assert.deepStrictEqual(o.v, [23, 31]);      // ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) Round r30: 28; Round r29: 27)
   assert.strictEqual(o.same, true, "the same document");
   assert.deepStrictEqual(o.undo, ["Rectangle", "Rectangle", "Annotation", "Segment Sewing", "Rename"], "its history came with it");
-  assert.strictEqual(o.again, 28);      // (Round r30: 28; Round r29: 27) assert.strictEqual(o.undone, "Back");
+  assert.strictEqual(o.again, 31);      // ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) Round r30: 28; Round r29: 27) assert.strictEqual(o.undone, "Back");
 });
 test("r20 / 4: an annotation's Orientation, colour, Link to a line, Copy and Rotate: each one step, kept in the file, undone", () => {
   const o = boot({ blank: true, streams: true, script: DOC + `
@@ -385,12 +386,13 @@ test("r20 / 4: an annotation's Orientation, colour, Link to a line, Copy and Rot
   assert.deepStrictEqual(o.link, [true, 250, 100, 90], "at the top line's middle, along it, turned 90 more");
   assert.deepStrictEqual(o.steps, ["Rotate Annotation", "Annotation Color", "Copy Annotation", "Link Annotation"]);      // (Round r27: one spelling, the American of the rows from the references)
   assert.deepStrictEqual(o.norm, { text: "x", x: 1, y: 2 }, "the defaults and junk are not kept");
-  assert.deepStrictEqual(o.file, [28, 90, "#d55e00", true]);      // (the file's version: 28 since Round r30, 27 since Round r29; 26 since Round r26, 25 since Round r25) assert.strictEqual(o.undone, false);
+  assert.deepStrictEqual(o.file, [31, 90, "#d55e00", true]);      // ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) the file's version: 28 since Round r30, 27 since Round r29; 26 since Round r26, 25 since Round r25) assert.strictEqual(o.undone, false);
 });
 
 /* ---- Batch 6 (rest), 11 (part) ---- */
+// (Round r33 / 4) graded on the size run every document had before r33 (a document starts with none since): oldSizeRun
 test("r20 / 6, 11: Show Grading writes every shown size's name; Grading Review's 2D Measurements in each tile's size; Window ▸ Render opens the Render box", () => {
-  const o = boot({ blank: true, script: `
+  const o = boot({ oldSizeRun: true,  blank: true, script: `
     const out = {};
     app.ev("addBlock")("skirt", "simple", null, { x: 0, y: 0 });
     const A = S.pieces[0], G = S.grading, g = G.groups[0], base = g.base;
@@ -415,8 +417,9 @@ test("r20 / 6, 11: Show Grading writes every shown size's name; Grading Review's
 // (Round r25: Pleats Fold and Pleats Sewing were removed, the maintainer's decision after the third check session; their test went with them)
 
 /* ---- Batch 6 (rest): a size's Lock, the Calculator NotePad, a notch's Direction ---- */
+// (Round r33 / 4) graded on the size run every document had before r33 (a document starts with none since): oldSizeRun
 test("r20 / 6: a locked size takes no grading edit (one step to lock, kept in the file); the Calculator NotePad works sums of named points of measure; a corner notch's Direction ▸ Segment 2 cuts it square to the other line", () => {
-  const o = boot({ blank: true, streams: true, script: DOC + `
+  const o = boot({ oldSizeRun: true,  blank: true, streams: true, script: DOC + `
     const G = S.grading, g = G.groups[0], z = g.sizes.find(x => x.id !== g.base);
     z.lock = true; app.commit();
     out.lock = [app.ev("setPtDelta")(G, A, A, 1, z.id, 10, 0), !!(A.grade && A.grade.pts && Object.keys(A.grade.pts).length)];

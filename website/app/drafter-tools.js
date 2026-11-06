@@ -31,15 +31,17 @@ var TOOL_REGISTRY = (function () {
     // ---- 2D window ----
     ["select", "2D", "Select"],
     ["edit", "2D", "Edit"],
-    ["pattern", "2D", "Create"], ["internal", "2D", "Create"], ["base", "2D", "Create"], ["trace", "2D", "Create"],
+    ["pattern", "2D", "Create"], ["internal", "2D", "Create"], ["seamless", "2D", "Create"], ["base", "2D", "Create"], ["trace", "2D", "Create"],
     ["fullness", "2D", "Shape"], ["pleats", "2D", "Shape"],
-    ["notch", "2D", "Markings"], ["allowance", "2D", "Markings"], ["annotation", "2D", "Markings"], ["measure", "2D", "Markings"],
+    ["notch", "2D", "Markings"], ["allowance", "2D", "Markings"], ["annotation", "2D", "Markings"], ["measure", "2D", "Markings"], ["grade", "2D", "Markings"],
     ["edit_sew", "2D", "Sewing"], ["seg_sew", "2D", "Sewing"], ["free_sew", "2D", "Sewing"], ["check_sew", "2D", "Sewing"],
     ["topstitch", "2D", "Stitch"], ["puckering", "2D", "Stitch"],
     ["texture", "2D", "Material"], ["graphic2", "2D", "Material"], ["button2", "2D", "Material"], ["layer", "2D", "Material"], ["drafter", "2D", "Material"],
     // ---- 3D window ----
     ["simulate", "3D", "Simulate"], ["select3", "3D", "Simulate"], ["mesh", "3D", "Simulate"], ["pin", "3D", "Simulate"],
-    ["arrange", "3D", "Arrange"], ["resolution", "3D", "Arrange"],
+    // (Round r33 / 5, the maintainer's brief) Fold Arrangement and the two resets each a button of their own; "arrange" keeps the
+    // tools out of this stage's scope (status later: on no toolbar unless the feature flag is on)
+    ["fold_arr", "3D", "Arrange"], ["reset2d", "3D", "Arrange"], ["reset3d", "3D", "Arrange"], ["redrape", "3D", "Arrange"], ["arrange", "3D", "Arrange"], ["resolution", "3D", "Arrange"],
     ["edit_sew3", "3D", "Sewing"], ["seg_sew3", "3D", "Sewing"], ["free_sew3", "3D", "Sewing"], ["auto_sew", "3D", "Sewing"], ["tack", "3D", "Sewing"], ["press", "3D", "Sewing"], ["stitch3", "3D", "Sewing"], ["notch3", "3D", "Sewing"],
     ["pen_garment", "3D", "Draw"], ["pen_avatar", "3D", "Draw"], ["style_line", "3D", "Draw"],
     // Zipper (Round r12 / 1, the maintainer's decision): on the 3D toolbar, and in hand it works on the 2D patterns as well
@@ -68,7 +70,8 @@ var TOOL_REGISTRY = (function () {
     ["internal_spiral", "Internal Spiral", "", "internal", "built", "spiral+in", "Draw a spiral line inside a pattern."],
     // the double-pointed dart (Round r12 / 6): a cut-out dart inside a pattern, its legs sewn to each other
     ["dart_double", "Dart", "", "internal", "built", "dart+in", "A double-pointed dart inside a pattern, sewn."],
-    ["seamless_blocking", "Seamless Blocking", "", "internal", "unbuilt", "split", "Divide a pattern for a second fabric without cutting it."],
+    // (Round r33 / 6, the maintainer's brief) its own toolbar slot, out of the internal shapes' group
+    ["seamless_blocking", "Seamless Blocking", "", "seamless", "built", "split", "Divide a pattern into sections, each with a fabric of its own, without cutting it."],
     ["base_polygon", "Base Polygon / Line", "", "base", "built", "polygon+dash", "Draw a baseline (reference only)."],
     ["base_rectangle", "Base Rectangle", "", "base", "built", "rect+dash", "A rectangular baseline."],
     ["base_ellipse", "Base Ellipse", "", "base", "built", "ellipse+dash", "An elliptical baseline."],
@@ -77,7 +80,12 @@ var TOOL_REGISTRY = (function () {
     ["fullness", "Fullness", "", "fullness", "built", "fan", "Slash from one edge to another and turn one side to add fullness."],
     ["fullness_point", "Fullness (Point)", "", "fullness", "partly", "fan", "Slash and spread from a point.", { via: MENU + "select the segment to grow, then right-click the outline point to pivot on, More ▸ Fullness (Point)…" }],
     ["fullness_line", "Fullness (Line)", "", "fullness", "partly", "spread", "Add fullness between two segments.", { via: MENU + "select one segment, right-click the other, More ▸ Fullness (Line)…" }],
-    ["pleats", "Pleats", "", "pleats", "built", "pleats", "Click a segment or internal line, then the side: knife, box or accordion pleats as the Pleats box sets them."],
+    ["pleats", "Pleats", "", "pleats", "built", "pleats", "Two points on the outline (or a straight internal line), then the side: the Pleats box shows the pleats as they will be."],
+    // ---------------- 2D: grading (Round r33 / 4) ----------------
+    ["edit_grading", "Edit Grading", "", "grade", "built", "grade", "Select points; the arrow keys move them in every size, each size one step further."],
+    ["edit_curve_grading", "Edit Curve Grading", "", "grade", "built", "gradecurve", "Select curve points; the arrow keys move them in every size."],
+    ["edit_grading_each", "Edit Grading (Each)", "", "grade", "built", "grade+box", "Select points; the arrow keys move them in the size picked only."],
+    ["edit_curve_grading_each", "Edit Curve Grading (Each)", "", "grade", "built", "gradecurve+box", "Select curve points; the arrow keys move them in the size picked only."],
     // ---------------- 2D: markings ----------------
     ["notch", "Notch", "", "notch", "partly", "notch", "Add notches; click one to select it and change its look in the Property Editor."],
     ["punch_mark", "Punch Mark", "", "notch", "built", "punch", "Mark a drill hole inside a pattern."],
@@ -128,13 +136,14 @@ var TOOL_REGISTRY = (function () {
     ["pin_box", "Pin (Box)", "W", "pin", "built", "pin+box", "Pin cloth points in place: click one, or drag a box over the cloth."],
     ["pin_lasso", "Pin (Lasso)", "", "pin", "built", "pin+lasso", "Pin a lassoed part of the cloth in place."],
     // ---------------- 3D: arrange ----------------
-    ["arr_points", "Show Arrangement Points", "Shift+F", "arrange", "built", "body+eye", "Blue points round the avatar: click one to put the selected pattern there.", { toggle: "arrPts" }],
-    ["fold_arrangement", "Fold Arrangement", "", "arrange", "partly", "foldline", "Fold cloth along internal lines before simulating."],
+    // (Round r33 / 5) Show Arrangement Points is no longer a toolbar button: Settings ▸ Display ▸ Avatar, the Avatar display list, Shift+F
+    ["fold_arrangement", "Fold Arrangement", "", "fold_arr", "partly", "foldline", "Fold cloth along internal lines before simulating."],
     ["fold_garment", "Fold 3D Garment", "", "arrange", "later", "foldshirt", "Fold a finished garment."],
     ["auto_arrangement", "Auto 3D Arrangement", "", "arrange", "later", "body+plus", "Place patterns round the avatar automatically."],
-    ["redrape", "Re-drape 3D Arrangement", "", "arrange", "later", "body+reset", "Drape again after the avatar changed size."],
-    ["reset_2d_arrangement", "Reset 2D Arrangement (All)", "", "arrange", "built", "reset+flat", "Lay all patterns out flat, as in the 2D window."],
-    ["reset_3d_arrangement", "Reset 3D Arrangement (All)", "", "arrange", "built", "reset", "Put all patterns back where they were arranged before simulating."],
+    // (Round r33b / 4) built: a button of its own beside the resets
+    ["redrape", "Re-drape 3D Arrangement", "", "redrape", "built", "body+reset", "Simulate the garment again from where it hangs after the avatar's size or pose changed."],
+    ["reset_2d_arrangement", "Reset 2D Arrangement (All)", "", "reset2d", "built", "reset+flat", "Lay all patterns out flat, as in the 2D window."],
+    ["reset_3d_arrangement", "Reset 3D Arrangement (All)", "", "reset3d", "built", "reset", "Put all patterns back where they were arranged before simulating."],
     ["hi_res", "Hi-Res Garment", "", "resolution", "partly", "gridfine", "Finer cloth mesh for a finished look."],
     ["low_res", "Low-Res Garment", "", "resolution", "partly", "gridcoarse", "Coarser cloth mesh for speed."],
     ["custom_res", "Custom Resolution", "", "resolution", "partly", "gridfine+edit", "Type the distance between the cloth's points."],
@@ -221,6 +230,8 @@ var TOOL_REGISTRY = (function () {
     fan: "M12 20L4 7M12 20V4M12 20l8-13M5 6a12 12 0 0 1 14 0",
     spread: "M4 5h6v14H4zM14 5h6v14h-6zM10 12h4M11.5 10.5L10 12l1.5 1.5M12.5 10.5L14 12l-1.5 1.5",
     pleats: "M3 8l3.5 9 3.5-9 3.5 9 3.5-9 3.5 9",
+    grade: "M4 21V9l4-5h8l4 5v12zM8 17v-7l2-2.5h4L16 10v7z",
+    gradecurve: "M3 19C6 5 18 5 21 19M7 19C9 11 15 11 17 19M12 8h.01",
     notch: "M3 16h18M12 16V8M10 8h4",
     punch: "M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16M12 8v8M8 12h8M9.2 9.2l5.6 5.6M14.8 9.2l-5.6 5.6",
     allowance: "M8 20V8h12M4 20V4h16",

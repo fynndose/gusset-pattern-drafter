@@ -1,6 +1,7 @@
 // Phase 11: print layout (paper, tiling, shrink to fit, layers) and DXF-AAMA / ASTM
 // export and import, including a round trip through the file format.
 "use strict";
+const { oldSizeRun } = require("./harness");      // (Round r33 / 4) the size run every document had before r33: a document starts with none since (harness.js)
 const assert = require("assert");
 const { load } = require("./harness");
 
@@ -32,7 +33,7 @@ const T = [];
 const test = (name, fn) => T.push({ name, fn });
 function reset() {
   S.pieces = []; S.seams = []; S.measures = []; S.sel = []; S.unit = "mm"; S.nextSegId = 1; S.nextShapeId = 1; S.nextId = 1;
-  S.grading = defaultGrading(); S.print = printDefault(); S.notch = { ...NOTCH_DEFAULT, dup: false }; store.clear();
+  S.grading = oldSizeRun(); S.print = printDefault(); S.notch = { ...NOTCH_DEFAULT, dup: false }; store.clear();
 }
 const count = (text, re) => (text.match(re) || []).length;
 // a bodice with curves, allowance, a notch, a grainline, an internal line, a note

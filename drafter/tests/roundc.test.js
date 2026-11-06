@@ -328,8 +328,9 @@ test("C8: the timeline gives every kind of step its own glyph and names the kind
   assert.ok(/Move in 3D [(]3D window[)]$/.test(last[0][0]) && last[0][1] === "3D", JSON.stringify(last));
   assert.ok(/Delete [(]Delete[)]$/.test(last[1][0]) && last[1][1] === "delete", JSON.stringify(last));
 });
+// (Round r33 / 4) graded on the size run every document had before r33 (a document starts with none since): oldSizeRun
 test("C8: Grading Review (2D): a tile a size of the size run, every tile at one scale, the patterns as they are in that size; the base and the shown size marked by word and frame; on the 2D menu and the Grading panel", () => {
-  const o = boot({ script: DOC + `
+  const o = boot({ oldSizeRun: true,  script: DOC + `
     const G = S.grading;
     app.ev("setGradePoint")(G, A, A, 1, true); app.ev("setPtDelta")(G, A, A, 1, 5, 20, 0); app.commit();
     S.sel = [A.id];

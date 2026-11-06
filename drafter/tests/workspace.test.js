@@ -1,6 +1,7 @@
 // Roadmap 2, batch 6: the workspace. The display selectors and rendering styles, Pattern
 // Lock, the library behind the Object Browser, the Property Editor, the menus.
 "use strict";
+const { oldSizeRun } = require("./harness");      // (Round r33 / 4) the size run every document had before r33: a document starts with none since (harness.js)
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
@@ -15,7 +16,7 @@ const { rectShape, mkPiece, VIEW, VIEW_DEFAULT, VIEW_GROUPS, RENDER, RANDOM_COLS
 
 const T = [];
 const test = (name, fn) => T.push({ name, fn });
-function reset() { S.pieces = []; S.seams = []; S.stitches = []; S.images = []; S.sel = []; S.show = { ...VIEW_DEFAULT }; S.ui = { render: "front" }; S.lib = normLib(null); S.nextSegId = 1; S.nextShapeId = 1; S.nextId = 1; S.grading = defaultGrading(); S.selStitch = null; }
+function reset() { S.pieces = []; S.seams = []; S.stitches = []; S.images = []; S.sel = []; S.show = { ...VIEW_DEFAULT }; S.ui = { render: "front" }; S.lib = normLib(null); S.nextSegId = 1; S.nextShapeId = 1; S.nextId = 1; S.grading = oldSizeRun(); S.selStitch = null; }
 function boot(opt) {
   const r = spawnSync(process.execPath, [path.join(__dirname, "boot-child.js"), JSON.stringify(opt || {})], { encoding: "utf8", timeout: 15000 });
   if (r.error && r.error.code === "ETIMEDOUT") throw new Error("app hung on boot (killed after 15 s)");
@@ -196,7 +197,8 @@ test("the Object Browser in the booted app: tabs, Add / Copy / Assign, and the P
   const o = r.result;
   // (Round r19 / H16, H17: one row, Patterns then the reference's Scene … POM; Tack, Piping, Binding and Gluing are opened from the
   // Scene tab now, still by obSelect(); they were tabs, the last three since Round r11)
-  assert.deepStrictEqual(o.tabs, ["patterns", "scene", "fabric", "graphic", "button", "buttonhole", "topstitch", "puckering", "trim", "zipper", "grading", "pom"]);
+  // (Round r33 / 5, the maintainer's brief) Scene at the far left, Patterns beside it
+  assert.deepStrictEqual(o.tabs, ["scene", "patterns", "fabric", "graphic", "button", "buttonhole", "topstitch", "puckering", "trim", "zipper", "grading", "pom"]);
   assert.deepStrictEqual(o.empty, ["fabric", null, true], "a tab with nothing picked: the Property Editor still shows the pattern");
   assert.deepStrictEqual(o.added, [2, true, 1, true, true]);
   assert.deepStrictEqual(o.edited, ["#ff8800", 0.8, 3]); assert.deepStrictEqual(o.preset, ["Heavy woven", 340, 0.8]); assert.deepStrictEqual(o.custom, ["Custom", 410, 0.8]); assert.deepStrictEqual(o.assigned, [true, true]);
@@ -231,7 +233,7 @@ test("the menus: File, Edit, 2D, Avatar, Settings, Help; their commands run the 
     out.file = names(flatF(app.MENUS.file())); out.edit = names(app.MENUS.edit()); out.settings = names(app.MENUS.settings()); out.avatar = names(app.MENUS.avatar());
     // the 2D menu is in submenus since Round D / D2 (W49): read it flat
     const flat = (items) => items.filter(Boolean).flatMap(x => x.menu ? flat(x.menu()) : [x]);
-    const two = flat(app.MENUS["2d"]()); out.two = [app.MENUS["2d"]().filter(x => x && x.menu).map(x => x.n), names(two).length, names(two).includes("Fullness (Point)"), names(two).includes("Seamless Blocking")];
+    const two = flat(app.MENUS["2d"]()); out.two = [app.MENUS["2d"]().filter(x => x && x.menu).map(x => x.n), names(two).length, names(two).includes("Fullness (Point)"), names(two).includes("Set Sublayer")];      /* (Round r33b / 2: Seamless Blocking is built; Set Sublayer is the example of a tool not built) */
     // File
     let file = null; app.setDownload((n, t) => { file = n; });
     run(app.MENUS.file(), "Save Project"); out.save = file;
@@ -259,7 +261,7 @@ test("the menus: File, Edit, 2D, Avatar, Settings, Help; their commands run the 
   for (const n of ["Millimeters", "Centimeters", "Inches", "Keyboard Shortcuts…"]) assert.ok(o.settings.includes(n), "Settings has " + n);
   assert.ok(o.settings.some(n => /^User Settings/.test(n)), "User Settings opens the settings dialog (Round D / D7, as W31)");
   assert.ok(/^Load Avatar/.test(o.avatar[0])); assert.strictEqual(o.avatar.length, 15, "Load Avatar, four arrangement commands, two for the simulation and the eight camera views while no avatar is loaded");
-  assert.ok(o.two[0].includes("Sewing") && o.two[0].includes("Create"), JSON.stringify(o.two[0])); assert.ok(o.two[1] >= 35, "every tool that works: " + o.two[1]); assert.strictEqual(o.two[2], true); assert.strictEqual(o.two[3], false, "tools that are not built are left out (Seamless Blocking: Spiral was the example until Round r10 / 5 built it)");
+  assert.ok(o.two[0].includes("Sewing") && o.two[0].includes("Create"), JSON.stringify(o.two[0])); assert.ok(o.two[1] >= 35, "every tool that works: " + o.two[1]); assert.strictEqual(o.two[2], true); assert.strictEqual(o.two[3], false, "tools that are not built are left out (Set Sublayer: Spiral was the example until Round r10 / 5 built it, Seamless Blocking until Round r33b / 2)");
   assert.strictEqual(o.save, "pattern.pdraft"); assert.ok(/\.svg$/.test(o.svg)); assert.strictEqual(o.notch, "Notch Settings");
   assert.deepStrictEqual(o.all, [2, "transform_pattern"]); assert.strictEqual(o.pasted, 4); assert.strictEqual(o.undone, 2); assert.deepStrictEqual(o.undoOff, [false, true]);
   assert.deepStrictEqual(o.tool, ["punch_mark", true]); assert.deepStrictEqual(o.unit, ["cm", true]);

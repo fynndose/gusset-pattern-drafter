@@ -2,6 +2,7 @@
 // a double-click a side) and the history timeline (every step named, a marker for each,
 // a click rolls the document back or forward).
 "use strict";
+const { oldSizeRun } = require("./harness");      // (Round r33 / 4) the size run every document had before r33: a document starts with none since (harness.js)
 const assert = require("assert");
 const path = require("path");
 const { spawnSync } = require("child_process");
@@ -14,7 +15,7 @@ const { V, mkShape, mkPiece, push, histSteps, histClean, histNote, loadSeams, no
 
 const T = [];
 const test = (name, fn) => T.push({ name, fn });
-function reset() { S.pieces = []; S.seams = []; S.stitches = []; S.sel = []; S.undo = []; S.redo = []; S.un = []; S.rn = []; S.tool = "edit_pattern"; S.mode = "sim"; S.lib = normLib(null); S.grading = defaultGrading(); S.nextSegId = 1; S.nextShapeId = 1; S.nextId = 1; histNote(""); }
+function reset() { S.pieces = []; S.seams = []; S.stitches = []; S.sel = []; S.undo = []; S.redo = []; S.un = []; S.rn = []; S.tool = "edit_pattern"; S.mode = "sim"; S.lib = normLib(null); S.grading = oldSizeRun(); S.nextSegId = 1; S.nextShapeId = 1; S.nextId = 1; histNote(""); }
 const rect = (name, x, y, w, h) => { const p = mkPiece(name, mkShape([V(x, y), V(x + w, y), V(x + w, y + h), V(x, y + h)], true)); S.pieces.push(p); return p; };
 
 test("a step is named after the command, else the tool in hand; an explicit name wins", () => {

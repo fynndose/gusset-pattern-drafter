@@ -17,7 +17,7 @@ function boot(opt) {
   if (r.status !== 0) throw new Error("boot process failed: " + r.stderr);
   return JSON.parse(r.stdout);
 }
-const BUILT_3D = ["simulate", "select_move", "pin_box", "fold_arrangement", "tape_basic", "circ_basic", "arr_points", "reset_2d_arrangement", "reset_3d_arrangement", "hi_res", "low_res", "custom_res", "tack", "tack_avatar", "edit_tack", "button", "buttonhole", "fasten_button",
+const BUILT_3D = ["simulate", "select_move", "pin_box", "fold_arrangement", "tape_basic", "circ_basic", /* arr_points: no longer a toolbar tool since Round r33 / 5 (a display switch of the Avatar list) */ "reset_2d_arrangement", "reset_3d_arrangement", "redrape" /* (Round r33b / 4) */, "hi_res", "low_res", "custom_res", "tack", "tack_avatar", "edit_tack", "button", "buttonhole", "fasten_button",
   "edit_sewing_3d", "segment_sewing_3d", "mn_segment_sewing_3d", "free_sewing_3d", "mn_free_sewing_3d",
   "edit_topstitch_3d", "segment_topstitch_3d", "free_topstitch_3d", "notch_3d", "pen_garment", "edit_pen_garment", "base_pen", "edit_style_line", "select_button", "graphic_3d", "transform_graphic_3d", "edit_texture_3d",
   "quick_pinching", "pin_lasso", "tape_surface", "circ_surface", "height_measure", "edit_measure_avatar", "linear_garment", "circ_garment", "volume_measure", "edit_volume_measure" /* (Round r20 continued (4)) */, "fill_3d", "piping", "edit_piping", "binding", "select_binding", "gluing", "zipper",
@@ -100,7 +100,7 @@ test("in the booted app: toolbars from the registry, keys, icons, and placeholde
     // an unbuilt tool: its key, a click on it and setTool all leave the tool as it is
     const gi = (id) => app.GROUPS.findIndex(g => g.some(t => t.id === id));
     app.setTool("edit_pattern");
-    app.pick(gi("seamless_blocking"), app.TOOLS.seamless_blocking); out.afterUnbuilt = [S.tool, toasts[toasts.length-1]];
+    app.pick(gi("set_sublayer"), app.TOOLS.set_sublayer);      /* (Round r33b / 2: Seamless Blocking is built; Set Sublayer is the example now) */ out.afterUnbuilt = [S.tool, toasts[toasts.length-1]];
     app.setTool("select_move"); out.after3d = S.tool;
     app.pick(gi("simulate"), app.TOOLS.simulate); out.simNote = toasts[toasts.length-1];
     // a tool that is a right-click command here says where it is
@@ -129,9 +129,9 @@ test("in the booted app: toolbars from the registry, keys, icons, and placeholde
   assert.deepStrictEqual(o.keyOf, ["transform_pattern", "edit_sewing", "free_sewing", "edit_topstitch", "select_move", "pin_box", "seamline_topstitch"]);
   assert.deepStrictEqual(o.conflicts, [], "(Round r10 / 4: Quick Pinching is built, its Ctrl+Q a row of the key table)");
   assert.deepStrictEqual(o.noHint, [], "every tool that can be picked has its how-to line");
-  assert.strictEqual(o.selectable.length, 51 /* (Pleats Fold and Pleats Sewing since Round r20, removed in Round r25; the four Puckering tools and Pattern Symbol since r20 / 7) */ + BUILT_3D.length - 2, "the 2D tools (one fewer since the Dart tool went, Round F / 7, and one more for the double-pointed Dart, r12; Internal Spiral, Pleats, Button, Buttonhole and Fasten Button since Round r9; Spiral since r10; Fill since r11; Zipper counted with the 3D tools since r12; Base Rectangle, Base Ellipse and Edit Point of Measure since r13; Seamline Topstitch since r14), and the 3D tools and commands that work (the two switches are not counted)");
+  assert.strictEqual(o.selectable.length, 56 /* (Pleats Fold and Pleats Sewing since Round r20, removed in Round r25; the four Puckering tools and Pattern Symbol since r20 / 7; the four grading tools since Round r33 / 4; Seamless Blocking since Round r33b / 2) */ + BUILT_3D.length - 1 /* (the one switch, Simulate, is not counted; Show Arrangement Points, the other, left the toolbar in Round r33 / 5) */, "the 2D tools (one fewer since the Dart tool went, Round F / 7, and one more for the double-pointed Dart, r12; Internal Spiral, Pleats, Button, Buttonhole and Fasten Button since Round r9; Spiral since r10; Fill since r11; Zipper counted with the 3D tools since r12; Base Rectangle, Base Ellipse and Edit Point of Measure since r13; Seamline Topstitch since r14), and the 3D tools and commands that work (the two switches are not counted)");
   assert.deepStrictEqual(o.icon, [true, true, false]);
-  assert.strictEqual(o.afterUnbuilt[0], "edit_pattern"); assert.ok(/Seamless Blocking is not built yet/.test(o.afterUnbuilt[1]));      // (Spiral was the example until Round r10 / 5 built it)
+  assert.strictEqual(o.afterUnbuilt[0], "edit_pattern"); assert.ok(/Set Sublayer is not built yet/.test(o.afterUnbuilt[1]));      // (Spiral was the example until Round r10 / 5 built it, Seamless Blocking until Round r33b / 2)
   assert.strictEqual(o.after3d, "edit_pattern"); assert.ok(/3D window is not up/.test(o.simNote), "Simulate is a switch now; with no 3D window it says so: " + o.simNote);
   assert.strictEqual(o.via[0], "edit_pattern"); assert.ok(/right-click command/.test(o.via[1]) && /Fullness [(]Line[)]/.test(o.via[1]));      // (Pleats was the example until it became a tool, Round r9 / 8)
   assert.deepStrictEqual(o.toggle, ["edit_pattern", true]); assert.strictEqual(o.toggleNotATool, "edit_pattern");

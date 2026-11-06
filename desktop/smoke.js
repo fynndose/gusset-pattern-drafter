@@ -147,7 +147,7 @@ async function run(win) {
     assert.ok(!fs.existsSync(autosave), "nothing to recover from a session that did nothing");
     await js("drafterDebug().run('starterDoc', true); 0");
     await until("autosave.json", () => fs.existsSync(autosave));
-    assert.strictEqual(JSON.parse(fs.readFileSync(autosave, "utf8")).v, 28);      // (version 28 since Round r30 (a seam's mirror); 27 since Round r29 (a document's render settings); 26 since Round r26; 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2)
+    assert.strictEqual(JSON.parse(fs.readFileSync(autosave, "utf8")).v, 31);      // ((Round H1a: version 31) (Round r34: version 30) (Round r33b: version 29; version 28 since Round r30 (a seam's mirror); 27 since Round r29 (a document's render settings); 26 since Round r26; 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2)
     assert.strictEqual(await js("localStorage.getItem('pdraft:doc')"), null);
     assert.strictEqual(await js("document.getElementById('s-save').title"), "Autosaved to " + autosave + ", for recovery: not saved to a file yet");
   });
@@ -170,7 +170,7 @@ async function run(win) {
     assert.strictEqual(saveDialogs, runs, "no dialog the second time");
     const parts = partsOf(A);
     assert.strictEqual(fs.readFileSync(A).toString("latin1", 0, 2), "PK", "a version 23 file is a ZIP container");
-    assert.deepStrictEqual([docOf(A).v, docOf(A).pieces[0].name], [28, "Front bodice"]);      // (version 28 since Round r30 (a seam's mirror); 27 since Round r29 (a document's render settings); 26 since Round r26; 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2)
+    assert.deepStrictEqual([docOf(A).v, docOf(A).pieces[0].name], [31, "Front bodice"]);      // ((Round H1a: version 31) (Round r34: version 30) (Round r33b: version 29; version 28 since Round r30 (a seam's mirror); 27 since Round r29 (a document's render settings); 26 since Round r26; 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2)
     assert.strictEqual(parts["document.json"].method, 8, "packed with the platform's own deflate");
     assert.ok(!fs.existsSync(A + ".tmp"));
     await until("the autosave to go", () => !fs.existsSync(autosave));          // saved: nothing is left to recover

@@ -1,6 +1,7 @@
 // Roadmap R4 (8 Oct 2026). Batch 1: the 3D window starting with the page, the cloth's
 // vertex buffer not being deleted under it, and what is yellow and what is blue in Edit Pattern.
 "use strict";
+const { oldSizeRun } = require("./harness");      // (Round r33 / 4) the size run every document had before r33: a document starts with none since (harness.js)
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
@@ -104,7 +105,7 @@ function doc() {
     "dartGeom", "measureInfo", "mkAnchor", "deleteLine", "offsetOutlineSeg", "unfoldOutlineOnly", "unfold", "sewMirroredHalf", "mirroredLine", "alignLines", "rollUp", "linkLines", "unlinkLines", "syncLinks", "normLinks", "linkOf",
     "selLines", "setLines", "toggleLine", "lineAt", "lineRef", "mapPiece", "reflector", "pieceWind", "setSegLength", "byId", "clone", "defaultGrading", "ensureGrade", "notchMarks", "stitchLine", "validStitches"],
     { S, toast: (m) => toasts.push(m), ui: () => {}, draw: () => {}, refreshToggles: () => {} });
-  S.grading = G.defaultGrading();
+  S.grading = oldSizeRun();
   const rect = (name, x, y, w, h, back) => {
     const pts = [G.V(x, y), G.V(x + w, y), G.V(x + w, y + h), G.V(x, y + h)];
     const p = G.mkPiece(name, G.mkShape(back ? [pts[0], pts[3], pts[2], pts[1]] : pts, true)); S.pieces.push(p); return p;
@@ -396,7 +397,7 @@ function symDoc() {
   const S = { pieces: [], seams: [], stitches: [], measures: [], lineLinks: [], selMore: [], sel: [], grading: null, tool: "edit_pattern", show: { lockAll: false }, unit: "mm", dec: 1, nextSegId: 1, nextShapeId: 1, nextId: 1 };
   const G = load(["V", "mkShape", "mkPiece", "addChild", "mkLinked", "sync", "syncHalf", "unfold", "mapPiece", "reflector", "affOf", "affInv", "affMul", "affApply", "affRigid", "addPoint", "deletePoint", "makeSeam", "seamInfo", "resolveRefs",
     "segLen", "segPt", "signedArea", "flatten", "dartGeom", "clone", "defaultGrading", "setCurve", "followerMsg", "halfParts", "paramNear", "segIx"], { S, toast: () => {}, ui: () => {}, draw: () => {} });
-  S.grading = G.defaultGrading();
+  S.grading = oldSizeRun();
   const rect = (name, x, y, w, h) => { const p = G.mkPiece(name, G.mkShape([G.V(x, y), G.V(x + w, y), G.V(x + w, y + h), G.V(x, y + h)], true)); S.pieces.push(p); return p; };
   const xy = (p) => p.pts.map(q => [+q.x.toFixed(6), +q.y.toFixed(6)]);
   return { S, G, rect, xy };

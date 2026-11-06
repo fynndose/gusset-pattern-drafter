@@ -12,6 +12,7 @@
 // its files by path and every call made to it come back as `desk`; a script reaches it as app.desk and sets
 // app.desk.dialog to the path the next Open / Save As dialog "picks" (null = cancelled).
 // liveServer = boot the page as VS Code Live Server serves it (its reload script injected before the first </body>).
+// oldSizeRun = S.grading is the size run of before r33 when the script starts (harness.js oldSizeRun()).
 // script = a function body run after boot with (S, app, toasts); its return value is printed as `result` (a promise is waited for).
 // streams = give the page the platform's CompressionStream / DecompressionStream, as a browser has them: a saved file is then
 // packed, and saving and opening finish a moment later. Without it (the default) entries are stored and both finish at once.
@@ -174,6 +175,8 @@ setImmediate(() => {
     const app = ctx.__app; app.el = el; app.storage = store; app.desk = desk; app.title = () => ctx.document.title;
     const unzip = (bytes) => { let got = null; app.ev("zipUnpack")(bytes, (e, parts) => { if (e) throw e; got = parts; }); if (!got) throw new Error("the file is packed: read it with streams off"); return got; };
     // waits (a promise) until cond() holds: for what finishes a moment later, with streams or a file being parsed
+    // (Round r34) the timers the page set since boot, run now (setTimeout only queues them in the fake page)
+    app.runTimers = () => { for (let round = 0; round < 3 && timers.length; round++) for (const f of timers.splice(0)) try { f(); } catch (e) { errors.push("timer: " + e.message); } };
     app.wait = (cond, what) => new Promise((res, rej) => { const t0 = Date.now(), tick = () => { let ok = false; try { ok = cond(); } catch (e) { return rej(e); } if (ok) res(ok); else if (Date.now() - t0 > 20000) rej(new Error("timed out waiting for " + (what || "it"))); else setImmediate(tick); }; tick(); });
     // a file's bytes (an ArrayBuffer), by its path from this folder
     app.renders = ctx.__renders || []; app.gl = () => ctx.__gl;
@@ -213,6 +216,8 @@ setImmediate(() => {
         above = next;
       }
     };
+    // (Round r33 / 4) oldSizeRun = the document graded on the size run every document had before r33 (XS–XL, M the base; harness.js)
+    if (opt.oldSizeRun) { S.grading = require("./harness").oldSizeRun(); app.ev("ui")(); }
     try { result = new Function("S", "app", "toasts", opt.script)(S, app, toasts); }
     catch (e) { errors.push("script: " + e.message); }
   }

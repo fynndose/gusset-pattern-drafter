@@ -1,6 +1,7 @@
 // Roadmap 2, batch 4: Smooth Curve, the one Fullness tool, outlines that may not cross
 // themselves, the crosshair of the internal tools, notches catching points, punch marks.
 "use strict";
+const { oldSizeRun } = require("./harness");      // (Round r33 / 4) the size run every document had before r33: a document starts with none since (harness.js)
 const assert = require("assert");
 const path = require("path");
 const { spawnSync } = require("child_process");
@@ -17,7 +18,7 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, (msg || "") +
 const samePt = (p, q, tol, msg) => assert.ok(dist(p, q) <= tol, (msg || "") + " expected (" + q.x + ", " + q.y + "), got (" + p.x + ", " + p.y + ")");
 const T = [];
 const test = (name, fn) => T.push({ name, fn });
-function reset() { S.pieces = []; S.seams = []; S.sel = []; S.nextSegId = 1; S.nextShapeId = 1; S.nextId = 1; S.view = { s: 1, x: 0, y: 0 }; S.tool = "notch"; S.grading = defaultGrading(); S.notch = { type: "I", len: 6, color: "#00a37a", width: 2, dup: true }; }
+function reset() { S.pieces = []; S.seams = []; S.sel = []; S.nextSegId = 1; S.nextShapeId = 1; S.nextId = 1; S.view = { s: 1, x: 0, y: 0 }; S.tool = "notch"; S.grading = oldSizeRun(); S.notch = { type: "I", len: 6, color: "#00a37a", width: 2, dup: true }; }
 function boot(opt) {
   const r = spawnSync(process.execPath, [path.join(__dirname, "boot-child.js"), JSON.stringify(opt || {})], { encoding: "utf8", timeout: 15000 });
   if (r.error && r.error.code === "ETIMEDOUT") throw new Error("app hung on boot (killed after 15 s)");

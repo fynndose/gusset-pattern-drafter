@@ -2,6 +2,7 @@
 // pattern, the nesting (nothing overlaps, the gap is kept, the grain setting is obeyed,
 // the strip is not left), the consumption figures, and the mode in the booted app.
 "use strict";
+const { oldSizeRun } = require("./harness");      // (Round r33 / 4) the size run every document had before r33: a document starts with none since (harness.js)
 const assert = require("assert");
 const path = require("path");
 const { spawnSync } = require("child_process");
@@ -21,7 +22,7 @@ const test = (name, fn) => T.push({ name, fn });
 const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= (tol ?? 1e-6), (msg || "") + " expected " + b + ", got " + a);
 function reset() {
   S.pieces = []; S.seams = []; S.stitches = []; S.images = []; S.sel = []; S.lib = normLib(null); S.layout = normLayout(null); S.print = printDefault();
-  S.nextSegId = 1; S.nextShapeId = 1; S.nextId = 1; S.grading = defaultGrading(); S.undo = []; S.redo = [];
+  S.nextSegId = 1; S.nextShapeId = 1; S.nextId = 1; S.grading = oldSizeRun(); S.undo = []; S.redo = [];
 }
 const poly = (pts) => pts.map(([x, y]) => V(x, y));
 function add(name, pts, qty) { const p = mkPiece(name, mkShape(poly(pts), true)); p.quantity = qty || 1; S.pieces.push(p); return p; }

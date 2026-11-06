@@ -129,7 +129,9 @@ test("r15 / 3: the Seam Allowance tool selects a corner point; the Property Edit
   assert.deepStrictEqual(o.sel, [1, -1, []], "the corner at (200, 0) selected, no step");
   assert.deepStrictEqual(o.section, [true, true, true]);
   assert.deepStrictEqual(o.open, [true, true, true, true, true, true, true, true], "the eight types");
-  assert.deepStrictEqual(o.nb, [true, true, true], "Dart Cap greyed and saying so while Show Tools That Are Not Built Yet is on"); assert.strictEqual(o.nbOff, false, "and hidden while it is off");
+  // (Round r34 / 2: Dart Cap is built. It is offered only at a dart's mouth, so on this rectangle's corner it is greyed, with no
+  // "not built yet", and it is listed whether Show Tools That Are Not Built Yet is on or off; it was greyed as not built and hidden)
+  assert.deepStrictEqual(o.nb, [true, true, false], "Dart Cap greyed away from a dart, not as not built"); assert.strictEqual(o.nbOff, true, "and listed while the switch is off");
   assert.ok(o.pictures >= 8, "a picture each, and on the button: " + o.pictures);
   // (Round r25, session 3 Number 15: Line 1 is the incoming line, so Perpendicular starts on "in"; before it was "out", the right side)
   assert.deepStrictEqual(o.perp.slice(0, 4), [{ t: "perp", on: "in" }, ["Seam Allowance Corner"], true, true], "Line 1 at a clockwise rectangle's top right corner: the top line, the line coming in");
@@ -141,7 +143,7 @@ test("r15 / 3: the Seam Allowance tool selects a corner point; the Property Edit
   assert.deepStrictEqual(o.env, { t: "env", d: 4 });
   assert.deepStrictEqual(o.steps, Array(6).fill("Seam Allowance Corner"));
   assert.deepStrictEqual(o.line, [true, true, true]);
-  assert.strictEqual(o.v, 28);      // (version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2: the history saved as changes)
+  assert.strictEqual(o.v, 31);      // ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2: the history saved as changes)
   assert.deepStrictEqual(o.saved, [null, { t: "perp", on: "out", d: 10, rev: true },      // (Round r25: Line 2 is the outgoing line now)
     { t: "pocket", st: 1, din: 5, dout: 5 }, { t: "env", d: 4 }]);
   assert.deepStrictEqual(o.old, [null, { t: "turn" }, { t: "env", d: 14.142 }, { t: "perp", on: "out" }], "Mirror is Turnback, Right Angled an Envelope at its place, Perpendicular 2 Perpendicular on the outgoing line");
@@ -326,7 +328,9 @@ test("r15 / 8: the gizmo's axes follow Gizmo ▸ (Screen, the default; Local; Wo
 });
 
 /* ---------- 9: the Pleat tool ---------- */
-test("r15 / 9: the Pleat tool: its box opens when it is picked; a click on an outline segment lays the pleat lines square to it, the next click picks the side; Number, Interval, a tapered Depth, Create Notch, the fold angles on the fold lines; an accordion lets nothing in; one undo step; Esc gives a pick up", () => {
+// (Round r33 / 3) the maintainer's flow: picking the tool opens nothing; two clicks on the outline make the line (not a click on a
+// segment with the line laid square to it), a third picks the side, and then the box opens and makes the pleats
+test("r15 / 9: the Pleat tool: picking it opens nothing; two points on the outline make the pleat line, the next click picks the side and opens the box; Number, Interval, a tapered Depth, Create Notch, the fold angles on the fold lines; an accordion lets nothing in; one undo step; Esc gives a pick up", () => {
   const o = boot({ blank: true, script: `
     const out = {}, at = (x, y) => app.toS({ x, y }), click = (x, y) => { const q = at(x, y); app.click(q.x, q.y); };
     const panel = (x) => { const p = app.mkPiece("P" + x, app.mkShape([{ x, y: 0 }, { x: x + 400, y: 0 }, { x: x + 400, y: 200 }, { x, y: 200 }], true)); S.pieces.push(p); app.commit(); return p; };
@@ -334,23 +338,24 @@ test("r15 / 9: the Pleat tool: its box opens when it is picked; a click on an ou
     const wid = (p) => { const xs = p.pts.map(q => q.x); return +(Math.max(...xs) - Math.min(...xs)).toFixed(3); };
     let seen = null;
     app.answer = (t, f, opts) => { seen = [t, f.find(x => x.k === "type").radios, opts.checks.map(c => c.k), opts.sync({ angles: "360-0" }, "angles")]; return { type: "knife", n: 3, d0: 10, d1: 20, i0: 50, i1: 50, notch: "start", angles: "0-360", out: 0, inn: 360, rev: false, rev2: false }; };
-    app.setTool("pleats"); out.box = seen;
-    // on A's top edge at x 100; the side: to the right
-    click(100, 0); out.picked = S.pleatPick && [Math.round(S.pleatPick.a.x), Math.round(S.pleatPick.a.y), Math.round(S.pleatPick.b.x), Math.round(S.pleatPick.b.y)];
-    click(160, 100);
+    app.setTool("pleats"); out.opened = seen;
+    // from A's top edge at x 100 to its bottom edge at x 100; the side: to the right
+    click(100, 0); click(100, 200); out.picked = S.pleatPick && [Math.round(S.pleatPick.a.x), Math.round(S.pleatPick.a.y), Math.round(S.pleatPick.b.x), Math.round(S.pleatPick.b.y)];
+    click(160, 100); out.box = seen;
     out.A = [wid(A), A.internals.filter(x => x.fold).map(x => [x.fold, x.foldAngle === undefined ? 180 : x.foldAngle]), A.segs.map(s => s.notches.length).reduce((s, n) => s + n, 0)];
     out.steps = app.histSteps().steps.map(s => s.n);
     // an accordion on B: nothing let in, its folds Depth apart, outside and inside by turns
     app.answer = () => ({ type: "accordion", n: 2, d0: 15, d1: 15, i0: 10, i1: 10, notch: "both", angles: "0-360", out: 0, inn: 360, rev2: true });
-    app.key("Enter"); click(700, 0); click(650, 100);
+    app.key("Enter"); click(700, 0); click(700, 200); click(650, 100);
     out.B = [wid(B), B.internals.map(x => [Math.round(x.pts[0].x), x.fold, x.foldAngle === undefined ? 180 : x.foldAngle]), B.segs.map(s => s.notches.length).reduce((s, n) => s + n, 0)];
     // Esc gives a pick up
     click(1300, 0); out.esc = [!!S.pleatPick]; app.key("Escape"); out.esc.push(!!S.pleatPick, wid(C));
     app.undo(); const B2 = S.pieces.find(p => p.name === "P600"); out.undone = wid(B2) === 400 && B2.internals.length === 0;      // (undo puts back copies of the patterns)
     return out;
   ` }).result;
+  assert.strictEqual(o.opened, null, "picking the tool opens no box");
   assert.deepStrictEqual(o.box, ["Pleats", true, ["rev", "rev2"], { out: 360, inn: 0 }], "the box, its type as radio buttons, both Reverse Directions; 360 - 0 swaps the angles");
-  assert.deepStrictEqual(o.picked, [100, 0, 100, 200], "square to the top edge, across the pattern");
+  assert.deepStrictEqual(o.picked, [100, 0, 100, 200], "between the two points clicked on the outline");
   assert.ok(o.A[0] > 460 && o.A[0] <= 520 + 1e-6, "tapered: between three knife pleats of 2 × 10 at the start and of 2 × 20 at the end let in: " + o.A[0]);
   assert.deepStrictEqual(o.A[1].sort(), [["mountain", 0], ["mountain", 0], ["mountain", 0], ["valley", 360], ["valley", 360], ["valley", 360]], "outside folds at 0, inside at 360");
   assert.strictEqual(o.A[2], 3, "Create Notch Start: one notch a pleat, at the top only");
@@ -396,11 +401,12 @@ test("r15 / 10: the right-click menus the check videos showed (an internal line,
     "Cut", "Cut & Sew", "|", "Offset as Internal Line", "Offset as Seamless Block Line", "|", "Extend/Trim", "Extend/Trim & Add Point", "|", "Convert to Baseline", "|", "Order", "Rotate", "Flip", "|", "Zoom to Selected", "|"].filter((t, k, a) => t !== "|" || a[k-1] !== "|"), JSON.stringify(o.internal));
   assert.strictEqual(o.internal[o.internal.length - 1], "More", "this program's own rows under More ▸");
   assert.deepStrictEqual(o.empty.filter(t => t !== "|").map(t => t.replace(/^✓ /, "")), ["Paste", "Mirror Paste", "Lock All Pattern Outlines", "Lock All Internal Lines", "Unlock All Baselines", "Lock All Guidelines", "Refresh Textures", "Delete All Baselines",      // (Round build-1: Lock All Internal Lines, Lock All Baselines (on from the start) and Lock All Guidelines are built): baselines start locked, so the row says Unlock
-    "Delete All Overlapping Points", "Optimize All Curve Points", "Remove All Steam", "Smart Guide", "Snap to Pattern", "Snap to Grid", "Add Background Image", "Grid Properties", "Zoom Extents All", "More"].map(t => t), JSON.stringify(o.empty));
+    "Delete All Overlapping Points", "Optimize All Curve Points", "Remove All Steam", "Smart Guide", "Snap to Pattern", "Snap to Grid", "Show Ruler" /* (Round r33 / 5) */, "Add Background Image", "Grid Properties", "Zoom Extents All", "More"].map(t => t), JSON.stringify(o.empty));
   assert.deepStrictEqual(o.locked.filter(t => t !== "|").slice(1), ["Unlock", "More"], JSON.stringify(o.locked));
   assert.deepStrictEqual(o.punch.filter(t => t !== "|").slice(1), ["Delete", "Duplicate to Symmetric Pattern", "Convert to Button Mark", "Convert to Buttonhole Mark", "More"]);
   assert.deepStrictEqual(o.button, [0, ["button", 50, 300], "Convert to Button Mark"]);
-  assert.deepStrictEqual(o.context, ["3D Garment", "2D Pattern", "Sewing", "Materials", "Avatar", "Display (not built yet)"], "Display's rows were not read: not built (the switch is on in this boot)");
+  // (Round r33 / 2) Display is Settings ▸ Display repeated, no longer a row that is not built
+  assert.deepStrictEqual(o.context, ["3D Garment", "2D Pattern", "Sewing", "Materials", "Avatar", "Display"], "Display repeats Settings ▸ Display");
   assert.deepStrictEqual(o.g3.slice(1, 5), ["Deactivate (Pattern Only)", "Deactivate (Pattern & Sewing)", "Freeze", "Strengthen"]);
   assert.strictEqual(o.closed, true, "closed at once");
   assert.deepStrictEqual(o.lib, ["library drop", false], "a panel under its button, no title bar");

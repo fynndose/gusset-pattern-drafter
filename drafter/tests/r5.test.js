@@ -1,6 +1,7 @@
 // Roadmap R5. Batch 1: the exact curve of .zprj files (see also curves.test.js) and what it does to files of
 // earlier builds. Batch 2: the .zprj importer (zprj-import.js) and what the app makes of a file.
 "use strict";
+const { oldSizeRun } = require("./harness");      // (Round r33 / 4) the size run every document had before r33: a document starts with none since (harness.js)
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
@@ -22,7 +23,7 @@ const T = [];
 const test = (name, fn) => T.push({ name, fn });
 function reset() {
   S.pieces = []; S.seams = []; S.stitches = []; S.guides = []; S.measures = []; S.sel = []; S.selSeg = S.selPt = S.selInt = -1; S.selKind = "outline"; S.selCp = null;
-  S.nextSegId = 1; S.nextShapeId = 1; S.nextId = 1; S.show = { ...VIEW_DEFAULT }; S.view = { s: 1, x: 0, y: 0 }; S.notch = { ...NOTCH_DEFAULT }; S.grading = defaultGrading(); store.clear();
+  S.nextSegId = 1; S.nextShapeId = 1; S.nextId = 1; S.show = { ...VIEW_DEFAULT }; S.view = { s: 1, x: 0, y: 0 }; S.notch = { ...NOTCH_DEFAULT }; S.grading = oldSizeRun(); store.clear();
 }
 // how far two polylines are apart: every point of A to the nearest chord of B
 function apart(A, B) {

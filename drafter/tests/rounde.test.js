@@ -407,7 +407,9 @@ test("E8: Trace: the panel (Mode Line, Shape following the not-built switch); Li
     return out;` }).result;
   assert.deepStrictEqual(o.panel, ["block", true, true, true]);
   assert.strictEqual(o.sel, 4);
-  assert.deepStrictEqual(o.rows, ["Trace as a Pattern", "Trace as a Pattern (with Link) (not built yet)", "Trace as an Internal Shape", "Trace as Internal Lines/Shapes", "Trace as Seamless Block Line/Shape (not built yet)", "Trace as Point of Measure"]);
+  // (Round r34 / 4: Trace as a Pattern (with Link) is built for whole patterns in Shape mode; in Line mode it is a greyed row pointing there, listed
+  // whether the not-built switch is on or off. It was "not built yet")
+  assert.deepStrictEqual(o.rows, ["Trace as a Pattern", "Trace as a Pattern (with Link)", "Trace as an Internal Shape", "Trace as Internal Lines/Shapes", "Trace as Seamless Block Line" /* (Round r33b / 2) */, "Trace as Point of Measure"]);
   assert.strictEqual(o.placing, true, "the traced pattern hangs on the pointer");
   assert.deepStrictEqual(o.pattern, [2, 4, 300, 1, true], "set down where clicked, one undo step, segments of its own");
   assert.deepStrictEqual(o.joined, ["0,0", "200,0", "200,100"]);
@@ -415,7 +417,7 @@ test("E8: Trace: the panel (Mode Line, Shape following the not-built switch); Li
   assert.strictEqual(o.runs, 2);
   assert.deepStrictEqual(o.whole, [0, true, 1, 2], "Round CF: only the selected line, placed inside a pattern (a click outside one is refused)");
   assert.strictEqual(o.meas, 2);
-  assert.deepStrictEqual(o.rowsOff, ["Trace as a Pattern", "Trace as an Internal Shape", "Trace as Internal Lines/Shapes", "Trace as Point of Measure"]);
+  assert.deepStrictEqual(o.rowsOff, ["Trace as a Pattern", "Trace as a Pattern (with Link)" /* (Round r34 / 4) */, "Trace as an Internal Shape", "Trace as Internal Lines/Shapes", "Trace as Seamless Block Line" /* (Round r33b / 2) */, "Trace as Point of Measure"]);
   assert.strictEqual(o.shapeOff, true, "Shape mode is built (Round CF)"); assert.strictEqual(o.hidden, "none");
   assert.ok(/outline, internal or base/.test(o.hint));
 });

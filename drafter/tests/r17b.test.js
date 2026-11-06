@@ -55,7 +55,7 @@ test("r17b / 1: Add Background Image: one picture under the patterns at 96 ppi, 
   assert.deepStrictEqual(r.b, { w: 254, h: 127, opacity: 0.5, lock: false, hide: false }, "960 × 480 px at 96 ppi is 254 × 127 mm");
   assert.ok(r.middle);
   assert.deepStrictEqual(r.steps, ["Add Background Image"]);
-  assert.strictEqual(r.v, 28); /* (version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r26; 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18) */ assert.strictEqual(r.parts, 1, "the picture is a part of its own"); assert.ok(r.saved);
+  assert.strictEqual(r.v, 31); /* ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r26; 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18) */ assert.strictEqual(r.parts, 1, "the picture is a part of its own"); assert.ok(r.saved);
   assert.strictEqual(r.back, 254); assert.ok(r.picture);
   assert.deepStrictEqual(r.replaced, [254, 254], "the new picture's shape at the old width");
 });
@@ -304,7 +304,7 @@ test("r17b / 1: a version 20 file (written by the build before this round) opens
       const J = app.ev("canonJSON"), now = app.ev("docObj")();
       out.v = [was.v, now.v];
       // (the display settings are written from version 21 on: Round r17b / 2; a version 20 file has none)
-      const strip = (d) => { const c = JSON.parse(JSON.stringify(d)); delete c.v; delete c.scene; delete c.drape; delete c.states3; delete c.states3Bin; delete c.history; delete c.display; return J(c); };
+      /* (Round H1a / 2: from version 31 every document says its render settings and the defaults it was written with, as its version) */ const strip = (d) => { const c = JSON.parse(JSON.stringify(d)); delete c.v; delete c.render; delete c.defaults; delete c.scene; delete c.drape; delete c.states3; delete c.states3Bin; delete c.history; delete c.display; return J(c); };
       out.display = [!!was.display, !!now.display];
       out.same = strip(was) === strip(now); if (!out.same) { const a = strip(was), b = strip(now); let k = 0; while (a[k] === b[k]) k++; out.diff = [a.slice(k - 60, k + 120), b.slice(k - 60, k + 120)]; }
       out.names = S.pieces.map(p => p.name); out.res3 = S.pieces[0].res3; out.undo = S.un.map(s => s.n);
@@ -312,7 +312,7 @@ test("r17b / 1: a version 20 file (written by the build before this round) opens
       return out;
     });` });
   const r = o.result;
-  assert.deepStrictEqual(r.v, [20, 28]);      /* (saved again it is this build's version: 28 since Round r30, 27 since Round r29, 26 since Round r26; 25 since Round r25; 24 since Round r20; 23 since the r19 follow-up; 22 since Round r18) */ assert.deepStrictEqual(r.display, [false, true]);
+  assert.deepStrictEqual(r.v, [20, 31]);      /* ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) saved again it is this build's version: 28 since Round r30, 27 since Round r29, 26 since Round r26; 25 since Round r25; 24 since Round r20; 23 since the r19 follow-up; 22 since Round r18) */ assert.deepStrictEqual(r.display, [false, true]);
   assert.ok(r.same, "the document as the file has it: " + JSON.stringify(r.diff));
   assert.deepStrictEqual(r.names, ["Front piece", "Back"]); assert.strictEqual(r.res3, 12);
   assert.ok(r.undo.length >= 1, "its history came with it: " + JSON.stringify(r.undo)); assert.strictEqual(r.undone, "Front");

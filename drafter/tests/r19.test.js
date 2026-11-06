@@ -323,7 +323,7 @@ test("r19 follow-up / version 23: a version 22 file (written by the build before
     return app.wait(() => S.pieces.length === 2, "the file opened").then(() => {
       const J = app.ev("canonJSON"), now = app.ev("docObj")();
       out.v = [was.v, now.v];
-      const strip = (d) => { const c = JSON.parse(JSON.stringify(d)); delete c.v; delete c.scene; delete c.drape; delete c.states3; delete c.states3Bin; delete c.history; return J(c); };
+      /* (Round H1a / 2: from version 31 every document says its render settings and the defaults it was written with, as its version) */ const strip = (d) => { const c = JSON.parse(JSON.stringify(d)); delete c.v; delete c.render; delete c.defaults; delete c.scene; delete c.drape; delete c.states3; delete c.states3Bin; delete c.history; return J(c); };
       out.same = strip(was) === strip(now); if (!out.same) { const a = strip(was), b = strip(now); let k = 0; while (a[k] === b[k]) k++; out.diff = [a.slice(k - 60, k + 120), b.slice(k - 60, k + 120)]; }
       out.names = S.pieces.map(p => p.name); out.layout = [S.layout.name, S.layout.paper, S.layout.margin, S.layout.cols, Object.keys(S.layout.place).length];
       out.lights = [S.lights.length, "lights" in now]; out.undo = S.un.map(s => s.n);
@@ -332,13 +332,13 @@ test("r19 follow-up / version 23: a version 22 file (written by the build before
         .then((d) => { out.again = [d.v, "lights" in d]; app.ev("undo")(); out.undone = S.pieces[1].name; return out; });
     });` });
   const r = o.result;
-  assert.deepStrictEqual(r.v, [22, 28]);      // (opened, this build's version: 28 since Round r30, 27 since Round r29, 26 since Round r26, 25 since Round r25, 24 since Round r20)
+  assert.deepStrictEqual(r.v, [22, 31]);      // ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) opened, this build's version: 28 since Round r30, 27 since Round r29, 26 since Round r26, 25 since Round r25, 24 since Round r20)
   assert.ok(r.same, "the document as the file has it: " + JSON.stringify(r.diff));
   assert.deepStrictEqual(r.names, ["Front", "Back piece"]);
   assert.deepStrictEqual(r.layout, ["Two fabrics", "a3", 12, 2, 2], "the layout as it was");
   assert.deepStrictEqual(r.lights, [0, false], "no lights, none written");
   assert.deepStrictEqual(r.undo, ["Rectangle", "Assign Fabric", "Segment Sewing", "Print Layout", "Nest Patterns", "Rename"], "its history came with it");
-  assert.deepStrictEqual(r.again, [28, false]);      // (saved again: version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r26, 25 since Round r25, 24 since Round r20) assert.strictEqual(r.undone, "Back");
+  assert.deepStrictEqual(r.again, [31, false]);      // ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) saved again: version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r26, 25 since Round r25, 24 since Round r20) assert.strictEqual(r.undone, "Back");
 });
 
 test("r19 follow-up / H22: lights are added, edited and deleted, each one undo step, saved in the file and read back; junk is dropped", () => {

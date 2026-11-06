@@ -255,7 +255,8 @@ test("I3 grading can be left out of an import; a second graded import into a gra
     return out;` });
   assert.deepStrictEqual(out.errors, []);
   const o = out.result;
-  assert.deepStrictEqual(o.off, [false, ["Size Group"]]);      // (the placeholder group is called "Size Group" since Round I2)
+  // (Round r33 / 4) a document starts with no size group, so grading left out leaves none (before r33: the placeholder "Size Group")
+  assert.deepStrictEqual(o.off, [false, []]);
   assert.deepStrictEqual(o.one, ["Body sizes"], "no pattern graded yet: the placeholder size run gives way to the file's");
   assert.deepStrictEqual(o.two, ["Body sizes", "Body sizes"], "a pattern graded: the file's group is added beside it"); assert.deepStrictEqual(o.groupsOf, [-1, 0, 1]);
   assert.deepStrictEqual(o.undone, [2, 1], "one undo step takes the import and its size group back");

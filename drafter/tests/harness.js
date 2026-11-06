@@ -40,6 +40,17 @@ function skipString(src, i) {
   return i;
 }
 
+// the code with every string literal emptied (a template string as a whole)
+function noStrings(code) {
+  let out = "";
+  for (let i = 0; i < code.length; i++) {
+    const c = code[i];
+    if (c === '"' || c === "'" || c === "`") { i = skipString(code, i); out += c + c; continue; }
+    out += c;
+  }
+  return out;
+}
+
 // end index (exclusive) of the balanced {...} starting at src[open]
 function matchBrace(src, open) {
   let depth = 0;
@@ -115,7 +126,8 @@ function load(names, globals = {}) {
     if (!d) { if (asked) throw new Error("declaration not found: " + n); continue; }
     if (parts.has(d.pos) || (!asked && g.has(n))) continue;
     const code = d.fn ? extract(src, n) : d.text;
-    if (!asked && !d.fn && /\b(document|window|localStorage)\b/.test(code)) continue;
+    // (Round H1a: a word inside a string, as a render background "window", touches no page: the strings are left out of that look)
+    if (!asked && !d.fn && /\b(document|window|localStorage)\b/.test(noStrings(code))) continue;
     parts.set(d.pos, code);
     for (const id of new Set(code.match(/[A-Za-z_$][\w$]*/g) || [])) if (idx.has(id) && !g.has(id)) queue.push([id, false]);
   }
@@ -127,4 +139,14 @@ function load(names, globals = {}) {
 // whole app script must still parse
 function syntaxCheck() { new vm.Script(appSource(), { filename: "pattern-drafter.js" }); }
 
-module.exports = { load, syntaxCheck, appSource, extract, pageHTML, pageScripts, liveServerInject };
+/* (Round r33 / 4) Until r33 every new document had a placeholder size run, XS to XL in "Size Group" with M its base (ids 1–5,
+   the group 1); since then a document starts with no size group. Tests that grade on a run use this one, the very object the
+   old defaultGrading() returned (a fresh copy each call), so their numbers stay as they were. */
+const OLD_SIZE_COLS = ["#e03131", "#f08c00", "#2f9e44", "#1971c2", "#9c36b5"];
+function oldSizeRun() {
+  const sizes = ["XS", "S", "M", "L", "XL"].map((name, i) => ({ id: i + 1, name, color: OLD_SIZE_COLS[i] }));
+  return { groups: [{ id: 1, name: "Size Group", sizes, base: 3 }], tables: [], active: null, nest: false, nextId: 6 };
+}
+// the same as a line of script for a booted app (boot-child.js): S.grading set to it
+const OLD_SIZE_RUN_JS = "S.grading = " + JSON.stringify(oldSizeRun()) + ";";
+module.exports = { load, syntaxCheck, appSource, extract, pageHTML, pageScripts, liveServerInject, oldSizeRun, OLD_SIZE_RUN_JS };

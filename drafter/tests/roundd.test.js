@@ -75,7 +75,8 @@ test("D2: the 3D, 2D and Materials/UV menus list every tool as W48 to W50 do, in
     S.pieces.push(A); app.commit(); S.undo.length = 0;
     subOf(app.MENUS["2d"](), "Edit").find(x => x.n === "Delete All Baselines").f(); out.bases = [A.bases.length, S.undo.length];
     return out;` }).result;
-  assert.deepStrictEqual(o.top3, ["Simulate", "---", "Select >", "Pin >", "Ripping >", "Styleline >", "3D pen >", "Press (not built yet)", "Fold >", "---", "Arrangement >", "---", "Measurement >"]);
+  // (Round r33 / 7) Simulation Quality under Simulate
+  assert.deepStrictEqual(o.top3, ["Simulate", "Simulation Quality >", "---", "Select >", "Pin >", "Ripping >", "Styleline >", "3D pen >", "Press (not built yet)", "Fold >", "---", "Arrangement >", "---", "Measurement >"]);
   assert.deepStrictEqual(o.top2.slice(0, 7), ["Pattern Drafter", "Pattern Information", "Create >", "Edit >", "Trace", "Lock >", "Pleats >"]);
   assert.deepStrictEqual(o.topM, ["UV Editor (not built yet)", "Graphics >", "Button >", "Zipper >", "Piping >", "Binding >", "Topstitch >", "Puckering >", "Steam >", "Seam Taping (not built yet)", "Gluing >"]);
   assert.deepStrictEqual(o.select, [["Select/Move", "Q", true, false], ["Select Mesh (Brush) (not built yet)", "", true, true], ["Select Mesh (Box) (not built yet)", "", true, true], ["Select Mesh (Lasso) (not built yet)", "", true, true]]);

@@ -530,8 +530,9 @@ C.bodyReach = function (f, ax, ay, az, dx, dy, dz, max, gap) {
      opt:    { substeps 20, stretchIters 2, gravity 9810, easeIn 45 (frames), damping 2.5 (1/s), selfDist, selfMin 2.5 (mm: selfDist is never less, Round r15 / 8), self true, ground true, maxPull 6, seamSlip 3 (mm: a seam open by more slides on the body),
                seamClose 1 (mm: a seam once closed this far is held shut), seamIters 2, interleave true (a seam pass after each stretch pass), limitEach true (the strain limit after each stretch pass as well),
                dragK 2e5 (g/s², the drag spring; Round r31 / 3: 5e4 held cloth on a level body 45 mm along a 60 mm pull, which felt
-               glued), dragMax 1e6 (g·mm/s², the most it pulls: 1 N, about the weight of a garment; 3 N stretched a woven strip past its
-               Max Stretch),
+               glued), dragMax 3e6 (g·mm/s², the most it pulls, all its points together: 3 N; Round r33b / 1, was 1 N on one point,
+               where 3 N stretched a woven strip past its Max Stretch: spread over the reach it does not), dragReach 100 (mm, the cloth
+               the pull takes, Round r33b / 1; 0: one place), dragSlide 0.2 (the friction of the cloth held, as a share of its own),
                bodyStatic / bodyKinetic (Round r31 / 3): the body's own friction, static and kinetic, in place of the fabric's
                one coefficient; null (the default): the fabric's for both. The reference's avatar has 0.80 / 0.05, but in this
                solver cloth still settling counts as sliding, and at 0.05 a tube on the hips sank 186 mm (cloth.test.js),
@@ -545,7 +546,7 @@ C.bodyReach = function (f, ax, ay, az, dx, dy, dz, max, gap) {
              a strip lying along a line of the cloth (piping, binding: Round r11 / 3, 4). Its weight hangs on the cloth at its
              nodes; it keeps its length (to its limit) and resists bending, node to node and over every other node. */
 C.clothBuild = function (spec) {
-  const opt = Object.assign({ substeps: 20, stretchIters: 2, gravity: 9810, easeIn: 45, damping: 2.5, self: true, ground: true, maxPull: 6, seamSlip: 3, maxSpeed: 5000, seamClose: 1, seamIters: 2, interleave: true, limitEach: true, dragK: 2e5, dragMax: 1e6, sdfSkip: true, bodyStatic: null, bodyKinetic: 0.05, seamRamp: 0, seamSoft: 1e-3, seamBend: 5 }, spec.opt || {});
+  const opt = Object.assign({ substeps: 20, stretchIters: 2, gravity: 9810, easeIn: 45, damping: 2.5, self: true, ground: true, maxPull: 6, seamSlip: 3, maxSpeed: 5000, seamClose: 1, seamIters: 2, interleave: true, limitEach: true, dragK: 2e5, dragMax: 2e6, dragReach: 100, dragSlide: 0.2, dragSlideReach: 300, dragLimitIters: 12, sdfSkip: true, bodyStatic: null, bodyKinetic: 0.05, seamRamp: 0, seamSoft: 1e-3, seamBend: 5 }, spec.opt || {});
   const off = [];
   let n = 0;
   for (const pc of spec.pieces) { off.push(n); n += pc.xy.length >> 1; }
@@ -818,11 +819,54 @@ C.clothPin = function (sim, i, on, to) {
    spring of stiffness opt.dragK whose force is never more than opt.dragMax, so the cloth round it stretches and follows,
    and a pattern sewn to it is pulled along through the seam. (Round r14 / 8) d.also: more places pulled the same way at the
    same time, each { i, w, to } (Symmetric Pinch: the mirrored place on the other side). */
+/* (Round r33b / 1, the maintainer's user test: "I can pull the fabric but not move the sleeve as a whole") The pull takes the cloth
+   within opt.dragReach mm of the grabbed place, on its pattern, as a hand takes a handful: each point is drawn towards where it
+   was when grabbed plus the pointer's move, on a spring of dragK × its weight (1 at the place, falling to 0 at the reach); together they give no more than opt.dragMax. While it is held that cloth slides on the body with
+   opt.dragSlide of its friction (a hand lifts what it pulls); let go, it has its whole friction again and stays where it was
+   left. The reach is taken once, when the place is grabbed, and kept while the same place is pulled (each pointer move sends
+   the same place again). dragReach 0: the one place alone, as before r33b. */
 C.clothDrag = function (sim, d) {
-  const one = (q) => q && q.i && q.i.length && q.to ? { i: q.i.slice(), w: q.w ? q.w.slice() : q.i.map(() => 1/q.i.length), to: q.to.slice() } : null;
-  sim.drag = one(d);
-  if (sim.drag && Array.isArray(d.also)) sim.drag.also = d.also.map(one).filter(Boolean);
+  const was = sim.drag;
+  const one = (q, old) => {
+    if (!(q && q.i && q.i.length && q.to)) return null;
+    const g = { i: q.i.slice(), w: q.w ? q.w.slice() : q.i.map(() => 1/q.i.length), to: q.to.slice() };
+    const same = old && old.i.length === g.i.length && old.i.every((v, k) => v === g.i[k]) && old.w.every((v, k) => Math.abs(v - g.w[k]) < 1e-9);
+    if (same) { g.reach = old.reach; g.from = old.from; g.edges = old.edges; } else dragReach(sim, g);
+    return g;
+  };
+  sim.drag = one(d, was);
+  if (sim.drag && d && Array.isArray(d.also)) sim.drag.also = d.also.map((q, k) => one(q, was && was.also && was.also[k])).filter(Boolean);
+  // the cloth that slides while held
+  if (!sim.dragSlid || sim.dragSlid.length !== sim.n) sim.dragSlid = new Uint8Array(sim.n); else sim.dragSlid.fill(0);
+  // (the cloth round it, on every pattern within opt.dragSlideReach, slides too: a sleeve pulled takes the shoulder with it)
+  const SR = sim.opt.dragSlideReach, x = sim.x;
+  if (sim.drag) for (const g of [sim.drag, ...(sim.drag.also || [])]) {
+    if (g.reach) { const R = g.reach; for (let k = 0; k < R.i.length; k++) if (R.wt[k] > 0.05) sim.dragSlid[R.i[k]] = 1; }
+    if (SR > 0 && g.from) for (let i = 0; i < sim.n; i++) { const dx = x[3*i] - g.from[0], dy = x[3*i+1] - g.from[1], dz = x[3*i+2] - g.from[2]; if (dx*dx + dy*dy + dz*dz < SR*SR) sim.dragSlid[i] = 1; }
+  }
 };
+// the points within reach of a grabbed place, on its pattern, with their weights and where they are now
+function dragReach(sim, g) {
+  const x = sim.x, R = sim.opt.dragReach;
+  const from = [0, 0, 0];
+  for (let k = 0; k < g.i.length; k++) for (let c = 0; c < 3; c++) from[c] += g.w[k]*x[3*g.i[k] + c];
+  g.from = from; g.reach = null;
+  if (!(R > 0)) return;
+  const pc = sim.piece[g.i[0]], o0 = sim.off[pc], o1 = pc + 1 < sim.off.length ? sim.off[pc + 1] : sim.n, I = [], W = [];
+  for (let i = o0; i < o1; i++) {
+    if (sim.w[i] === 0) continue;
+    const dx = x[3*i] - from[0], dy = x[3*i+1] - from[1], dz = x[3*i+2] - from[2], dd = Math.sqrt(dx*dx + dy*dy + dz*dz);
+    if (dd >= R) continue;
+    const f = 1 - (dd/R)*(dd/R); I.push(i); W.push(f*f);
+  }
+  if (!I.length) return;
+  const X0 = new Float64Array(3*I.length);
+  I.forEach((i, k) => { X0[3*k] = x[3*i]; X0[3*k+1] = x[3*i+1]; X0[3*k+2] = x[3*i+2]; });
+  g.reach = { i: Int32Array.from(I), wt: Float64Array.from(W), x0: X0, sum: W.reduce((a, b) => a + b, 0) };
+  // the pulled pattern's limited edges: the extra passes of its limit while it is pulled go over these alone
+  const E = []; for (let c = 0; c < sim.eI.length; c++) if (sim.eM[c] > 0 && sim.eI[c] >= o0 && sim.eI[c] < o1 && sim.eJ[c] >= o0 && sim.eJ[c] < o1) E.push(c);
+  g.edges = Int32Array.from(E);
+}
 // the spring's pull in one small step (XPBD, a soft constraint whose multiplier is capped by the most force it may give)
 function dragStep(sim, h) {
   const d0 = sim.drag;
@@ -831,6 +875,21 @@ function dragStep(sim, h) {
 }
 function dragOne(sim, d, h) {
   const x = sim.x, w = sim.w;
+  if (d.reach) {
+    // (Round r33b / 1) the handful: each point towards its own place moved as the pointer moved, held the more firmly the nearer it is
+    const R = d.reach, mx = d.to[0] - d.from[0], my = d.to[1] - d.from[1], mz = d.to[2] - d.from[2], capAll = sim.opt.dragMax*h*h;
+    for (let k = 0; k < R.i.length; k++) {
+      const i = R.i[k], q = R.wt[k];
+      if (w[i] === 0) continue;
+      const dx = x[3*i] - (R.x0[3*k] + mx), dy = x[3*i+1] - (R.x0[3*k+1] + my), dz = x[3*i+2] - (R.x0[3*k+2] + mz), len = Math.sqrt(dx*dx + dy*dy + dz*dz);
+      if (len < 1e-9) continue;
+      let lam = len/(w[i] + 1/(sim.opt.dragK*q*h*h));
+      const cap = capAll*q/R.sum;
+      if (lam > cap) lam = cap;
+      const s = lam*w[i]/len; x[3*i] -= s*dx; x[3*i+1] -= s*dy; x[3*i+2] -= s*dz;
+    }
+    return;
+  }
   let px = 0, py = 0, pz = 0, den = 0;
   for (let k = 0; k < d.i.length; k++) { const i = d.i[k], q = d.w[k]; px += q*x[3*i]; py += q*x[3*i+1]; pz += q*x[3*i+2]; den += q*q*w[i]; }
   const dx = px - d.to[0], dy = py - d.to[1], dz = pz - d.to[2], len = Math.sqrt(dx*dx + dy*dy + dz*dz);
@@ -987,10 +1046,10 @@ function rodStep(sim, h2, limitOnly, back) {
   }
 }
 // strain limiting: an edge longer than its fabric allows is brought back to that length
-function limitStep(sim, back) {
-  const I = sim.eI, J = sim.eJ, M = sim.eM, x = sim.x, w = sim.w, m = I.length;
+function limitStep(sim, back, only) {
+  const I = sim.eI, J = sim.eJ, M = sim.eM, x = sim.x, w = sim.w, m = only ? only.length : I.length;
   for (let cc = 0; cc < m; cc++) {
-    const c = back ? m - 1 - cc : cc;
+    const c = only ? only[back ? m - 1 - cc : cc] : back ? m - 1 - cc : cc;
     const L = M[c];
     if (!L) continue;
     const i = I[c], j = J[c], a = 3*i, b = 3*j, dx = x[a] - x[b], dy = x[a+1] - x[b+1], dz = x[a+2] - x[b+2], l2 = dx*dx + dy*dy + dz*dz;
@@ -1160,6 +1219,8 @@ C.clothStep = function (sim, dt) {
     }
     // no edge longer than its fabric allows
     if (sim.limit) { limitStep(sim, false); limitStep(sim, true); }
+    // (Round r33b / 1) while the pointer pulls, more passes: its pull, spread over a handful of cloth, is stronger than one point's, and the limit must still hold
+    if (sim.limit && sim.drag && o.dragLimitIters > 0) for (const g of [sim.drag, ...(sim.drag.also || [])]) if (g.edges && g.edges.length) for (let it = 0; it < o.dragLimitIters; it++) { limitStep(sim, false, g.edges); limitStep(sim, true, g.edges); }
     if (sim.rI.length) for (let it = 0; it < 6; it++) rodStep(sim, h2, true, it & 1);      // (Round r11 / 3) and no rod longer than its limit (a chain: both ways, three times; within about 1 % of it)
     // the body and the floor, with friction: what a point slid along the surface is held back
     for (let i = 0; i < n; i++) {
@@ -1191,7 +1252,8 @@ C.clothStep = function (sim, dt) {
         // stopped, a larger one held back by kinetic times the push only. Off by default (null: the fabric's one coefficient for both,
         // as always): at the reference's 0.05 kinetic a garment still settling slides down the body. The floor keeps the fabric's.
         if (tl > 1e-9 && !open[i]) {
-          const onBody = !(o.ground && x[k+1] <= th + 1e-9 && g[1] === 1), ms = onBody && o.bodyStatic != null ? o.bodyStatic : sim.fric[i], mk = onBody && o.bodyStatic != null ? o.bodyKinetic : sim.fric[i];
+          const onBody = !(o.ground && x[k+1] <= th + 1e-9 && g[1] === 1), held = sim.dragSlid && sim.dragSlid[i] && sim.drag ? o.dragSlide : 1;      // (Round r33b / 1) held by the pointer: it slides
+          const ms = (onBody && o.bodyStatic != null ? o.bodyStatic : sim.fric[i])*held, mk = (onBody && o.bodyStatic != null ? o.bodyKinetic : sim.fric[i])*held;
           const q = tl <= ms*push ? 1 : Math.min(1, mk*push/tl); x[k] -= tx*q; x[k+1] -= ty*q; x[k+2] -= tz*q;
         }
       }

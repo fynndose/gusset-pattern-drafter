@@ -270,16 +270,16 @@ test("r25 / 3 a version 24 file (written by the build before the bump) opens unc
     app.ev("openFile")("notes-puckering-lights-roll-history.pdraft", bytes, null, true);
     return app.wait(() => S.pieces.length === was.pieces.length && S.pieces.length > 0, "the file opened").then(() => {
       const J = app.ev("canonJSON"), now = app.ev("docObj")();
-      const strip = (d) => { const c = JSON.parse(JSON.stringify(d)); delete c.v; delete c.scene; delete c.drape; delete c.states3; delete c.states3Bin; delete c.history; return J(c); };
+      /* (Round H1a / 2: from version 31 every document says its render settings and the defaults it was written with, as its version) */ const strip = (d) => { const c = JSON.parse(JSON.stringify(d)); delete c.v; delete c.render; delete c.defaults; delete c.scene; delete c.drape; delete c.states3; delete c.states3Bin; delete c.history; return J(c); };
       out.v = [was.v, now.v]; out.same = strip(was) === strip(now); out.steps = S.un.length;
       return new Promise((res) => { app.setDownload((n, b) => res(b)); app.saveDoc(false); })
         .then((again) => new Promise((res) => app.ev("zipUnpack")(again, (e, p) => res(p)))).then((parts) => app.ev("pdraftDoc")(parts))
         .then((d) => { out.again = d.v; return out; });
     });` }).result;
-  assert.deepStrictEqual(o.v, [24, 28]);      // (this build's version: 28 since Round r30, 27 since Round r29, 26 since Round r26)
+  assert.deepStrictEqual(o.v, [24, 31]);      // ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) this build's version: 28 since Round r30, 27 since Round r29, 26 since Round r26)
   assert.strictEqual(o.same, true, "the same document");
   assert.ok(o.steps > 0, "its history came with it");
-  assert.strictEqual(o.again, 28);      // (Round r30: 28; Round r29: 27)
+  assert.strictEqual(o.again, 31);      // ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) Round r30: 28; Round r29: 27)
 });
 
 /* ---- batch 4: a hole in a DXF ---- */

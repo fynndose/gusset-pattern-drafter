@@ -131,9 +131,10 @@ test("I2-2 with Show Grading on every size but the hidden ones is drawn at once 
   assert.deepStrictEqual(o.off, [0, 0], "Show Grading off: no other size"); assert.deepStrictEqual(o.picked, [true, 0], "the size picked is drawn (thicker), the others not");
 });
 
+// (Round r33 / 4) graded on the size run every document had before r33 (a document starts with none since): oldSizeRun
 test("I2-2 the Grading tab is laid out as the Size panel: + Add and Assign; the group as a tree; a row a size with its line, an eye, the base box and (Base), delete; the eye hides a size, in undo and in the file", async () => {
   const r = await read();
-  const out = boot({ script: `
+  const out = boot({ oldSizeRun: true,  script: `
     const r = ${JSON.stringify(r)}, out = {};
     out.fresh = app.ev("gradingPanel")(null);
     app.ev("zprjTake")("graded.zprj", r, {});

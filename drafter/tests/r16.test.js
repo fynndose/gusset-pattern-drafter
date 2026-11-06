@@ -247,8 +247,9 @@ test("r16 / B5 the corner pictures as the reference's list draws them: Perpendic
 });
 
 /* ---- Batch 6: grade points and graded notches ---- */
+// (Round r33 / 4) graded on the size run every document had before r33 (a document starts with none since): oldSizeRun
 test("r16 / B6 with Show Grading on, every size's grade points are dots in that size's colour (I2/1) and every size's notches are drawn, graded with their line (I2/7), on a pattern that is not selected; with it off only the size picked, with its dots and notches", () => {
-  const o = boot({ blank: true, script: RECT + `
+  const o = boot({ oldSizeRun: true,  blank: true, script: RECT + `
     const G = S.grading, grp = G.groups[0], L = grp.sizes.find(z => z.id === 4), look = (z) => E("gradeLook")(G, grp, z);
     A.segs[1].notches.push(0.5);                                     // a notch half way down the right side
     E("setPtDelta")(G, A, A, 2, 4, 30, 60); E("setPtDelta")(G, A, A, 1, 4, 30, 0);   // in L: the right side 30 out, its bottom 60 down

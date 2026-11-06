@@ -6,6 +6,7 @@
 // each consumer in turn: lengths, picking, seams, seam allowance, notches and darts,
 // walking, grading, offsets, slash & spread, symmetry, DXF, SVG, files.
 "use strict";
+const { oldSizeRun } = require("./harness");      // (Round r33 / 4) the size run every document had before r33: a document starts with none since (harness.js)
 const assert = require("assert");
 const path = require("path");
 const { spawnSync } = require("child_process");
@@ -40,7 +41,7 @@ const T = [];
 const test = (name, fn) => T.push({ name, fn });
 function reset() {
   S.pieces = []; S.seams = []; S.guides = []; S.measures = []; S.sel = []; S.selSeg = S.selPt = S.selInt = -1; S.selKind = "outline"; S.selCp = null; S.tool = "edit_curve_point";
-  S.nextSegId = 1; S.nextShapeId = 1; S.nextId = 1; S.show = { ...VIEW_DEFAULT }; S.view = { s: 1, x: 0, y: 0 }; S.notch = { ...NOTCH_DEFAULT }; S.grading = defaultGrading(); store.clear();
+  S.nextSegId = 1; S.nextShapeId = 1; S.nextId = 1; S.show = { ...VIEW_DEFAULT }; S.view = { s: 1, x: 0, y: 0 }; S.notch = { ...NOTCH_DEFAULT }; S.grading = oldSizeRun(); store.clear();
 }
 // the points of segment i at n evenly spaced parameters
 const trace = (sh, i, n = 200) => Array.from({ length: n + 1 }, (_, k) => segPt(sh, i, k/n));
@@ -557,7 +558,7 @@ test("files: curve points are saved and read back; junk is dropped; a file from 
   reset();
   const p = curved(); addPoint(p, 1, 0.4); S.nextId = 5;
   const text = docJSON(), d = JSON.parse(text);
-  assert.strictEqual(d.v, 28);      // (version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
+  assert.strictEqual(d.v, 31);      // ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) version 28 since Round r30 (a seam's mirror); 28 since Round r30, 27 since Round r29 (a document's render settings); 26 since Round r26 (the wider shrinkage and glue ranges, Flip Normal's foldStay); 25 since Round r25 (a pattern's Grain Orientation, a Slant corner's distances, Solidify's Strength, a notch's Point direction); version 24 since Round r20 (an annotation's angle, colour, line); 23 since the r19 follow-up (the lights, a roll per fabric); 22 since Round r18; 21 since Round r17b; 20 since Round build-1; version 19 since Round perf-2; 18 since Round r15; 17 since Round r14; 16 since Round r13)
   const want = [1, 2].flatMap(i => trace(p, i, 50));
   reset(); loadDoc(JSON.parse(text)); checkDoc(S.pieces, S.seams);
   const q = S.pieces[0];
