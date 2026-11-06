@@ -1,75 +1,75 @@
 {
   "schema": 1,
-  "generated": "2026-11-05T12:33:07Z",
+  "generated": "2026-11-06T13:13:00Z",
   "latest": {
-    "version": "1.0.0-beta.3",
-    "tag": "v1.0.0-beta.3",
+    "version": "1.0.0-beta.4",
+    "tag": "v1.0.0-beta.4",
     "prerelease": true,
-    "date": "2026-11-05T12:33:07Z",
-    "source": "https://github.com/fynndose/gusset-pattern-drafter/archive/refs/tags/v1.0.0-beta.3.zip",
+    "date": "2026-11-06T13:13:00Z",
+    "source": "https://github.com/fynndose/gusset-pattern-drafter/archive/refs/tags/v1.0.0-beta.4.zip",
     "files": [
       {
         "os": "linux",
         "kind": "appimage",
         "arch": "x64",
-        "name": "Gusset-1.0.0-beta.3-linux-x86_64.AppImage",
-        "url": "https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.3/Gusset-1.0.0-beta.3-linux-x86_64.AppImage",
-        "size": 100843041,
-        "sha256": "bac2d77c444dd129dfed9e4737c2d17dd405e1de80cda36d5a276261c4fb77b6"
+        "name": "Gusset-1.0.0-beta.4-linux-x86_64.AppImage",
+        "url": "https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.4/Gusset-1.0.0-beta.4-linux-x86_64.AppImage",
+        "size": 100871648,
+        "sha256": "d5a2014a069c291587d5a1d4866f1d70dafbe7581a0a09cd691164b6a53e5269"
       },
       {
         "os": "mac",
         "kind": "dmg",
         "arch": "arm64",
-        "name": "Gusset-1.0.0-beta.3-mac-arm64.dmg",
-        "url": "https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.3/Gusset-1.0.0-beta.3-mac-arm64.dmg",
-        "size": 111031793,
-        "sha256": "5d0dd97afb44ead31a5023078bcf361cfab2c3b210a0b0f3bd595cddbe853a98"
+        "name": "Gusset-1.0.0-beta.4-mac-arm64.dmg",
+        "url": "https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.4/Gusset-1.0.0-beta.4-mac-arm64.dmg",
+        "size": 111107115,
+        "sha256": "74e149549706b242a7520796c603bae13fe4778208d6a984a917d2a5d9cd9269"
       },
       {
         "os": "mac",
         "kind": "zip",
         "arch": "arm64",
-        "name": "Gusset-1.0.0-beta.3-mac-arm64.zip",
-        "url": "https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.3/Gusset-1.0.0-beta.3-mac-arm64.zip",
-        "size": 117257761,
-        "sha256": "142af8590f111dd26cec2dc08a6dadc4424da50b29ec436bebc8166c1d156fb5"
+        "name": "Gusset-1.0.0-beta.4-mac-arm64.zip",
+        "url": "https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.4/Gusset-1.0.0-beta.4-mac-arm64.zip",
+        "size": 117292567,
+        "sha256": "2f220012be08356f00bac33e73c50d77cc8f111aa8c20ad5feb3690c9a698b24"
       },
       {
         "os": "mac",
         "kind": "dmg",
         "arch": "x64",
-        "name": "Gusset-1.0.0-beta.3-mac-x64.dmg",
-        "url": "https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.3/Gusset-1.0.0-beta.3-mac-x64.dmg",
-        "size": 115896430,
-        "sha256": "ddf9db53b954ec53364bef856c0d009a9759532e0209375cf10c7c95d2518f97"
+        "name": "Gusset-1.0.0-beta.4-mac-x64.dmg",
+        "url": "https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.4/Gusset-1.0.0-beta.4-mac-x64.dmg",
+        "size": 115923342,
+        "sha256": "3bcbf1f8cd65a328bd84d717b85ca50db2dda649e3a5daaeab36805bef71f82a"
       },
       {
         "os": "mac",
         "kind": "zip",
         "arch": "x64",
-        "name": "Gusset-1.0.0-beta.3-mac-x64.zip",
-        "url": "https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.3/Gusset-1.0.0-beta.3-mac-x64.zip",
-        "size": 123176115,
-        "sha256": "ebcfeda8be3cce13c393f567c9bd62cfc179d93b2e132e0a4efbee0030b5cdcb"
+        "name": "Gusset-1.0.0-beta.4-mac-x64.zip",
+        "url": "https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.4/Gusset-1.0.0-beta.4-mac-x64.zip",
+        "size": 123210921,
+        "sha256": "76bad4d95979994e303cd47406d7f42242eaf746fc71d158fec45c616e905cd1"
       },
       {
         "os": "windows",
         "kind": "portable",
         "arch": "x64",
-        "name": "Gusset-1.0.0-beta.3-win-x64-portable.exe",
-        "url": "https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.3/Gusset-1.0.0-beta.3-win-x64-portable.exe",
-        "size": 103960138,
-        "sha256": "19c40ac040574957860df6d63cd8e7871c43aca88e58c6bc9de4bda4182abd3e"
+        "name": "Gusset-1.0.0-beta.4-win-x64-portable.exe",
+        "url": "https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.4/Gusset-1.0.0-beta.4-win-x64-portable.exe",
+        "size": 103988353,
+        "sha256": "0838f8760980795055d942494a86afaad9381c696fee48ce60f19f202194c572"
       },
       {
         "os": "windows",
         "kind": "installer",
         "arch": "x64",
-        "name": "Gusset-1.0.0-beta.3-win-x64-setup.exe",
-        "url": "https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.3/Gusset-1.0.0-beta.3-win-x64-setup.exe",
-        "size": 114555534,
-        "sha256": "03eb225a8935b08675e8d7aba8ebe6728cb76b173ecf1379171f2338b42981f8"
+        "name": "Gusset-1.0.0-beta.4-win-x64-setup.exe",
+        "url": "https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.4/Gusset-1.0.0-beta.4-win-x64-setup.exe",
+        "size": 114583462,
+        "sha256": "56cb66fe2e10adfe20c89ec0a16999db50ac114d8734c42657313504b794e98a"
       }
     ]
   },
