@@ -25,6 +25,9 @@ const DOC = `
   const rect = (k) => { app.push("Rectangle " + k); S.pieces.push(app.mkPiece("R" + k, app.mkShape([{ x: 500*k, y: 0 }, { x: 500*k + 300, y: 0 }, { x: 500*k + 300, y: 200 }, { x: 500*k, y: 200 }], true))); app.commit(); };
   const doc = () => S.pieces.map(p => p.name + "@" + p.pts[0].x).join(" ");
   const tree = () => { const t = app.ev("histNodes")(); return { path: t.path, at: t.at, off: [...S.hoff.keys()].sort((a, b) => a - b) }; };
+  // (Round UI-1 / A) a branch is kept only after going back FROM THE HISTORY PANEL (treeGo()); Ctrl+Z then a change is plain undo, so
+  // the tests that make branches go back n steps from the panel where they pressed undo before
+  const back = (n) => { const t = app.ev("histNodes")(); app.ev("treeGo")(t.path[t.at - n]); };
   const saveBytes = () => { let got = null; app.setDownload((n, b) => { got = b; }); app.saveDoc(false); app.setDownload(null); return got; };
 `;
 
@@ -33,7 +36,7 @@ test("h1 / 1: going back and making a step keeps the steps undone as a branch; a
     const out = {};
     rect(0); rect(1); rect(2); rect(3);                         // nodes 1 to 4
     out.d4 = doc();
-    app.undo(); app.undo();                                     // at node 2; 3 and 4 undone
+    back(2);                                                    // at node 2; 3 and 4 undone (from the panel: Round UI-1 / A)
     out.d2 = doc();
     rect(5);                                                    // node 5: a branch from node 2
     out.fork = tree();
@@ -60,7 +63,7 @@ test("h1 / 2: at most 500 steps on the path; the oldest plain step goes first, n
   const r = boot({ blank: true, script: DOC + `
     rect(0); rect(1); rect(2);                                  // nodes 1, 2, 3
     S.hsave.set(1, "First");                                   // a Save State on node 1
-    app.undo(); rect(4);                                        // node 4 from 2: node 2 a branch point (3 off the path)
+    back(1); rect(4);                                           // node 4 from 2: node 2 a branch point (3 off the path)
     for (let k = 0; k < 520; k++) { app.push("Move"); S.pieces[0].pts[0].x += 1; app.commit(); }
     const t = app.ev("histNodes")();
     return { len: S.un.length + S.rn.length, has1: t.path.includes(1), has2: t.path.includes(2), first: S.un.slice(0, 4).map(s => s.n), x: S.pieces[0].pts[0].x };` });
@@ -74,7 +77,7 @@ test("h1 / 3: the file keeps the whole tree (history v4), its Save States, place
   const v30 = Array.from(fs.readFileSync(path.join(__dirname, "files", "v30", "defaults-sewn-history.pdraft")));
   const r = boot({ blank: true, script: DOC + `
     const out = {};
-    rect(0); rect(1); rect(2); app.undo(); rect(3);
+    rect(0); rect(1); rect(2); back(1); rect(3);
     S.hsave.set(1, "Base"); S.hui[3] = { x: 120, y: 40 };
     const t0 = tree(), d0 = doc();
     const b1 = saveBytes(), h = app.fileDoc(b1).history;
@@ -176,14 +179,14 @@ test("h1b / 3: going back and editing asks Keep or Delete for the old future (De
     const out = {};
     app.modalAnswer = () => undefined;                          // (every question left open, answered below by hand)
     rect(0); rect(1); rect(2); rect(3);
-    app.undo(); app.undo(); rect(4); app.runTimers();
+    back(2); rect(4); app.runTimers();
     out.asked = app.ev("modalNow") && app.ev("modalNow").title;
     app.modalPick("keep"); out.kept = tree().off;
     // Delete, then Delete again
-    app.undo(); rect(5); app.runTimers(); app.modalPick("delete"); out.second = app.ev("modalNow") && app.ev("modalNow").title; app.modalPick("delete");
+    back(1); rect(5); app.runTimers(); app.modalPick("delete"); out.second = app.ev("modalNow") && app.ev("modalNow").title; app.modalPick("delete");
     out.deleted = tree().off;
     // the project's history off: the old future goes as it always did, no box, nothing in the file
-    app.ev("histSwitch")(false); app.undo(); rect(6); app.runTimers();
+    app.ev("histSwitch")(false); back(1); rect(6); app.runTimers();
     out.off = [tree().off, !!app.ev("modalNow"), (() => { let got = null; app.setDownload((n, b) => { got = b; }); app.saveDoc(false); app.setDownload(null); return app.fileParts(got).map(p => p[0]).includes("history.json"); })()];
     app.ev("histSwitch")(true);
     // a Save State from a card's right-click menu
@@ -194,7 +197,7 @@ test("h1b / 3: going back and editing asks Keep or Delete for the old future (De
     const row = app.menu.children.find(x => /Add Save State/.test(x.innerHTML)); row.onclick({ stopPropagation() {} }); app.promptAnswer = undefined;
     out.save = [...S.hsave.entries()];
     // Condense: a branch, a run of steps, a Save State
-    app.undo(); app.undo(); rect(7); app.runTimers(); app.modalPick("keep");
+    back(2); rect(7); app.runTimers(); app.modalPick("keep");
     for (let k = 0; k < 4; k++) { app.push("Nudge"); S.pieces[0].pts[0].x += 1; app.commit(); }
     const before = app.ev("histNodes")().nodes.size;
     app.ev("histCondenseAsk")(); out.condenseAsk = app.ev("modalNow") && app.ev("modalNow").title; app.modalPick("condense");

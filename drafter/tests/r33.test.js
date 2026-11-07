@@ -236,7 +236,8 @@ test("r33 / 6: Trace in Line mode offers Cut, Cut & Sew and Convert to Hole on a
     out.panel = /Opacity/.test(app.el("props").innerHTML) && /Width/.test(app.el("props").innerHTML);
     drag(700, 50, 720, 70); out.moved = [Math.round(S.backdrop.x), Math.round(S.backdrop.y), steps().slice(-1)[0], S.bgMode && S.bgMode.k];
     // the bottom right corner (820, 120), out to (920, 140) with Shift: the proportions kept (2 : 1)
-    drag(820, 120, 920, 140, { shiftKey: true }); out.scaled = [Math.round(S.backdrop.x), Math.round(S.backdrop.y), Math.round(S.backdrop.w), Math.round(S.backdrop.h), steps().slice(-1)[0]];
+    drag(820, 120, 920, 140); out.scaled =      // (Round UI-1d / B: a corner keeps the proportions by itself now; Shift lets them go)
+      [Math.round(S.backdrop.x), Math.round(S.backdrop.y), Math.round(S.backdrop.w), Math.round(S.backdrop.h), steps().slice(-1)[0]];
     // a click outside ends editing; a drag on the image then does not move it
     click(1500, 900); out.ended = S.bgMode;
     const n = steps().length; drag(700, 60, 760, 80); out.after = [Math.round(S.backdrop.x), Math.round(S.backdrop.y), steps().length === n];
@@ -249,7 +250,7 @@ test("r33 / 6: Trace in Line mode offers Cut, Cut & Sew and Convert to Hole on a
   assert.ok(o.line.includes("Cut") && o.line.includes("Cut & Sew"), "an open line: " + o.line);
   assert.strictEqual(o.mode, "edit"); assert.strictEqual(o.panel, true);
   assert.deepStrictEqual(o.moved, [620, 20, "Move Background Image", "edit"], "moved by the drag, one step, still editing");
-  assert.deepStrictEqual(o.scaled, [620, 20, 300, 150, "Scale Background Image"], "the top left corner stays; Shift keeps 2 : 1");
+  assert.deepStrictEqual(o.scaled, [620, 20, 300, 150, "Scale Background Image"], "the top left corner stays; the proportions kept, 2 : 1 (Round UI-1d / B: without Shift)");
   assert.strictEqual(o.ended, null);
   assert.deepStrictEqual(o.after, [620, 20, true], "not dragged once editing ended");
   assert.strictEqual(o.esc, null);

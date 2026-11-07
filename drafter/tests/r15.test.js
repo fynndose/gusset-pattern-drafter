@@ -295,7 +295,7 @@ test("r15 / 8: the gizmo's axes follow Gizmo ▸ (Screen, the default; Local; Wo
   const o = boot({ blank: true, three: true, script: SEWN + `
     S.sel = [A.id]; app.setTool3("select_move"); G3.giz = { pid: A.id, v: 0 };
     const B3 = () => app.ev("gizBasis")().map(v => v.map(c => +c.toFixed(4)));
-    out.def = S.prefs.gizSpace; out.screen = B3();
+    out.def = S.prefs.gizSpace; app.setPrefs({ gizSpace: "screen", gizPicked: true }); out.screen = B3();      // (Round UI-1 / C: World the default; Screen as picked from Gizmo ▸)
     const cam = v3.camera(), r = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion), u = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion);
     out.camAxes = [[r.x, r.y, r.z], [u.x, u.y, u.z]].map(v => v.map(c => +c.toFixed(4)));
     app.setPrefs({ gizSpace: "world" }); out.world = B3();
@@ -316,7 +316,7 @@ test("r15 / 8: the gizmo's axes follow Gizmo ▸ (Screen, the default; Local; Wo
     out.pinch = !!S.cloth.symPinch;
     return out;
   ` }).result;
-  assert.strictEqual(o.def, "screen", "Screen Coordinate first");
+  assert.strictEqual(o.def, "world", "(Round UI-1 / C, the maintainer's decision: World Coordinate the default; it was Screen, as the reference's)");
   assert.deepStrictEqual(o.screen.slice(0, 2), o.camAxes, "Screen: X along the screen's right, Y up it");
   assert.deepStrictEqual(o.world, [[1, 0, 0], [0, 1, 0], [0, 0, 1]]);
   assert.deepStrictEqual(o.local[0], [0, 0, -1], "Local: the pattern's own X, turned with it a quarter round");

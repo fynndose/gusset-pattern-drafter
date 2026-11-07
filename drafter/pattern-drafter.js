@@ -41,7 +41,7 @@
    Units mm, y down.
    ================================================================ */
 const S = {
-  pieces: [], seams: [], stitches: [], hgroups: [], hlane: {}, hjump: {}, lineLinks: [], selMore: [], images: [], guides: [], measures: [], tacks: [], buttons: [], pipings: [], bindings: [], glues: [], backdrop: null, avedit: { joints: {} }, lights: [], bgMode: null, selTrim: null, grading: null, gradeClip: null, print: null, walk: null, selSeam: null, selPart: null, sewCheck: { on: false, useLen: true, len: 2, useRatio: false, ratio: 2 }, sewBad: null, ui: { layout: "2d", unbuilt: true, render: "front", show3d: {} }, lib: null, ob: null, mode: "sim", layout: null, lview: { s: 0.5, x: 40, y: 90 },
+  pieces: [], seams: [], stitches: [], hgroups: [], hlane: {}, hjump: {}, lineLinks: [], selMore: [], images: [], guides: [], measures: [], tacks: [], buttons: [], pipings: [], bindings: [], glues: [], backdrop: null, avedit: { joints: {} }, lights: [], bgMode: null, avOutEdit: null, selTrim: null, grading: null, gradeClip: null, print: null, walk: null, selSeam: null, selPart: null, sewCheck: { on: false, useLen: true, len: 2, useRatio: false, ratio: 2 }, sewBad: null, ui: { layout: "2d", unbuilt: true, render: "front", show3d: {} }, lib: null, ob: null, mode: "sim", layout: null, lview: { s: 0.5, x: 40, y: 90 },
   show: { sewing: true, topstitch: true, puckering: true, baseline: true, sa: true, grading: false, reference: true, symmetric: true, links: true, pins: true, name: true, annotations: true, length: true, angle: false, grainline: true, measurements: true, ruler: true, guides: true, lockAll: false, lockInt: false, lockBase: true, lockGuide: false }, nextSegId: 1, nextShapeId: 1, sel: [], selPt: -1, selSeg: -1, selInt: -1, selKind: "outline",
   tool: "edit_pattern", unit: "mm", dec: 1, snapG: 0, saValue: 10, prefs: null,
   notch: { type: "I", len: 6, color: "#00a37a", width: 2, dup: true },
@@ -1799,10 +1799,16 @@ function histId() { if (!(S.histNext >= 1)) S.histNext = 1; return S.histNext++;
 // the branches push() made of an undone future, newest last: unpush() and pressDrop() take one back with its step
 let histMade = [];
 const histMadeBack = (n) => { while (histMade.length > n) for (const id of histMade.pop()) S.hoff.delete(id); if (histAskFuture && !histAskFuture.some(id => S.hoff.has(id))) histAskFuture = null; };
-/* (Round H1b / 3) THE KEEP / DELETE BOX. Going back and then making a step keeps the old future as a branch at once; once the command is
+/* (Round H1b / 3) THE KEEP / DELETE BOX. (Since Round UI-1 / A only after going back from the History panel: histJumped, below.) Going back and then making a step keeps the old future as a branch at once; once the command is
    done (commit(), no press under way) a box asks: Keep the old future as a branch, or Delete the future, which asks again (it cannot be
    undone). Only with the project's history on (S.histOn; off: undo works as it always did, the old future goes, nothing in the file). */
 let histAskFuture = null;
+/* (Round UI-1 / A, the maintainer's brief) Ctrl+Z / Ctrl+Y and the undo / redo buttons are plain undo again: undo, then a change, and the
+   undone steps are gone, as in any program; no box, no branch. Only going to a step FROM THE HISTORY PANEL (a double-click on a card, its
+   Go to This Step rows, a group's step: treeGo(), hgGo()) sets histJumped; a change made after that keeps the old future as a branch and
+   asks Keep / Delete. Undo and redo after a jump leave it set (the steps ahead still hold the ones jumped over); the step that makes the
+   branch clears it (unpush() and pressDrop() put it back with the redo list). */
+let histJumped = false;
 const histOn = () => S.histOn !== false;
 function histFutureAsk() {
   const ids = histAskFuture;
@@ -1846,7 +1852,8 @@ function histCap() {
 // a step made from a state taken earlier (a 3D drag: the document before the drag); as push(), with the undone future kept as a branch
 function pushState(st, n) {
   histFit();
-  if (S.redo.length && histOn()) { const ids = histBranchRedo(); if (ids) { histMade.push(ids); histAskFuture = ids; } }
+  if (S.redo.length && histOn() && histJumped) { const ids = histBranchRedo(); if (ids) { histMade.push(ids); histAskFuture = ids; } }
+  histJumped = false;
   S.undo.push(st); S.un.push({ n, tool: "", id: histId() }); histCap();
   S.redo.length = 0; S.rn.length = 0;
 }
@@ -1887,13 +1894,14 @@ function treeGo(target) {
   pushFlush();
   const { nodes, path, at } = histNodes();
   if (!nodes.has(target)) return false;
-  if (path.includes(target)) { histGo(path.indexOf(target)); return true; }
+  if (path.includes(target)) { histGo(path.indexOf(target)); histJumped = S.redo.length > 0; return true; }
   if (typeof simHalt === "function") simHalt();
   if (typeof G3 !== "undefined" && G3.look) look3End();
   nodes.get(path[at]).st = histState();                      // the document as it is now is that node's
   const t = histPathThrough(nodes, target), st = nodes.get(target).st;
   histLay(nodes, t.path, t.at);
   histMade = [];
+  histJumped = true;                                         // (Round UI-1 / A: a jump from the panel)
   unsnap(st);
   S.sel = S.sel.filter(id => byId(id)); S.selPt = S.selSeg = S.selInt = -1; S.selCp = null; S.tps = null;
   commit();
@@ -1907,11 +1915,12 @@ function push(name) {
   const tool = S.mode === "layout" ? "" : S.tool || "", n = histClean(name) || histHint || (S.mode === "layout" ? "Print Layout" : histToolName(tool)) || "Edit";
   // the tool in hand is kept with every step (Round CF): the timeline shows its icon with the step's word
   // (Round H1 / 1) an undone future is kept, a branch off the node the document is at; unpush() takes it back with the step
-  const was = S.redo.length ? { redo: S.redo.slice(), rn: S.rn.slice(), made: histMade.length } : null;
-  if (was && histOn()) { const ids = histBranchRedo(); if (ids) { histMade.push(ids); histAskFuture = ids; } }      // (Round H1b / 3: asked about once the command is done)
+  const was = S.redo.length ? { redo: S.redo.slice(), rn: S.rn.slice(), made: histMade.length, jumped: histJumped } : null;
+  if (was && histOn() && histJumped) { const ids = histBranchRedo(); if (ids) { histMade.push(ids); histAskFuture = ids; } }      // (Round H1b / 3: asked about once the command is done)
   S.undo.push(histState()); S.un.push({ n, tool: histToolName(tool) ? tool : "", id: histId() }); pushCount++;
   histCap();
   pushWas = was ? { ...was, at: S.undo.length } : null;      // (Round r21 / 2) for unpush()
+  histJumped = false;
   S.redo.length = 0; S.rn.length = 0;
 }
 /* (Round r15 / 1) A press in the 2D window (or one the 3D window hands to a 2D tool) that changed nothing leaves no
@@ -1935,17 +1944,17 @@ function unpush() {
   if (!S.undo.length) return;
   const w = pushWas; pushWas = null;
   S.undo.pop(); histFit();
-  if (w && w.at === S.undo.length + 1 && !S.redo.length) { S.redo = w.redo; S.rn = w.rn; histMadeBack(w.made); histFit(); }
+  if (w && w.at === S.undo.length + 1 && !S.redo.length) { S.redo = w.redo; S.rn = w.rn; histMadeBack(w.made); histJumped = !!w.jumped; histFit(); }
   if (typeof renderTimeline === "function") renderTimeline();
 }
-function pressMark() { pressAt = { n: pushCount, top: S.undo[S.undo.length - 1], redo: S.redo.slice(), rn: (S.rn || []).slice(), made: histMade.length, doc: S.redo.length ? histState() : null }; }
+function pressMark() { pressAt = { n: pushCount, top: S.undo[S.undo.length - 1], redo: S.redo.slice(), rn: (S.rn || []).slice(), made: histMade.length, jumped: histJumped, doc: S.redo.length ? histState() : null }; }
 function pressDrop() {
   const m = pressAt; pressAt = null;
   if (!m || pushCount === m.n) return false;
   const top = S.undo[S.undo.length - 1], now = histState();
   if (pushCount === m.n + 1 && top !== m.top && histSame(top, now)) { S.undo.pop(); histFit(); }
   else if (!(top === m.top && m.doc !== null && histSame(now, m.doc))) return false;
-  if (!S.redo.length) { S.redo = m.redo; S.rn = m.rn; histMadeBack(m.made); histFit(); }
+  if (!S.redo.length) { S.redo = m.redo; S.rn = m.rn; histMadeBack(m.made); histJumped = m.jumped; histFit(); }
   if (typeof renderTimeline === "function") renderTimeline();
   return true;
 }
@@ -2223,7 +2232,7 @@ function viewHelp() {
 const COLORS = [["outline", "Pattern outline", "#262626"], ["fill", "Pattern fill", "#ffffff"], ["internal", "Internal line", "#d43c3c"],
   ["baseline", "Baseline", "#7173f8"], ["punch", "Punch mark", "#00a37a"], ["hover", "Hover", "#2eaaf1"], ["selection", "Selection", "#ecfd3f"],
   ["saLine", "Seam allowance line", "#8a63d2"], ["curve", "Curve point", "#ea5151"], ["move", "Move and guide lines", "#8a3fd1"]];
-const PREFS_DEFAULT = { unit: "mm", decimals: 1, grid: 0, smart: true, snapPts: true, colors: Object.fromEntries(COLORS.map(c => [c[0], c[2]])), histKeep: 50, view: normViewCtl(null), gizmo: "m", gizSpace: "screen", wheelRev: false, gridShow: true, openDisplay: false, keepBranchCloth: false, keepFuture: false, showHints: false, histNew: "ask", objKind: "single", labelHalo: true, updateCheck: true, gradeStep: 10, simQuality: "normal" };      // (Round r33: the grading tools' Arrow Key Movement, Simulation Quality)
+const PREFS_DEFAULT = { unit: "mm", decimals: 1, grid: 0, smart: true, snapPts: true, colors: Object.fromEntries(COLORS.map(c => [c[0], c[2]])), histKeep: 50, view: normViewCtl(null), gizmo: "m", gizSpace: "world", gizPicked: false, wheelRev: false, gridShow: true, openDisplay: false, keepBranchCloth: false, keepFuture: false, showHints: false, histNew: "ask", objKind: "single", labelHalo: true, updateCheck: true, gradeStep: 10, simQuality: "normal" };      // (Round r33: the grading tools' Arrow Key Movement, Simulation Quality)
 // (Round r15 / 8, the check videos S16) the gizmo's axes: the screen's (ticked first in the reference, the maintainer's choice), the
 // pattern's own (they turn with it) or the 3D window's
 const GIZ_SPACES = [["screen", "Screen Coordinate"], ["local", "Local Coordinate"], ["world", "World Coordinate"]];
@@ -2236,7 +2245,7 @@ function normPrefs(o) {
   return { unit: ["mm", "cm", "in"].includes(o.unit) ? o.unit : "mm", decimals: [0, 1, 2, 3].includes(o.decimals) ? o.decimals : 1,
     grid: [0, 1, 5, 10].includes(o.grid) ? o.grid : 0, smart: o.smart !== false, snapPts: o.snapPts !== false, colors,
     histKeep: Number.isInteger(o.histKeep) && o.histKeep >= 0 && o.histKeep <= 90 ? o.histKeep : 50,        // steps of the history timeline that Save writes into the file
-    view: normViewCtl(o.view), gizmo: GIZ_SIZES.some(z => z[0] === o.gizmo) ? o.gizmo : "m", gizSpace: GIZ_SPACES.some(z => z[0] === o.gizSpace) ? o.gizSpace : "screen",
+    view: normViewCtl(o.view), gizmo: GIZ_SIZES.some(z => z[0] === o.gizmo) ? o.gizmo : "m", gizSpace: GIZ_SPACES.some(z => z[0] === o.gizSpace) && (o.gizSpace !== "screen" || o.gizPicked === true) ? o.gizSpace : "world", gizPicked: o.gizPicked === true,      // (Round UI-1 / C, the maintainer's decision: World by default, unlike the reference's Screen; an older build wrote "screen" for everyone, so it counts only once picked from Gizmo ▸)
     // the wheel turned round: forward zooms out (Round r12 / 1). Before it only the custom mouse set could say so, as its
     // own view.wheel: such a choice is kept
     wheelRev: typeof o.wheelRev === "boolean" ? o.wheelRev : !!(o.view && o.view.preset === "custom" && o.view.wheel === "out"),
@@ -2391,11 +2400,11 @@ function displayOut() {
   const show2d = {};
   for (const [k] of VIEW) if (!DISPLAY_SKIP.includes(k) && typeof (S.show || {})[k] === "boolean") show2d[k] = S.show[k];
   const u = S.ui || {}, out = { show2d, render: u.render || "front", mesh2: !!u.mesh2, render3: u.render3 || "front", show3d: { ...(u.show3d || {}) }, strain3: !!u.strain3, fit3: !!u.fit3 };
-  for (const k of DISPLAY_3D) if (u[k] !== undefined) out[k] = u[k];
+  for (const k of DISPLAY_3D) if (u[k] !== undefined && !(k === "avOut" && u[k] === "off") && !(k === "avOutObj" && !u[k])) out[k] = u[k];      // (Round UI-1e / C: the outline only when it is on, so an older file saves as it was)
   return out;
 }
 // the 3D window's own display switches kept with the rest (added to by the 3D rendering styles, Round r17b / 3)
-const DISPLAY_3D = ["wire3", "joints3"];
+const DISPLAY_3D = ["wire3", "joints3", "avOut", "avOutObj"];      // (Round UI-1e / C: the avatar's outline in the 2D window too)
 function displayIn(d) {
   if (!d || typeof d !== "object" || !S.prefs || !S.prefs.openDisplay) return false;
   if (d.show2d && typeof d.show2d === "object") for (const [k] of VIEW) if (!DISPLAY_SKIP.includes(k) && !VIEW_START_OFF.includes(k) && typeof d.show2d[k] === "boolean") S.show[k] = d.show2d[k];
@@ -3038,7 +3047,7 @@ function setTool(id) {
   S.sticker = null; if (id !== "edit_zipper") S.zipTarget = null;      // (Round build-1) a sticker picked up, Edit Zipper's dot
   if (!GRADE_TOOLS.includes(id)) S.gradeSel = [];      // (Round r33 / 4) the grading tools' points stay selected among the four
   S.blockDraft = null; S.blockSel = null;      // (Round r33b / 2)
-  S.tool = id; S.draft = null; S.place = null; S.rotAxis = null; S.pickPoly = null; S.bgMode = null; S.selMeas = []; S.marquee = null; S.walk = null; S.selPart = null; S.selNote = null; S.selCp = null; S.selCps = []; S.selHandle = null; S.tps = null; S.selPunch = null; S.selStitch = null; S.selPucker = null; S.selGfx = null; S.selNotch = null;
+  S.tool = id; S.draft = null; S.place = null; S.rotAxis = null; S.pickPoly = null; S.bgMode = null; S.avOutEdit = null; S.selMeas = []; S.marquee = null; S.walk = null; S.selPart = null; S.selNote = null; S.selCp = null; S.selCps = []; S.selHandle = null; S.tps = null; S.selPunch = null; S.selStitch = null; S.selPucker = null; S.selGfx = null; S.selNotch = null;
   if (id !== "transform_pattern") S.pivot = null;
   if (id === "edit_pom" && !S.show.measurements) setView("measurements", true);      // (Round r13 / 7) the measurements are what it edits
   if (id !== "trace" && S.selKind === "base") { S.selInt = S.selPt = S.selSeg = -1; S.selKind = "outline"; }
@@ -4710,6 +4719,7 @@ function drawAll() {
   ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
   grid();
   drawBackdrop();                                            // (Round r17b / 1) under everything but the grid
+  drawAvOutline();                                           // (Round UI-1e / C) the avatar's outline, under every pattern
   // a point being dragged: the patterns are painted with that shape as it was, the new shape is the ghost
   const gd = ghostDrag();
   LBL_TAKEN = []; ANG_LIVE = S.drag && S.drag.sh && S.drag.sh.pts ? shapeHost(S.drag.sh) : null;
@@ -4756,6 +4766,8 @@ function drawAll() {
     ctx.setLineDash([]);
     if (S.tool === "transform_pattern" && !S.marquee.touch) tag(MARQUEE_TIP, V(b.x, b.y + 18));
   }
+  drawAvOutEdit();                                           // (Round beta.6 / 0) the avatar outline being edited
+  drawBackdropEdit();                                        // (Round UI-1e / D) the background image being edited: its frame, handles and words over the patterns
   if (S.show.ruler) drawRulers();
 }
 
@@ -4799,11 +4811,12 @@ function cvDown(e) {
   if (!e.at2) cv.setPointerCapture(e.pointerId);
   // the middle button pans (Space is Simulate); (Round desk-2) so does Alt + the left button, for a trackpad, but on
   // Transform Pattern's centre mark, where Alt drags the pivot
-  if (e.button === 1 || (e.altKey && e.button === 0 && !e.at2 && !altOnPivot(sx, sy))) { S.drag = { k: "pan", x: sx, y: sy, vx: S.view.x, vy: S.view.y }; return; }
+  if (e.button === 1 || (e.altKey && e.button === 0 && !e.at2 && !altOnPivot(sx, sy) && !(S.bgMode && S.bgMode.k === "edit" && backdropCorner(sx, sy) >= 0))) { S.drag = { k: "pan", x: sx, y: sy, vx: S.view.x, vy: S.view.y }; return; }
   if (S.place) return placeDown(sx, sy, w);                  // something hangs on the pointer: this click sets it down
   if (S.replace) return replaceClick(sx, sy);                // Replaced by is picking (Round r12 / 5)
   if (S.noteLink) return noteLinkClick(sx, sy);             // (Round r20 / 4) an annotation's Link to is picking its line
   if (S.bgMode) return backdropDown(w, { x: e.clientX, y: e.clientY });     // (Round r17b / 1) the background image is moved or scaled
+  if (S.avOutEdit) return avOutDown(w);                     // (Round beta.6 / 0) the avatar outline is being edited
   if (S.rotAxis) return rotAxisClick(sx, sy);                // Rotate ▸ X-Axis / Y-Axis waits for the line (Round r13 / 5)
   if (S.pickPoly && S.tool === "transform_pattern") return pickPolyClick(sx, sy, w);      // (Round r19 / H01) a corner of the polygon selection
   // Rotate Dart is waiting for its new place: this click is it
@@ -5113,8 +5126,9 @@ function cvMove(e) {
   }
   if (d.k === "pan") { S.view.x = d.vx + (sx-d.x); S.view.y = d.vy + (sy-d.y); drawSoon(); return; }
   if (d.k === "pomEnd") { d.at = cp(w); d.moved = true; drawSoon(); return; }
+  if (d.k === "avout") return avOutMove(d, w);              // (Round beta.6 / 0)
   if (d.k === "bg") { const b = backdrop(); if (b) { b.x = d.x + w.x - d.at.x; b.y = d.y + w.y - d.at.y; d.moved = true; } drawSoon(); return; }
-  if (d.k === "bgc") { backdropScaleTo(d, w, e.shiftKey); drawSoon(); return; }      // (Round r33 / 6) a corner of the background image
+  if (d.k === "bgc") { backdropScaleTo(d, w, e); drawSoon(); return; }      // (Round r33 / 6) a corner of the background image
   if (d.k === "bgr") { backdropTurnTo(d, w, e.shiftKey); drawSoon(); return; }      // (Round r33b / 3) its ring
   if (d.k === "btn") { const b = (S.buttons || []).find(x => x.id === d.id); if (b) { const q = add(w, d.off); if (dist(q, V(b.x, b.y))*S.view.s > 0.5) d.moved = true; b.x = q.x; b.y = q.y; } drawSoon(); return; }
   if (d.k === "sew") return editSewMove(sx, sy);
@@ -5361,6 +5375,9 @@ function cvMenu(e) {
   // Pattern or a Layer Clone, no box and no giving up; it used to give up). Esc gives up
   if (S.place) { S.drag = null; return; }
   if (S.rotAxis) { S.rotAxis = null; draw(); return toast("Rotate given up"); }
+  // (Round UI-1e / D) editing the background image: a right-click on it opens its tools; anywhere else ends editing
+  if (S.bgMode && S.bgMode.k === "edit") { if (bgUnder(w)) return backdropMenu(e); S.bgMode = null; ui(); draw(); return; }
+  if (S.avOutEdit) { if (avOutUnder(w)) return avOutMenu(e); avOutEditEnd(); return; }      // (Round beta.6 / 0)
   if (S.bgMode) { S.bgMode = null; draw(); return toast("Background image: given up"); }      // (Round r13 / 5) a right-click gives up Rotate ▸ X-Axis / Y-Axis
   if (T === "edit_curvature") return;                        // Edit Curvature has no right-click: no menu opens, nothing is typed
   // mid-draw: type the exact length + angle
@@ -5857,7 +5874,7 @@ function imgEl(id) {
 }
 /* ---- the background image (Round r17b / 1) ----
    The empty 2D window's Add Background Image: one picture under the patterns, to trace a photo or a scanned pattern from.
-   S.backdrop = { img (an id of S.images), x, y (its top left, mm), w, h (its size, mm), opacity (0.05 to 1), lock, hide } or
+   S.backdrop = { img (an id of S.images), x, y (its top left, mm), w, h (its size, mm), opacity (0 to 1; Round UI-1d / B, 0.05 before), lock (Round UI-1e / D: no longer used; kept as a file has it, so it saves back the same), hide } or
    null. It belongs to the document: saved in the file (from version 21) and part of undo; every command is one step. What the reference
    does with it beyond the row's name is not known (guesses r17/3 to r17/6): it comes in at 96 pixels an inch with its middle at
    the window's middle, half see-through; it is moved by a drag, scaled by a length measured on it, never picked by a click. */
@@ -5866,7 +5883,7 @@ function normBackdrop(b, images) {
   if (!b || typeof b !== "object" || !Number.isInteger(b.img) || !(images || []).some(im => im.id === b.img)) return null;
   const num = (v, d) => (Number.isFinite(v) ? v : d);
   const ang = bgAngleNorm(num(b.angle, 0));
-  return { img: b.img, x: num(b.x, 0), y: num(b.y, 0), w: b.w > 0 ? b.w : 100, h: b.h > 0 ? b.h : 100, opacity: Math.min(1, Math.max(0.05, num(b.opacity, BG_OPACITY))), lock: b.lock === true, hide: b.hide === true, ...(ang ? { angle: ang } : {}) };
+  return { img: b.img, x: num(b.x, 0), y: num(b.y, 0), w: b.w > 0 ? b.w : 100, h: b.h > 0 ? b.h : 100, opacity: Math.min(1, Math.max(0, num(b.opacity, BG_OPACITY))), lock: b.lock === true, hide: b.hide === true, ...(ang ? { angle: ang } : {}) };
 }
 const backdrop = () => (S.backdrop && (S.images || []).some(im => im.id === S.backdrop.img) ? S.backdrop : null);
 /* (Round r33b / 3) The background image may be turned: angle, degrees clockwise on the screen (the window's y runs down), about its
@@ -5886,6 +5903,17 @@ function drawBackdrop() {
   turned(() => { ctx.globalAlpha = b.opacity; if (el) ctx.drawImage(el, -w/2, -h/2, w, h); else { ctx.fillStyle = "#e8e8e8"; ctx.fillRect(-w/2, -h/2, w, h); } });
   // while it is being moved or scaled: its frame, dashed, and the length being measured on it
   const m = S.bgMode;
+  if (m && m.k === "edit") return;                           // (Round UI-1e / D) its frame, handles and words over the patterns: drawBackdropEdit()
+  drawBackdropMarks(b, m, c, s, r, w, h, turned);
+}
+function drawBackdropEdit() {
+  const b = backdrop(), m = S.bgMode;
+  if (!b || b.hide || !m || m.k !== "edit") return;
+  const c = toS(bgCentre(b)), s = S.view.s, r = (b.angle || 0)*Math.PI/180, w = b.w*s, h = b.h*s;
+  const turned = (f) => { ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(r); f(); ctx.restore(); };
+  drawBackdropMarks(b, m, c, s, r, w, h, turned);
+}
+function drawBackdropMarks(b, m, c, s, r, w, h, turned) {
   if (m && m.k === "edit") {
     // (Round r33 / 6) edited: a solid frame with a square handle at each corner (shapes, not colour), and the words at its top;
     // (Round r33b / 3) a ring on a stalk above its top edge turns it
@@ -5896,7 +5924,7 @@ function drawBackdrop() {
     for (const q of bgCorners(b)) { const p = toS(q); ctx.fillStyle = "#fff"; ctx.fillRect(p.x - 5, p.y - 5, 10, 10); ctx.strokeStyle = "#111"; ctx.lineWidth = 1.5; ctx.strokeRect(p.x - 5, p.y - 5, 10, 10); }
     ctx.restore();
     const tl = toS(bgCorners(b).reduce((a, q) => toS(q).y < toS(a).y ? q : a));
-    tag("Background image: drag to move, a corner to scale, the ring to turn", V(tl.x + 12, tl.y - 10));
+    tag("Editing background image \u2014 Esc to finish", V(tl.x + 12, tl.y - 10));      // (Round UI-1e / D)
   } else if (m) {
     turned(() => { ctx.strokeStyle = "#1f4e8c"; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]); ctx.strokeRect(-w/2, -h/2, w, h); ctx.setLineDash([]); });
     ctx.save(); ctx.strokeStyle = "#1f4e8c"; ctx.lineWidth = 1.5;
@@ -5950,10 +5978,9 @@ function backdropStart(k) {
   if (k === "edit") {
     if (b.hide) return toast("The background image is hidden: show it first");
     S.bgMode = { k: "edit" }; S.place = null; S.draft = null; S.rotAxis = null;
-    toast("Edit Background Image: drag it to move it, a corner to scale it (Shift keeps its proportions); Esc or a click outside it ends", 6000);
+    toast("Edit Background Image: drag it to move it, a corner to scale it (Shift lets the proportions go, Alt from the middle), the ring to turn it; right-click it for its tools. Esc, Enter or a click outside it ends", 6000);
     ui(); return draw();
   }
-  if (b.lock) return toast("The background image is locked: unlock it first");
   if (b.hide) return toast("The background image is hidden: show it first");
   S.bgMode = { k, a: null }; S.place = null; S.draft = null; S.rotAxis = null;
   toast(k === "move" ? "Move Background Image: drag it where it goes. Esc cancels" : "Scale Background Image: click the two ends of a length you know on the picture. Esc cancels", 6000);
@@ -5992,12 +6019,12 @@ function backdropOpacity(at) {
   if (!b) return toast("There is no background image");
   const orig = b.opacity, ses = { pushed: false };
   const put = (v) => {
-    v = Math.min(100, Math.max(5, Math.round(+v)))/100;
+    v = Math.min(100, Math.max(0, Math.round(+v)))/100;
     if (!Number.isFinite(v) || Math.abs(v - backdrop().opacity) < 1e-9) return;
     if (!ses.pushed) { push("Background Image Opacity"); ses.pushed = true; }
     backdrop().opacity = v; commit();
   };
-  numDialog("Background Image Opacity", [{ k: "op", label: "Opacity", val: Math.round(orig*100), unit: "%", step: 1, range: [5, 100] }], at, (o) => put(o.op), {
+  numDialog("Background Image Opacity", [{ k: "op", label: "Opacity", val: Math.round(orig*100), unit: "%", step: 1, range: [0, 100] }], at, (o) => put(o.op), {
     hint: "100 % is the picture as it is; lower lets the grid show through.",
     preview: (v) => { put(v.op); return null; },
     onCancel: () => { if (!ses.pushed) return; unpush(); backdrop().opacity = orig; commit(); },
@@ -6011,15 +6038,19 @@ function backdropCorner(sx, sy) {
   if (!b || !S.bgMode || S.bgMode.k !== "edit") return -1;
   return bgCorners(b).findIndex(q => { const a = toS(q); return Math.abs(a.x - sx) <= 7 && Math.abs(a.y - sy) <= 7; });
 }
-// a corner dragged: the opposite corner stays; Shift keeps the image's proportions
-function backdropScaleTo(d, w, shift) {
+// a corner dragged: the opposite corner stays. (Round UI-1d / B, the maintainer's brief) the image keeps its proportions (Shift lets
+// them go, guess ui1d/6); Alt scales it about its middle
+function backdropScaleTo(d, w, e) {
   const b = backdrop();
   if (!b) return;
+  const free = !!(e && e.shiftKey), mid = !!(e && e.altKey);
   // (Round r33b / 3) in the picture's own frame, so a turned picture scales along its own sides
-  const r = (b.angle || 0)*Math.PI/180, u = V(Math.cos(r), Math.sin(r)), v = V(-Math.sin(r), Math.cos(r)), dd = sub(w, d.fixed);
-  let a = dd.x*u.x + dd.y*u.y, c = dd.x*v.x + dd.y*v.y;
-  if (shift) { const k = Math.max(Math.abs(a)/d.w0, Math.abs(c)/d.h0); a = Math.sign(a || 1)*d.w0*k; c = Math.sign(c || 1)*d.h0*k; }
-  const nw = Math.max(1, Math.abs(a)), nh = Math.max(1, Math.abs(c)), ctr = add(d.fixed, add(mul(u, Math.sign(a || 1)*nw/2), mul(v, Math.sign(c || 1)*nh/2)));
+  const r = (b.angle || 0)*Math.PI/180, u = V(Math.cos(r), Math.sin(r)), v = V(-Math.sin(r), Math.cos(r));
+  if (!d.c0) d.c0 = bgCentre(b);
+  const from = mid ? d.c0 : d.fixed, dd = sub(w, from), m = mid ? 2 : 1;
+  let a = (dd.x*u.x + dd.y*u.y)*m, c = (dd.x*v.x + dd.y*v.y)*m;
+  if (!free) { const k = Math.max(Math.abs(a)/d.w0, Math.abs(c)/d.h0); a = Math.sign(a || 1)*d.w0*k; c = Math.sign(c || 1)*d.h0*k; }
+  const nw = Math.max(1, Math.abs(a)), nh = Math.max(1, Math.abs(c)), ctr = mid ? d.c0 : add(d.fixed, add(mul(u, Math.sign(a || 1)*nw/2), mul(v, Math.sign(c || 1)*nh/2)));
   b.w = nw; b.h = nh; b.x = ctr.x - nw/2; b.y = ctr.y - nh/2; d.moved = true;
 }
 // (Round r33b / 3) the ring dragged: turned about the middle by the pointer's turn; Shift in steps of 15°
@@ -6039,7 +6070,7 @@ function backdropPanel() {
   if (!b) return '<h2>Background Image</h2><div class="note">There is no background image.</div>';
   const fld = (k, l, v) => '<div class="row"><label for="bgp-' + k + '">' + l + '</label><input type="text" inputmode="decimal" data-num="1" id="bgp-' + k + '" value="' + v + '"></div>';
   return '<h2>Background Image</h2><div class="note">Drag it to move it, a corner to scale it (Shift keeps its proportions), the ring to turn it (Shift: steps of 15\u00b0). Esc or a click outside it ends; it then can\'t be dragged.</div>' +
-    '<div class="row"><label for="bgp-op">Opacity (%)</label><input type="range" id="bgp-opr" min="5" max="100" step="1" value="' + Math.round(b.opacity*100) + '" style="flex:1"><input type="text" inputmode="decimal" data-num="1" id="bgp-op" value="' + Math.round(b.opacity*100) + '" style="width:44px"></div>' +
+    '<div class="row"><label for="bgp-op">Opacity (%)</label><input type="range" id="bgp-opr" min="0" max="100" step="1" value="' + Math.round(b.opacity*100) + '" style="flex:1"><input type="text" inputmode="decimal" data-num="1" id="bgp-op" value="' + Math.round(b.opacity*100) + '" style="width:44px"></div>' +
     fld("x", "X (" + u + ")", f(b.x)) + fld("y", "Y (" + u + ")", f(b.y)) + fld("w", "Width (" + u + ")", f(b.w)) + fld("h", "Height (" + u + ")", f(b.h)) + fld("a", "Angle (\u00b0)", +(b.angle || 0).toFixed(2)) +
     '<div class="row"><label for="bgp-keep">Keep proportions</label><input type="checkbox" id="bgp-keep" checked></div>' +
     '<div class="btns"><button class="btn" id="bgp-done">Done</button></div>';
@@ -6048,7 +6079,7 @@ function wireBackdropPanel() {
   const g = (id) => document.getElementById(id), b = backdrop();
   if (!b) return;
   const orig = b.opacity;
-  const opac = (v) => { v = Math.min(100, Math.max(5, Math.round(numOf(v)))); if (!isFinite(v)) return ui(); backdropDo("Background Image Opacity", (bb) => { bb.opacity = v/100; }); };
+  const opac = (v) => { v = Math.min(100, Math.max(0, Math.round(numOf(v)))); if (!isFinite(v)) return ui(); backdropDo("Background Image Opacity", (bb) => { bb.opacity = v/100; }); };
   if (g("bgp-opr")) { g("bgp-opr").oninput = () => { const v = +g("bgp-opr").value; backdrop().opacity = v/100; if (g("bgp-op")) g("bgp-op").value = v; drawSoon(); }; g("bgp-opr").onchange = () => { const v = +g("bgp-opr").value; backdrop().opacity = orig; opac(v); }; }
   if (g("bgp-op")) g("bgp-op").onchange = () => opac(g("bgp-op").value);
   // (Round r33b / 3) the angle typed: clockwise, about the middle
@@ -6064,13 +6095,71 @@ function wireBackdropPanel() {
   };
   if (g("bgp-done")) g("bgp-done").onclick = () => { S.bgMode = null; ui(); draw(); };
 }
+/* (Round UI-1d / B; Round UI-1e / D, the maintainer's brief) THE BACKGROUND IMAGE IS TOUCHED ONLY IN EDIT MODE: no click, drag or
+   right-click on it does anything to it otherwise (a right-click there is the empty window's menu, whose Edit Background Image begins
+   editing). Editing, its handles show, "Editing background image — Esc to finish" is written at it, patterns can't be picked, and a
+   right-click on it opens Scale…, Opacity…, Rotate…, Move/Position…, Replace Image…, Delete Background Image (also the Delete key);
+   Esc, Enter, a click or right-click off it ends editing. Lock / Unlock is gone (a file's stored lock is kept and read by nothing).
+   Every box changes the image as the numbers are typed (its preview) and is one undo step on OK; Cancel / Esc puts it back. */
+// the image under a place in the pattern window (shown, locked or not), or null
+function bgUnder(w) { const b = backdrop(); if (!b || b.hide || !w) return null; const l = bgToLocal(b, w); return Math.abs(l.x) <= b.w/2 && Math.abs(l.y) <= b.h/2 ? b : null; }
+function backdropSelect() { const b = backdrop(); if (!b || b.hide) return false; S.bgMode = { k: "edit" }; S.sel = []; S.place = null; S.draft = null; S.rotAxis = null; ui(); draw(); return true; }
+function backdropDelete() { if (!backdrop()) return; S.bgMode = null; backdropDo("Delete Background Image", () => { S.backdrop = null; }); toast("Background image deleted (Ctrl+Z brings it back)"); }
+// a box that changes the image live: apply(b, values) on a copy of it as it was, as the numbers are typed; one step on OK
+function backdropLive(name, title, fields, at, apply, more) {
+  const b = backdrop();
+  if (!b) return toast("There is no background image");
+  const orig = JSON.parse(JSON.stringify(b)), ok = (v) => fields.every(f => Number.isFinite(v[f.k]));
+  let done = false;
+  numDialog(title, fields, at, (v) => {
+    done = true;
+    S.backdrop = JSON.parse(JSON.stringify(orig));
+    if (!ok(v)) { draw(); return toast("A number is needed"); }
+    push(name); apply(S.backdrop, v); commit();
+  }, { ...(more || {}), preview: (v) => { if (ok(v)) { S.backdrop = JSON.parse(JSON.stringify(orig)); apply(S.backdrop, v); drawSoon(); } return null; },
+       onCancel: () => { if (done) return; S.backdrop = orig; draw(); } });
+}
+// Scale…: by a percentage, or to a real width or height (the proportions kept: a scanned or photographed pattern brought to true size)
+function backdropScaleDialog(at) {
+  const b = backdrop();
+  if (!b) return toast("There is no background image");
+  const w0 = b.w, h0 = b.h, d = (v) => +toDisp(v).toFixed(2);
+  backdropLive("Scale Background Image", "Scale Background Image", [{ k: "pct", label: "Scale", val: 100, unit: "%" }, { k: "w", label: "Width", val: d(w0), unit: S.unit }, { k: "h", label: "Height", val: d(h0), unit: S.unit }], at,
+    (bb, v) => { const k = v.pct/100; if (!(k > 0)) return; const c = bgCentre(bb); bb.w = w0*k; bb.h = h0*k; bb.x = c.x - bb.w/2; bb.y = c.y - bb.h/2; },
+    { hint: "Type a percentage, or the real width or height the picture should have: the other two follow, the proportions are kept. Scaled about the middle.",
+      sync: (v, k) => { const pct = k === "pct" ? v.pct : k === "w" ? fromDisp(v.w)/w0*100 : fromDisp(v.h)/h0*100; return { pct: +pct.toFixed(3), w: d(w0*pct/100), h: d(h0*pct/100) }; } });
+}
+function backdropRotateDialog(at) {
+  const b = backdrop();
+  if (!b) return toast("There is no background image");
+  backdropLive("Rotate Background Image", "Rotate Background Image", [{ k: "a", label: "Angle", val: +(b.angle || 0).toFixed(2), unit: "°" }], at,
+    (bb, v) => { const a = bgAngleNorm(v.a); if (a) bb.angle = a; else delete bb.angle; }, { hint: "Clockwise, about the middle of the picture." });
+}
+function backdropMoveDialog(at) {
+  const b = backdrop();
+  if (!b) return toast("There is no background image");
+  const d = (v) => +toDisp(v).toFixed(2);
+  backdropLive("Move Background Image", "Move/Position Background Image", [{ k: "x", label: "X (top left)", val: d(b.x), unit: S.unit }, { k: "y", label: "Y (top left)", val: d(b.y), unit: S.unit }], at,
+    (bb, v) => { bb.x = fromDisp(v.x); bb.y = fromDisp(v.y); }, { hint: "Where the picture's top left corner lies (before any turn)." });
+}
+function backdropMenu(e) {
+  const b = backdrop(), at = { x: e.clientX, y: e.clientY };
+  if (!b) return;
+  listMenu([
+    { n: "Scale…", f: () => backdropScaleDialog(at) },
+    { n: "Opacity…", f: () => backdropOpacity(at) },
+    { n: "Rotate…", f: () => backdropRotateDialog(at) },
+    { n: "Move/Position…", f: () => backdropMoveDialog(at) }, { sep: 1 },
+    { n: "Replace Image…", f: addBackdrop },
+    { n: "Delete Background Image", k: keyOf("delete"), f: backdropDelete },
+  ], e.clientX, e.clientY);
+}
 // the rows of More ▸ Background Image on the empty window's menu
 function backdropRows(at) {
   const b = backdrop();
   if (!b) return [{ n: "Add Background Image", f: addBackdrop }];
   return [{ n: "Edit Background Image", f: () => backdropStart("edit") }, { n: "Move Background Image", f: () => backdropStart("move") }, { n: "Scale to a Known Length…", f: () => backdropStart("scale") },
     { n: "Opacity…", f: () => backdropOpacity(at) }, { sep: 1 },
-    { n: b.lock ? "Unlock Background Image" : "Lock Background Image", f: () => backdropDo(b.lock ? "Unlock Background Image" : "Lock Background Image", (bb) => { bb.lock = !bb.lock; }) },
     { n: b.hide ? "Show Background Image" : "Hide Background Image", f: () => backdropDo(b.hide ? "Show Background Image" : "Hide Background Image", (bb) => { bb.hide = !bb.hide; }) },
     { n: "Replace Background Image…", f: addBackdrop },
     { n: "Remove Background Image", f: () => backdropDo("Remove Background Image", () => { S.backdrop = null; }) }];
@@ -13586,7 +13675,7 @@ function keyTable() {
     else if (S.tool === "transform_pattern") scaleNumeric(at);
   }, { l: 1 });
   row("enter", "Enter", "Finish (a line, a seam side, a walk, Smooth Curve)", WORK, () => keyEnter(), { l: 1, pass: 1 });
-  row("escape", "Escape", "Give up what is being done", WORK, () => { if (gizEsc()) return; if (S.noteLink) { S.noteLink = null; draw(); return toast("Link to given up"); } if (typeof ikEsc === "function" && ikEsc()) return; if (G3.tackFrom) { G3.tackFrom = null; note3d(); } if (S.layTape) layTape(false); S.replace = null; S.rotAxis = null; S.pickPoly = null; if (S.bgMode) { S.bgMode = null; ui(); } S.place = null; S.draft = null; S.walk = null; S.pleatPick = null; S.blockDraft = null; S.sticker = null; hideMenu(); closeFlyouts(); draw(); }, { l: 1, pass: 1, w: "any" });      // (Round r13 / 9: in Print Layout too, where it stops the Tape Measure)
+  row("escape", "Escape", "Give up what is being done", WORK, () => { if (gizEsc()) return; if (typeof foldEsc === "function" && foldEsc()) return; if (S.noteLink) { S.noteLink = null; draw(); return toast("Link to given up"); } if (typeof ikEsc === "function" && ikEsc()) return; if (G3.tackFrom) { G3.tackFrom = null; note3d(); } if (S.layTape) layTape(false); S.replace = null; S.rotAxis = null; S.pickPoly = null; if (S.bgMode) { S.bgMode = null; ui(); } if (S.avOutEdit) avOutEditEnd(); S.place = null; S.draft = null; S.walk = null; S.pleatPick = null; S.blockDraft = null; S.sticker = null; hideMenu(); closeFlyouts(); draw(); }, { l: 1, pass: 1, w: "any" });      // (Round r13 / 9: in Print Layout too, where it stops the Tape Measure)
   row("delete", "Delete", "Delete what is selected; while drawing, the last point", WORK, () => keyDelete(), { l: 1, hist: "Delete" });
   row("delete", "Backspace", "Delete", WORK, () => keyDelete(), { l: 1, hist: "Delete", alias: 1 });
   for (const k of ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]) row("nudge", k, "Transform Pattern: move the selection 1 mm (Shift: 10 mm). Edit Pattern with a size picked: move the grading", WORK, (e) => keyArrow(e),
@@ -13894,6 +13983,8 @@ function particleOf(p) { return resHere(qualityRes((p && p.res3 >= 5 && p.res3 <
 const selAllRows = (ids) => () => [{ n: "Sewn", k: keyOf("selectSewn"), f: () => selectAllWith("sewn", ids) }, { n: "Particle Distance", f: () => selectAllWith("particle", ids) },
   { n: "Fabric", f: () => selectAllWith("fabric", ids) }, { n: "Layer", f: () => selectAllWith("layer", ids) }];
 function keyEnter() {
+  if (S.bgMode && S.bgMode.k === "edit") { S.bgMode = null; ui(); draw(); return; }      // (Round UI-1e / D) editing the background image ends
+  if (avOutEditEnd()) return;                                // (Round beta.6 / 0) and the avatar outline
   if (S.replace) { if (S.replace.src != null && S.replace.pairs.length) replaceDone(); else toast("Match at least one point first"); return; }
   if (sewKey("Enter")) return;
   if (S.dartCap) { S.dartCap = null; S.selCp = null; setTool("edit_pattern"); toast("The dart cap is done"); return; }
@@ -13904,6 +13995,7 @@ function keyEnter() {
   else if (S.tool === "trace") traceToInternal();
 }
 function keyDelete() {
+  if (S.bgMode && S.bgMode.k === "edit" && backdrop()) return backdropDelete();      // (Round UI-1d / B) the selected background image
   // while drawing it takes back the last point; it does not delete the selection
   const d = S.draft;
   if (S.replace) { const R = S.replace; if (R.pending != null) R.pending = null; else if (R.pairs.length) R.pairs.pop(); else R.src = null; draw(); return; }      // (Round r12 / 5) the last click back
@@ -15798,7 +15890,7 @@ function bootPieces() { return []; }
 // a new, empty document with every document setting at its default (the view, the preferences and the avatar are not the document's)
 function blankDoc() {
   S.known3 = null; S.home3 = null;
-  S.render = null; S.renderSet = false; S.histOn = histNewOn(); S.hgroups = []; S.pieces = []; S.seams = []; S.stitches = []; S.puckers = []; S.lineLinks = []; S.selMore = []; S.guides = []; S.measures = []; S.tacks = []; S.buttons = []; S.pipings = []; S.bindings = []; S.glues = []; S.selTrim = null; S.images = []; S.backdrop = null; S.avedit = normAvEdit(null); S.bgMode = null; S.lights = [];
+  S.render = null; S.renderSet = false; S.histOn = histNewOn(); S.hgroups = []; S.pieces = []; S.seams = []; S.stitches = []; S.puckers = []; S.lineLinks = []; S.selMore = []; S.guides = []; S.measures = []; S.tacks = []; S.buttons = []; S.pipings = []; S.bindings = []; S.glues = []; S.selTrim = null; S.images = []; S.backdrop = null; S.avedit = normAvEdit(null); S.bgMode = null; S.avOutEdit = null; S.lights = [];
   S.notch = normNotch(null); S.grading = defaultGrading(); S.lib = normLib(null); S.layout = normLayout(null); S.cloth = normCloth(null); S.drapeIn = null;
   G3.look = null; S.states3 = [];
   S.docAv = null; S.docAvAsk = false; S.docAvTried = false; S.docAvFile = null; S.avEmbed = null; S.garMeas = []; S.docPose = null;
@@ -18695,6 +18787,8 @@ function showMenu(e) {
       I2.push({ sep: 1 });
     }
     }
+  } else if (S.bgMode && S.bgMode.k === "edit" && bgUnder(S.mouse)) {
+    return backdropMenu(e);                                  // (Round UI-1e / D) editing the background image: a right-click on it, its tools
   } else {
     // (Round r15 / 10, the check videos S01) the empty 2D window's menu as the reference's, in its order and with its separators;
     // this program's own rows under More ▸
@@ -18712,7 +18806,7 @@ function showMenu(e) {
       backdrop() ? { n: "Edit Background Image", f: () => backdropStart("edit") } : { n: "Add Background Image", f: addBackdrop },      // (Round r33 / 6)
       { n: "Grid Properties", k: keyOf("gridProps"), f: () => gridDialog({ x: e.clientX, y: e.clientY }) }, { sep: 1 },
       { n: "Zoom Extents All", k: keyOf("zoomSel"), f: fitAll });
-    I.push(...ctxMore([{ n: "Mirror Paste (Position Only)", f: () => paste("pos") },
+    I.push(...ctxMore([{ n: "Mirror Paste (Position Only)", f: () => paste("pos") }, { n: "Avatar Outline", menu: avOutRows },      // (Round UI-1e / C)
       backdrop() && { n: "Background Image", menu: () => backdropRows({ x: e.clientX, y: e.clientY }) },
       S.guides.length && { n: "Delete All Guidelines", f: () => { push(); S.guides = []; commit(); } },
       S.measures.length && { n: "Delete All Measurements", f: () => { push(); S.measures = []; commit(); } },
@@ -20149,6 +20243,17 @@ function hpHit(px, py) {
   }
   return null;
 }
+/* (Round UI-1 / B) the UI's accent as the page's styles define it (:root --accent, --accent-line, --accent-text): for what the chrome draws on
+   a canvas of its own (the History panel, the view shirt). The values here only stand in where there are no styles (the tests' page). */
+const UI_ACCENT = { accent: "#E8412F", line: "#F2745F", text: "#FF9A88", bg: "#4a2420" };
+let uiAccentRead = false;
+function uiAccent(k) {
+  if (!uiAccentRead && typeof getComputedStyle === "function" && typeof document !== "undefined" && document.documentElement) {
+    uiAccentRead = true;
+    try { const cs = getComputedStyle(document.documentElement); for (const key of Object.keys(UI_ACCENT)) { const v = String(cs.getPropertyValue(key === "accent" ? "--accent" : "--accent-" + key) || "").trim(); if (/^#[0-9a-f]{6}$/i.test(v)) UI_ACCENT[key] = v; } } catch (e) {}
+  }
+  return UI_ACCENT[k];
+}
 function hpDraw() {
   const cv = hpCanvas();
   if (!cv || !S.ui.timeline || typeof cv.getContext !== "function") return;
@@ -20196,11 +20301,11 @@ function hpDraw() {
     if (c.ids.length > 1 || HP.open.has(c.id)) { g.fillStyle = "#d6d6d6"; g.font = font(10, true); g.fillText(HP.open.has(c.id) ? "▾ open" : "×" + c.ids.length + " ▸", p.x + w - 40*s, p.y + nh + (h - nh)/2); }
     g.globalAlpha = 1;
     // frames: the document's node thick and yellow with "▼ here" above it; the selected one doubled
-    if (c.here) { g.strokeStyle = "#ffd400"; g.lineWidth = 3; g.strokeRect(p.x - 1, p.y - 1, w + 2, h + 2); g.fillStyle = "#ffd400"; g.font = font(10, true); g.fillText("▼ here", p.x + 4*s, p.y - 9*s); }
+    if (c.here) { g.strokeStyle = uiAccent("line"); g.lineWidth = 3; g.strokeRect(p.x - 1, p.y - 1, w + 2, h + 2); g.fillStyle = uiAccent("text"); g.font = font(10, true); g.fillText("▼ here", p.x + 4*s, p.y - 9*s); }
     else { g.strokeStyle = c.later ? "#5c5c60" : "#77777c"; g.lineWidth = 1; g.strokeRect(p.x + 0.5, p.y + 0.5, w - 1, h - 1); }
     // a Save State: a pennant on the card's top edge with its name
     if (c.save) { g.fillStyle = "#f0f0f0"; g.strokeStyle = "#f0f0f0"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(p.x + w - 30*s, p.y); g.lineTo(p.x + w - 30*s, p.y - 16*s); g.stroke(); g.beginPath(); g.moveTo(p.x + w - 30*s, p.y - 16*s); g.lineTo(p.x + w - 18*s, p.y - 12*s); g.lineTo(p.x + w - 30*s, p.y - 8*s); g.closePath(); g.fill(); g.font = font(10, true); g.fillText(hpFit(g, c.save, 120*s), p.x + w - 15*s, p.y - 12*s); }
-    if (HP.sel != null && c.ids.includes(HP.sel)) { g.strokeStyle = "#ffffff"; g.lineWidth = 1; g.strokeRect(p.x - 4, p.y - 4, w + 8, h + 8); g.strokeRect(p.x - 6.5, p.y - 6.5, w + 13, h + 13); }
+    if (HP.sel != null && c.ids.includes(HP.sel)) { g.strokeStyle = uiAccent("line"); g.lineWidth = 1; g.strokeRect(p.x - 4, p.y - 4, w + 8, h + 8); g.strokeRect(p.x - 6.5, p.y - 6.5, w + 13, h + 13); }
   }
 }
 // a 24-unit path (a tool's icon, a kind's glyph) drawn at x, y in a square of size px
@@ -20296,7 +20401,7 @@ function histCondense() {
   for (const id of Object.keys(S.hui)) if (!out.has(+id)) delete S.hui[id];
   for (const id of [...S.hsave.keys()]) if (!out.has(id)) S.hsave.delete(id);
   for (const id of Object.keys(S.hjump)) if (!out.has(+id)) delete S.hjump[id];
-  histMade = []; histAskFuture = null; HP.lay = null; HP.open.clear();
+  histMade = []; histAskFuture = null; histJumped = false; HP.lay = null; HP.open.clear();
   store(); renderTimeline();
   return { before, after: out.size - 1, hidden: [...hid].filter(id => !out.has(id)).length };
 }
@@ -20568,6 +20673,7 @@ function hgGo(gid, target) {
     unsnap(S.undo[S.undo.length - 1]); S.un[S.un.length - 1].n = name; j.to = target;      // straight after another ⤺ of this group: in its place
     hgAsk = { g: gid, to: target, j: here };
   } else {
+    if (S.redo.length) histJumped = true;                    // (Round UI-1 / A: a step of the panel's own keeps what was undone as a branch, as before)
     push(name);
     const nid = S.un[S.un.length - 1].id;
     S.hjump[nid] = { g: gid, to: target };
@@ -24243,7 +24349,7 @@ function menuDisplay() {
       { hd: "Ours" }, show3Row("zippers", "Show Zippers"), show3Row("topstitch3", "Show Topstitch")]),
     subRow("2D Pattern", () => [viewRow("baseline", "Show Baseline"), viewRow("sa", "Show Seam Allowance"), viewRow("grading", "Show Grading"), nbRow("Show 3D Pen"), viewRow("reference", "Show Reference Line"),
       viewRow("symmetric", "Show Symmetric/Instance Lines"), viewRow("links", "Show Link Lines"), nbRow("Show Simulation Shrinkage"), viewRow("pins", "Show Pins"), { n: "Zoom Extents All", f: fitAll },
-      { hd: "Ours" }, viewRow("lockAll", "Lock All Pattern Outlines")]),
+      { hd: "Ours" }, viewRow("lockAll", "Lock All Pattern Outlines"), { n: "Avatar Outline", menu: avOutRows }]),
     subRow("2D Information", () => [["name", "Show Pattern Name"], ["annotations", "Show Annotations"], ["length", "Show Line Length"], ["angle", "Show Angle"], ["grainline", "Show Grainline"],
       ["measurements", "Show 2D Measurements"], ["ruler", "Show Ruler"], ["guides", "Show Guideline"]].map(([k, n]) => viewRow(k, n))),
     subRow("Sewing", () => [viewRow("sewing", "Show Sewing"), viewRow("sewLen", "Show 2D Sewing Lengths"),
@@ -24392,7 +24498,8 @@ function normUI(o) {
   if (o.show3d && typeof o.show3d === "object") for (const k of Object.keys(o.show3d)) if (o.show3d[k] === false) show3d[k] = false;
   return { layout: ["2d", "3d", "both"].includes(o.layout) ? o.layout : "both", arrPts: o.arrPts === true, timeline: o.timeline === true, ...(Number.isFinite(o.histH) && o.histH >= 120 && o.histH <= 4000 ? { histH: Math.round(o.histH) } : {}),      /* (Round H1b / 2: the History panel's height, a preference, kept only once it was dragged) */ unbuilt: o.unbuilt !== false, render: RENDER.some(r => r[0] === o.render) ? o.render : "front", mesh2: o.mesh2 === true,
     render3: RENDER3.some(r => r[0] === o.render3) ? o.render3 : "front", wire3: o.wire3 === true, joints3: o.joints3 === true, jointSize: Number.isFinite(o.jointSize) && o.jointSize >= 2 && o.jointSize <= 30 ? Math.round(o.jointSize) : 8, jointMode: o.jointMode === "ik" ? "ik" : "fk", jointLimits: o.jointLimits !== false, ...(Number.isFinite(o.grid3b) && o.grid3b !== 1 ? { grid3b: Math.max(0.2, Math.min(2, o.grid3b)) } : {}), ...(normGrid3(o.grid3s) ? { grid3s: normGrid3(o.grid3s) } : {}), ikEdit: o.ikEdit === "full" ? "full" : "part",
-    ikSym: o.ikSym !== false, quality3: o.quality3 === true, schem3: o.schem3 === true && o.quality3 !== true, bv3: o.bv3 === true, meas3: o.meas3 !== false, suit3: o.suit3 === true, blendFav: Array.isArray(o.blendFav) ? o.blendFav.filter(x => typeof x === "string").slice(0, 200) : [], avW: o.avW === "weight" ? "weight" : "chest", avH: ["hps", "inseam"].includes(o.avH) ? o.avH : "total", avUnit: ["cm", "in"].includes(o.avUnit) ? o.avUnit : "mm", avLinkW: o.avLinkW !== false, avLinkH: o.avLinkH !== false, show3d, strain3: o.strain3 === true, fit3: o.fit3 === true && o.strain3 !== true,
+    ikSym: o.ikSym !== false, avOut: ["front", "back", "side"].includes(o.avOut) ? o.avOut : "off", avOutObj: o.avOutObj === true,      /* (Round UI-1e / C: the avatar's outline in 2D, a view setting) */
+    quality3: o.quality3 === true, schem3: o.schem3 === true && o.quality3 !== true, bv3: o.bv3 === true, meas3: o.meas3 !== false, suit3: o.suit3 === true, blendFav: Array.isArray(o.blendFav) ? o.blendFav.filter(x => typeof x === "string").slice(0, 200) : [], avW: o.avW === "weight" ? "weight" : "chest", avH: ["hps", "inseam"].includes(o.avH) ? o.avH : "total", avUnit: ["cm", "in"].includes(o.avUnit) ? o.avUnit : "mm", avLinkW: o.avLinkW !== false, avLinkH: o.avLinkH !== false, show3d, strain3: o.strain3 === true, fit3: o.fit3 === true && o.strain3 !== true,
     // (Round r20 continued (4)) the Stress and Pressure Maps, their units and scales: kept only when not the default
     ...(o.stress3 === true && o.strain3 !== true && o.fit3 !== true ? { stress3: true } : {}), ...(o.press3 === true && o.strain3 !== true && o.fit3 !== true && o.stress3 !== true ? { press3: true } : {}),
     ...(Object.keys(normMapUnit(o.mapUnit)).length ? { mapUnit: normMapUnit(o.mapUnit) } : {}), ...(Object.keys(normMapRange(o.mapRange)).length ? { mapRange: normMapRange(o.mapRange) } : {}),
@@ -24656,7 +24763,7 @@ function setUnbuilt(on) {
    a side. Their keys are in the key table (keyTable). */
 const CAM_VIEWS = [["front", "Front"], ["left34", "3/4 Left"], ["back", "Back"], ["left", "Left"], ["right", "Right"], ["right34", "3/4 Right"], ["top", "Top"], ["bottom", "Bottom"]];
 const view3d = (() => {
-  const HOME = { az: -0.6, el: 0.5, dist: 5600, tx: 0, ty: 700, tz: 0 };        // millimetres, y up; looks at a point 700 above the floor
+  const HOME = { az: -0.6, el: 0.5, dist: 5600, tx: 0, ty: 700, tz: 0 };        // millimetres, y up; looks at a point 700 above the floor        // millimetres, y up; looks at a point 700 above the floor
   const o = { ...HOME };
   let R = null, scene = null, cam = null, host = null, raf = 0, tool = null, loop = null;
   const groups = {}, pre = [];
@@ -24673,7 +24780,7 @@ const view3d = (() => {
     fine.name = "grid:fine"; metre.name = "grid:metre";
     const sun = new THREE.DirectionalLight(0xffffff, 2.2), fill = new THREE.DirectionalLight(0xffffff, 0.9);
     sun.position.set(1500, 3000, 2500); fill.position.set(-2000, 1200, -2200);
-    scene.add(fine, metre, new THREE.AxesHelper(250), new THREE.HemisphereLight(0xffffff, 0x6a6a70, 1.6), sun, fill);
+    scene.add(fine, metre, new THREE.HemisphereLight(0xffffff, 0x6a6a70, 1.6), sun, fill);
     return scene;
   }
   // the named group things of one kind are kept in (made when first asked for)
@@ -24737,7 +24844,7 @@ const view3d = (() => {
   }
   // look at the scene from one of CAM_VIEWS, or (no name) from where it is, with the box in view
   function view(name, box) {
-    const V = { front: [0, 0.03], back: [Math.PI, 0.03], left: [Math.PI/2, 0.03], right: [-Math.PI/2, 0.03], left34: [Math.PI/4, 0.03], right34: [-Math.PI/4, 0.03],
+    const V = { front: [0, 0.03], back: [Math.PI, 0.03], left: [Math.PI/2, 0.03], right: [-Math.PI/2, 0.03], left34: [Math.PI/4, 0.03], right34: [-Math.PI/4, 0.03], backleft34: [3*Math.PI/4, Math.asin(1/Math.sqrt(3))], backright34: [-3*Math.PI/4, Math.asin(1/Math.sqrt(3))],      // (Round UI-1b / B: the upper back corners of the view cube)
       top: [0, orbitEl(Math.PI/2)], bottom: [0, orbitEl(-Math.PI/2)] }[name];
     if (V) { o.az = V[0]; o.el = V[1]; }
     if (box) { o.tx = (box.x0 + box.x1)/2; o.ty = (box.y0 + box.y1)/2; o.tz = (box.z0 + box.z1)/2; o.dist = Math.max(600, Math.max(box.x1 - box.x0, box.y1 - box.y0, box.z1 - box.z0)*1.55); }
@@ -24807,12 +24914,8 @@ const view3d = (() => {
     host.addEventListener("pointerenter", () => { S.over3d = true; });
     host.addEventListener("pointerleave", () => { S.over3d = false; });
     new ResizeObserver(ask).observe(host);
-    // the camera buttons in the corner
-    const cb = document.getElementById("cam3d");
-    if (cb) {
-      cb.innerHTML = "";
-      for (const [k, n] of CAM_VIEWS) { const b = document.createElement("button"); b.textContent = n; b.title = n + " view (" + keyOf("view:" + k) + ", with the pointer over the 3D window)"; b.onclick = () => cam3d(k); cb.appendChild(b); }
-    }
+    // (Round UI-1b / B) the view cube in the corner, where the camera buttons were (their keys stay)
+    if (typeof vcubeMount === "function") vcubeMount();
     note3d();
     if (typeof avatarCheck === "function") avatarCheck();
     ask();
@@ -24960,6 +25063,271 @@ function cam3d(name) {
   view3d.view(name, S.av ? avatarBox(S.av) : { x0: -900, x1: 900, y0: 0, y1: 1800, z0: -300, z1: 300 });
 }
 function home3d() { Object.assign(view3d.cam, view3d.home); if (S.av) view3d.view(null, avatarBox(S.av)); else view3d.ask(); }
+/* (Round UI-1b / B, the maintainer's brief) THE VIEW CUBE, in place of UI-1's view shirt (and of the eight view buttons before it; their
+   keys and menu rows stay). It works as a view cube in a CAD program does, drawn by this program (no icons, fonts or pictures of anyone
+   else's): a light grey cube with its faces named FRONT, BACK, LEFT, RIGHT, TOP, BOTTOM (each name on its face, turned to read upright from
+   where the camera is), turning with the camera. Every face is cut in three by three: its middle is the face (6), a strip along an edge
+   is that edge (12), a square at a corner that corner (8); each a view from that side (vcubeDir()). The region under the pointer is
+   filled in the accent AND named under the cube, never by colour alone. A drag on the cube turns the view (view3d.mouse.drive). Looking
+   straight at a face, four small arrows round the cube step to the next face (left, right, up, down). (Round UI-1c / A: no roll; UI-1b's
+   two curved arrows and the camera's roll are gone.) The house above left of it is the view the 3D window starts with (home3d(), the
+   camera exactly as on loading). A lettered X / Y / Z triad on the cube's one origin corner (Round UI-1c / B), along the scene's
+   axes (Left is +x, the avatar's own left; the avatar faces +z). A click glides there in VCUBE_MS (at once with reduced motion; the
+   keys stay at once). Drawn on a 2D canvas (no second WebGL context, no extra pass of the 3D scene), only when the camera or the
+   hover changed (vcubeFrame()). */
+const VCUBE_PX = 148, VCUBE_K = 26, VCUBE_W = 0.3, VCUBE_MS = 250;
+const VCUBE = { hover: null, key: "", down: null, anim: 0, drawn: 0, ms: 0, near: false, alpha: 0, fade: 0 };
+const VCUBE_FADE_MS = 150;
+// (Round UI-1d / 0) the pointer over the cube or its arrows, or not: the arrows and the name fade to it (at once with reduced motion)
+function vcubeNear(on) {
+  if (on === VCUBE.near) return;
+  VCUBE.near = on;
+  const still = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (still || typeof requestAnimationFrame !== "function" || typeof performance === "undefined") { VCUBE.alpha = on ? 1 : 0; view3d.ask(); return; }
+  const a0 = VCUBE.alpha, t0 = performance.now(), id = ++VCUBE.fade;
+  const step = () => { if (id !== VCUBE.fade) return; const t = Math.min(1, (performance.now() - t0)/VCUBE_FADE_MS); VCUBE.alpha = a0 + ((on ? 1 : 0) - a0)*t; view3d.ask(); if (t < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+const vcubeCx = () => VCUBE_PX/2 + 2, vcubeCy = () => VCUBE_PX/2 - 4;
+// the camera's frame: right R, up U, toward the viewer B
+function vcubeBasis(az, el) {
+  const B = [Math.cos(el)*Math.sin(az), Math.sin(el), Math.cos(el)*Math.cos(az)], R = [Math.cos(az), 0, -Math.sin(az)];
+  return { R, U: [B[1]*R[2] - B[2]*R[1], B[2]*R[0] - B[0]*R[2], B[0]*R[1] - B[1]*R[0]], B };
+}
+const vdot = (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+const vcross = (a, b) => [a[1]*b[2] - a[2]*b[1], a[2]*b[0] - a[0]*b[2], a[0]*b[1] - a[1]*b[0]];
+const vnorm = (v) => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return v.map(c => c/l); };
+// a region by its signs [x, y, z] (each -1, 0, 1): its name
+function vcubeName(sg) {
+  const p = [];
+  if (sg[1]) p.push(sg[1] > 0 ? "TOP" : "BOTTOM");
+  if (sg[2]) p.push(sg[2] > 0 ? "FRONT" : "BACK");
+  if (sg[0]) p.push(sg[0] > 0 ? "LEFT" : "RIGHT");
+  return p.join(" ");
+}
+const VCUBE_FACES = [[[0, 0, 1], "FRONT"], [[0, 0, -1], "BACK"], [[1, 0, 0], "LEFT"], [[-1, 0, 0], "RIGHT"], [[0, 1, 0], "TOP"], [[0, -1, 0], "BOTTOM"]];
+// the cube as the camera sees it: each visible face with its nine cells ({ s: screen polygon, sg: region signs }) and its outline
+function vcubeLayout(az, el) {
+  const { R, U, B } = vcubeBasis(az, el), k = VCUBE_K, cx = vcubeCx(), cy = vcubeCy();
+  const pr = (p) => [cx + vdot(p, R)*k, cy - vdot(p, U)*k];
+  const cuts = [-1, -1 + VCUBE_W, 1 - VCUBE_W, 1], faces = [];
+  for (const [n, name] of VCUBE_FACES) {
+    const lit = vdot(n, B);
+    if (lit <= 1e-3) continue;
+    const ax = n.findIndex(v => v !== 0), a = [0, 1, 2].filter(i => i !== ax);      // the face's two in-plane axes
+    const at = (u, v) => { const p = [0, 0, 0]; p[ax] = n[ax]; p[a[0]] = u; p[a[1]] = v; return p; };
+    const cells = [];
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+      const sg = [0, 0, 0]; sg[ax] = n[ax]; sg[a[0]] = i - 1; sg[a[1]] = j - 1;
+      cells.push({ sg, s: [at(cuts[i], cuts[j]), at(cuts[i+1], cuts[j]), at(cuts[i+1], cuts[j+1]), at(cuts[i], cuts[j+1])].map(pr) });
+    }
+    faces.push({ n, name, lit, ax, a, cells, s: [at(-1, -1), at(1, -1), at(1, 1), at(-1, 1)].map(pr) });
+  }
+  return { faces, R, U, B, pr };
+}
+// looking straight at a face (and turned a whole quarter): the face's normal, else null
+function vcubeSquare(az, el) {
+  const { R, U, B } = vcubeBasis(az, el), ax = (v) => Math.max(...v.map(Math.abs)) > 0.999;
+  return ax(B) && ax(R) && ax(U) ? { R: R.map(Math.round), U: U.map(Math.round), B: B.map(Math.round) } : null;
+}
+// the arrows round the cube while looking straight at a face: { id, x, y, name, dir, up }
+function vcubeArrows(az, el) {
+  const q = vcubeSquare(az, el);
+  if (!q) return [];
+  const cx = vcubeCx(), cy = vcubeCy(), d = VCUBE_K + 9, neg = (v) => v.map(c => -c), nm = (v) => vcubeName(v);
+  return [
+    { id: "right", x: cx + d, y: cy, dir: q.R, up: q.U, name: "TO " + nm(q.R) },
+    { id: "left", x: cx - d, y: cy, dir: neg(q.R), up: q.U, name: "TO " + nm(neg(q.R)) },
+    { id: "up", x: cx, y: cy - d, dir: q.U, up: neg(q.B), name: "TO " + nm(q.U) },
+    { id: "down", x: cx, y: cy + d, dir: neg(q.U), up: q.B, name: "TO " + nm(neg(q.U)) },
+  ];
+}
+function vcubeInPoly(x, y, s) { let inside = false; for (let i = 0, j = s.length - 1; i < s.length; j = i++) { const [xi, yi] = s[i], [xj, yj] = s[j]; if ((yi > y) !== (yj > y) && x < (xj - xi)*(y - yi)/(yj - yi) + xi) inside = !inside; } return inside; }
+// what is under a place on the canvas (CSS px): { kind: "region", sg, name } or { kind: "arrow", …the arrow } or null
+function vcubePick(x, y, az, el) {
+  for (const a of vcubeArrows(az, el)) if (Math.hypot(x - a.x, y - a.y) <= 7) return { kind: "arrow", ...a };
+  for (const f of vcubeLayout(az, el).faces) for (const c of f.cells) if (vcubeInPoly(x, y, c.s)) return { kind: "region", sg: c.sg, name: vcubeName(c.sg) };
+  return null;
+}
+const vcubeKeyOf = (h) => (!h ? "" : h.kind === "arrow" ? "a:" + h.id : "r:" + h.sg.join(","));
+// the camera (az, el) that looks along -dir; looking straight down or up, the up given turns it about the upright (the picture's up)
+function vcubeCam(dir, up) {
+  const D = vnorm(dir), U = vnorm(up || [0, 1, 0]);
+  if (Math.abs(D[0]) + Math.abs(D[2]) < 1e-6) {
+    const top = D[1] > 0;
+    return { az: top ? Math.atan2(-U[0], -U[2]) : Math.atan2(U[0], U[2]), el: orbitEl((top ? 1 : -1)*Math.PI/2) };
+  }
+  return { az: Math.atan2(D[0], D[2]), el: Math.abs(D[1]) < 1e-6 ? 0.03 : orbitEl(Math.asin(Math.max(-1, Math.min(1, D[1])))) };
+}
+// a region's view: from its side, the world's up kept (the top face: FRONT at the bottom, as the Top view; the bottom face as Bottom)
+function vcubeRegionCam(sg) {
+  if (!sg[0] && !sg[2]) return vcubeCam(sg, sg[1] > 0 ? [0, 0, -1] : [0, 0, 1]);
+  return vcubeCam(sg, [0, 1, 0]);
+}
+/* (Round UI-1c / B, Round UI-1d / 0, the maintainer's briefs) the X / Y / Z triad sits on ONE corner of the cube and turns with it: the
+   corner from which all three positive axes run along the cube's own edges, VCUBE_ORIGIN (-x, -y, -z: back, bottom, at the viewer's left
+   from the front): X along the back's bottom edge, Y up the back's left edge, Z along the left bottom edge toward the front. Each line
+   is its edge's length, just outside the edge, so none sticks out of the cube; (Round UI-1e / A) drawn over the cube always, dashed where
+   its edge lies behind it. The letters face the camera just past the ends of their own lines. */
+const VCUBE_ORIGIN = [-1, -1, -1], VCUBE_AXES = [["X", [1, 0, 0], "#d55e00"], ["Y", [0, 1, 0], "#009e73"], ["Z", [0, 0, 1], "#0072b2"]];
+// (Round UI-1e / A, the maintainer's brief) always seen: drawn over the cube; a line whose edge lies behind the cube (neither face beside it
+// turned to the camera) is dashed and dimmed (the dashes, not the shade alone); seen straight along an axis, a small ring with its letter
+function vcubeTriad(g, L) {
+  const labels = [];
+  for (const [n, v, col] of VCUBE_AXES) {
+    const ax = v.indexOf(1), off = VCUBE_ORIGIN.map((c, i) => (i === ax ? c : c*1.06));      // just outside the edge
+    const side = [0, 1, 2].filter(i => i !== ax).map(i => { const nn = [0, 0, 0]; nn[i] = VCUBE_ORIGIN[i]; return nn; });
+    const behind = !side.some(nn => vdot(nn, L.B) > 1e-3);
+    const oc = L.pr(off), e3 = off.map((c, i) => c + v[i]*2), ec = L.pr(e3), tc = L.pr(off.map((c, i) => c + v[i]*2.36));
+    g.save();
+    g.strokeStyle = col; g.lineWidth = 2; g.lineCap = "round";
+    if (behind) { g.globalAlpha = 0.6; g.setLineDash([3, 3]); }
+    g.beginPath(); g.moveTo(oc[0], oc[1]); g.lineTo(ec[0], ec[1]); g.stroke();
+    g.restore();
+    let tx = tc[0], ty = tc[1];
+    if (Math.hypot(ec[0] - oc[0], ec[1] - oc[1]) <= 3) { g.save(); g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); g.arc(oc[0], oc[1], 3.5, 0, 2*Math.PI); g.stroke(); g.restore(); tx = oc[0] - 9; ty = oc[1] + 8; }
+    // behind the cube: its letter out past the cube's outline in the same direction from its middle, so it never sits on a face
+    if (behind) { const cx = vcubeCx(), cy = vcubeCy(), dx = tx - cx, dy = ty - cy, l = Math.hypot(dx, dy) || 1, ux = dx/l, uy = dy/l; let R = 0; for (const x of [-1, 1]) for (const y of [-1, 1]) for (const z of [-1, 1]) { const q = L.pr([x, y, z]); R = Math.max(R, (q[0] - cx)*ux + (q[1] - cy)*uy); } if (l < R + 8) { tx = cx + ux*(R + 8); ty = cy + uy*(R + 8); } }
+    // not over a face's name: a letter that would sit on one moves just above or below it
+    for (const fc of L.faces) { if (fc.lit <= 0.2) continue; const c = L.pr(fc.n), hw = VCUBE_K*0.62, hh = 8; if (Math.abs(tx - c[0]) < hw && Math.abs(ty - c[1]) < hh) ty = c[1] + (ty >= c[1] ? hh + 3 : -hh - 3); }
+    labels.push({ n, x: tx, y: ty, behind });
+  }
+  // two letters on one another: the one of an axis behind the cube (else the later) moves on outward from the cube's middle
+  const cx = vcubeCx(), cy = vcubeCy();
+  for (let i = 0; i < labels.length; i++) for (let j = 0; j < i; j++) {
+    const a = labels[i], b = labels[j];
+    if (Math.hypot(a.x - b.x, a.y - b.y) >= 11) continue;
+    const m = b.behind && !a.behind ? b : a, dx = m.x - cx, dy = m.y - cy, l = Math.hypot(dx, dy) || 1;
+    const o = m === a ? b : a, side = Math.sign((m.x - o.x)*(-dy) + (m.y - o.y)*dx) || 1;      // aside from the other, across the way out
+    m.x += (-dy/l)*side*11; m.y += (dx/l)*side*11;
+  }
+  g.font = "bold 9px Segoe UI, Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+  for (const t of labels) { g.lineWidth = 3; g.strokeStyle = "#1c1c1e"; g.strokeText(t.n, t.x, t.y); g.fillStyle = "#ffffff"; g.fillText(t.n, t.x, t.y); }
+}
+function vcubeDraw() {
+  const cv = document.getElementById("vcube"), g = cv && cv.getContext && cv.getContext("2d");
+  if (!g) return;
+  const t0 = typeof performance !== "undefined" ? performance.now() : 0;
+  const px = VCUBE_PX, dpr = window.devicePixelRatio || 1, o = view3d.cam;
+  if (cv.width !== Math.round(px*dpr)) { cv.width = Math.round(px*dpr); cv.height = Math.round(px*dpr); }
+  g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, px, px);
+  const L = vcubeLayout(o.az, o.el), hot = VCUBE.hover, acc = uiAccent("line");
+  const hotSg = hot && hot.kind === "region" ? hot.sg.join(",") : null;
+  const poly = (s) => { g.beginPath(); s.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); };
+  for (const f of L.faces) {
+    const v = Math.round(178 + 50*f.lit);
+    poly(f.s); g.fillStyle = "rgb(" + v + "," + v + "," + (v + 2) + ")"; g.fill();
+    for (const c of f.cells) {
+      if (c.sg.join(",") === hotSg) { poly(c.s); g.fillStyle = acc; g.fill(); }
+      poly(c.s); g.strokeStyle = "rgba(60,60,64,.22)"; g.lineWidth = 0.6; g.stroke();
+    }
+    // its name on it, upright as seen: the in-plane axis nearest the screen's up is the text's up
+    if (f.lit > 0.2) {
+      let up = null, best = -2;
+      for (const i of f.a) for (const sgn of [1, -1]) { const v3 = [0, 0, 0]; v3[i] = sgn; const d = vdot(v3, L.U); if (d > best) { best = d; up = v3; } }
+      const right = vcross(up, f.n), sc = VCUBE_K/100, c0 = L.pr(f.n);
+      const rs = [vdot(right, L.R)*sc, -vdot(right, L.U)*sc], us = [vdot(up, L.R)*sc, -vdot(up, L.U)*sc];
+      g.setTransform(dpr*rs[0], dpr*rs[1], -dpr*us[0], -dpr*us[1], dpr*c0[0], dpr*c0[1]);
+      g.font = "bold " + (f.name.length > 5 ? 30 : 34) + "px Segoe UI, Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+      g.fillStyle = "#333336"; g.fillText(f.name, 0, 2);
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    poly(f.s); g.strokeStyle = "#3a3a3e"; g.lineWidth = 1.1; g.stroke();
+  }
+  // the arrows, looking straight at a face
+  // (Round UI-1d / 0) the arrows and the name below fade in only while the pointer is over the cube or an arrow
+  g.globalAlpha = VCUBE.alpha;
+  for (const a of VCUBE.alpha > 0.01 ? vcubeArrows(o.az, o.el) : []) {
+    const on = hot && hot.kind === "arrow" && hot.id === a.id;
+    g.fillStyle = on ? acc : "#e4e4e8"; g.strokeStyle = "#2b2b2e"; g.lineWidth = 1;
+    const dx = a.x - vcubeCx(), dy = a.y - vcubeCy(), l = Math.hypot(dx, dy), ux = dx/l, uy = dy/l;
+    g.beginPath(); g.moveTo(a.x + ux*4, a.y + uy*4); g.lineTo(a.x - ux*2 - uy*4, a.y - uy*2 + ux*4); g.lineTo(a.x - ux*2 + uy*4, a.y - uy*2 - ux*4); g.closePath(); g.fill(); g.stroke();
+  }
+  g.globalAlpha = 1;
+  vcubeTriad(g, L);
+  // the name of what is under the pointer (fading with the arrows)
+  if (hot && VCUBE.alpha > 0.01) {
+    g.globalAlpha = VCUBE.alpha;
+    const t = hot.name; g.font = "bold 10px Segoe UI, Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+    const w = g.measureText(t).width + 12; g.fillStyle = "#1c1c1eee"; g.fillRect(px/2 - w/2, px - 14, w, 14); g.fillStyle = uiAccent("text"); g.fillText(t, px/2, px - 7);
+    g.globalAlpha = 1;
+  }
+  VCUBE.drawn++; if (t0) VCUBE.ms = performance.now() - t0;
+}
+function vcubeFrame() {
+  const o = view3d.cam, key = o.az.toFixed(4) + "/" + o.el.toFixed(4) + "/" + vcubeKeyOf(VCUBE.hover) + "/" + VCUBE.alpha.toFixed(3);
+  if (key === VCUBE.key) return;
+  VCUBE.key = key; vcubeDraw();
+}
+view3d.before(vcubeFrame);
+// the camera glides from where it is to `to` (az, el, dist, tx, ty, tz): at once with reduced motion or with no frames
+function vcubeGlide(to) {
+  const o = view3d.cam, from = { ...o };
+  to = { ...from, ...to };
+  const still = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (still || typeof requestAnimationFrame !== "function" || typeof performance === "undefined") { Object.assign(o, to); view3d.ask(); return; }
+  const turn = (a, b) => ((b - a) % (2*Math.PI) + 3*Math.PI) % (2*Math.PI) - Math.PI, daz = turn(from.az, to.az);
+  const t0 = performance.now(), id = ++VCUBE.anim;
+  const step = () => {
+    if (id !== VCUBE.anim) return;
+    const t = Math.min(1, (performance.now() - t0)/VCUBE_MS), e = t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2)/2;
+    for (const k of ["el", "dist", "tx", "ty", "tz"]) o[k] = from[k] + (to[k] - from[k])*e;
+    o.az = from.az + daz*e;
+    if (t >= 1) Object.assign(o, to);
+    view3d.ask();
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+// to a camera on the cube: framed as the named views are (the avatar, or the home place), the view as asked
+function vcubeGo(cam) {
+  if (S.ui.layout === "2d") setLayout("both");
+  if (typeof RWIN !== "undefined" && RWIN.lock) return;
+  const o = view3d.cam, keep = { ...o };
+  cam3d("front");                                            // the framing only
+  const frame = { dist: o.dist, tx: o.tx, ty: o.ty, tz: o.tz };
+  Object.assign(o, keep);
+  vcubeGlide({ ...frame, ...cam });
+}
+// the house: the view the 3D window starts with, exactly (home3d())
+function vcubeHome() {
+  if (S.ui.layout === "2d") setLayout("both");
+  if (typeof RWIN !== "undefined" && RWIN.lock) return;
+  const o = view3d.cam, keep = { ...o };
+  home3d();
+  const to = { ...o };
+  Object.assign(o, keep);
+  vcubeGlide(to);
+}
+function vcubeAct(h) {
+  if (!h) return;
+  if (h.kind === "arrow") return vcubeGo(vcubeCam(h.dir, h.up));
+  vcubeGo(vcubeRegionCam(h.sg));
+}
+const HOUSE_SVG = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 9.5 10 3.5l7 6"/><path d="M5 8v8.5h4v-5h2v5h4V8"/></svg>';
+function vcubeMount() {
+  const cb = document.getElementById("cam3d");
+  if (!cb || document.getElementById("vcube")) return;
+  cb.innerHTML = '<canvas id="vcube" width="' + VCUBE_PX + '" height="' + VCUBE_PX + '" title="Click a face, an edge or a corner of the cube to look from there; drag it to turn the view (keys with the pointer over the 3D window: ' + CAM_VIEWS.map(([k, n]) => n + " " + keyOf("view:" + k)).join(", ") + ')"></canvas><button id="vhome" title="Home (start view)" aria-label="Home (start view)">' + HOUSE_SVG + '</button>';
+  const cv = document.getElementById("vcube"), home = document.getElementById("vhome");
+  if (home) home.onclick = vcubeHome;
+  if (!cv || !cv.addEventListener) return;
+  cv.style.width = cv.style.height = VCUBE_PX + "px";
+  const at = (e) => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+  const pickAt = (e) => { const p = at(e), o = view3d.cam, h = vcubePick(p.x, p.y, o.az, o.el); return h && h.kind === "arrow" && !VCUBE.near ? null : h; };
+  const hover = (h) => { if (vcubeKeyOf(h) !== vcubeKeyOf(VCUBE.hover)) { VCUBE.hover = h; cv.style.cursor = h ? "pointer" : "grab"; view3d.ask(); } };
+  cv.addEventListener("pointerdown", (e) => { if (e.button !== 0) return; e.preventDefault(); e.stopPropagation(); if (cv.setPointerCapture) cv.setPointerCapture(e.pointerId); VCUBE.down = { x: e.clientX, y: e.clientY, moved: false }; VCUBE.anim++; });
+  cv.addEventListener("pointermove", (e) => {
+    const d = VCUBE.down;
+    if (d) { const dx = e.clientX - d.x, dy = e.clientY - d.y; if (!d.moved && Math.abs(dx) + Math.abs(dy) < 3) return; d.moved = true; d.x = e.clientX; d.y = e.clientY; hover(null); view3d.mouse.drive("turn", dx, dy); cv.style.cursor = "grabbing"; return; }
+    const p = at(e); vcubeNear(Math.hypot(p.x - vcubeCx(), p.y - vcubeCy()) <= VCUBE_K*1.75 + 4);
+    hover(pickAt(e));
+  });
+  cv.addEventListener("pointerup", (e) => { const d = VCUBE.down; VCUBE.down = null; if (!d) return; if (d.moved) { cv.style.cursor = "grab"; return; } vcubeAct(pickAt(e)); });
+  cv.addEventListener("pointerleave", () => { if (!VCUBE.down) { hover(null); vcubeNear(false); } });
+  cv.addEventListener("pointercancel", () => { VCUBE.down = null; });
+  VCUBE.key = ""; view3d.ask();
+}
 
 /* ================================================================
    3D: AVATAR
@@ -25077,8 +25445,8 @@ function avatarSolid(av) {
   return list;
 }
 // the skin as triangles, 9 numbers each, as posed and scaled
-function avatarTris(av) {
-  const use = avatarSolid(av), at = new Map();
+function avatarTris(av, meshes) {
+  const use = meshes || avatarSolid(av), at = new Map();      // (Round UI-1e / C: the outline may take other meshes too)
   let nv = 0, nt = 0;
   for (const m of use) { at.set(m, nv); const n = m.geometry.attributes.position.count; nv += n; nt += m.geometry.index ? m.geometry.index.count/3 : n/3; }
   const P = new Float32Array(nv*3), T = new Float32Array(Math.floor(nt)*9);
@@ -25089,6 +25457,171 @@ function avatarTris(av) {
     for (let k = 0; k < n; k++) { const s = (base + (ix ? ix.getX(k) : k))*3; T[o++] = P[s]; T[o++] = P[s+1]; T[o++] = P[s+2]; }
   }
   return T;
+}
+/* ---- the avatar's outline in the 2D window (Round UI-1e / C, the maintainer's brief, asked for several times; the reference shows it:
+   session 4 frames 237-240, the avatar's grey silhouette behind the patterns in the 2D window) ----
+   With an avatar in the scene, the 2D window can show its outline at true size behind the patterns: seen straight from the front, the
+   back or its left side (orthographic, as it stands now: its pose, size and blends), millimetre for millimetre with the patterns.
+   Placed with its centre line (the middle of its box across) on the 2D origin's vertical line and (Round beta.6 / 0, the maintainer's
+   brief; the reference's frames show no origin to read it from) its waist on the origin's horizontal line, for any avatar: the waist
+   as avatarMeasures() finds it (the narrowest girth between 56 and 68 % of the height), else AVOUT_WAIST of the height; then moved up
+   or down by the document's own offset (S.avedit.outline.dy, mm, + down the window: avOutDy()), dragged in Edit Avatar Outline
+   (avOutEditStart(), S.avOutEdit, as Edit Background Image: a drag on it moves it up or down, its right-click Vertical Offset… /
+   Reset Vertical Offset, Esc, Enter or a click off it ends; each change one step, in the file with the avatar edits). S.ui.avOut "off" / "front" / "back" / "side", S.ui.avOutObj the avatar's other parts
+   too (hair, underwear, things its file carries: guess ui1e/7); view settings, in a file's display settings. Drawn under every pattern,
+   a light fill and a thin dashed grey line; never picked, snapped to, printed or exported (print and export draw from the document, not
+   the window). Built from the posed triangles (avatarTris()) as a mask of AVOUT_RES mm cells, then its boundary as one path; kept until
+   the avatar, its height, pose, joints, size, blends or the choice change (looked at once a frame, built again after AVOUT_WAIT ms). */
+const AVOUT_RES = 1, AVOUT_WAIT = 150, AVOUT_WAIST = 0.62, AVOUT_MODES = [["off", "Off"], ["front", "Front"], ["back", "Back"], ["side", "Side (Left)"]];
+const AVOUT = { key: "", built: null, timer: 0, ms: 0 };
+// what the outline depends on, as text
+function avOutKey() {
+  const av = S.av, m = (S.ui || {}).avOut || "off";
+  if (!av || m === "off") return "";
+  const e = S.avedit || {};
+  return [m, !!(S.ui || {}).avOutObj, av.name, av.height, av.scale, JSON.stringify(av.pose || null), JSON.stringify(av.baseQ || null), JSON.stringify(e.joints || null), JSON.stringify(e.size || null), JSON.stringify(e.blend || null)].join("|");
+}
+// the meshes the outline is made of: the body, and with Include Objects every other part of the avatar that is shown
+function avOutMeshes(av, obj) { const body = avatarSolid(av); return obj ? av.meshes.filter(m => body.includes(m) || (m.visible !== false && !m.userData.hidden)) : body; }
+// the outline built: { mode, res, u0, v0, w, h, mask, segs (cell edges on the boundary, in mm: x0 y0 x1 y1 …), box: { x0, x1, y0, y1 } (2D mm) }
+function avOutBuild(mode, obj) {
+  const av = S.av;
+  if (!av || mode === "off") return null;
+  const t0 = typeof performance !== "undefined" ? performance.now() : 0;
+  const T = avatarTris(av, avOutMeshes(av, obj)), b = avatarBox(av), cx = (b.x0 + b.x1)/2, cz = (b.z0 + b.z1)/2, floor = b.y0;
+  // (Round beta.6 / 0) the waist on the origin: the floor that far below it
+  const am = avatarMeasures(av), base = am && Number.isFinite(am.waistY) ? am.waistY - floor : AVOUT_WAIST*(b.y1 - b.y0);
+  // the view's across-axis on the 2D window (x to the right): front +x, back -x, the left side -z (the avatar faces +z)
+  const across = mode === "back" ? (x, z) => -(x - cx) : mode === "side" ? (x, z) => -(z - cz) : (x, z) => x - cx;
+  let u0 = Infinity, u1 = -Infinity, v1 = 0;
+  for (let i = 0; i < T.length; i += 3) { const u = across(T[i], T[i+2]), v = T[i+1] - floor; if (u < u0) u0 = u; if (u > u1) u1 = u; if (v > v1) v1 = v; }
+  const r = AVOUT_RES, w = Math.ceil((u1 - u0)/r) + 2, h = Math.ceil(v1/r) + 2, mask = new Uint8Array(w*h);
+  u0 -= r;
+  // every triangle filled into the cells whose middles it covers
+  for (let i = 0; i < T.length; i += 9) {
+    const ax = (across(T[i], T[i+2]) - u0)/r, ay = (T[i+1] - floor)/r, bx = (across(T[i+3], T[i+5]) - u0)/r, by = (T[i+4] - floor)/r, qx = (across(T[i+6], T[i+8]) - u0)/r, qy = (T[i+7] - floor)/r;
+    const area = (bx - ax)*(qy - ay) - (qx - ax)*(by - ay);
+    if (Math.abs(area) < 1e-9) continue;
+    const xa = Math.max(0, Math.floor(Math.min(ax, bx, qx))), xb = Math.min(w - 1, Math.ceil(Math.max(ax, bx, qx))), ya = Math.max(0, Math.floor(Math.min(ay, by, qy))), yb = Math.min(h - 1, Math.ceil(Math.max(ay, by, qy)));
+    for (let y = ya; y <= yb; y++) for (let x = xa; x <= xb; x++) {
+      const px = x + 0.5, py = y + 0.5, w0 = ((bx - px)*(qy - py) - (qx - px)*(by - py))/area, w1 = ((qx - px)*(ay - py) - (ax - px)*(qy - py))/area;
+      if (w0 >= 0 && w1 >= 0 && w0 + w1 <= 1) mask[y*w + x] = 1;
+    }
+  }
+  // the boundary: every cell side between a filled cell and an empty one, in the 2D window's millimetres (y down, the waist at 0, the
+  // floor at base; the document's offset is added when drawn)
+  const segs = [], X = (c) => u0 + c*r, Y = (c) => base - c*r, at = (x, y) => (x >= 0 && y >= 0 && x < w && y < h ? mask[y*w + x] : 0);
+  let top = -1, lo = w, hi = -1;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (!mask[y*w + x]) continue;
+    if (y > top) top = y; if (x < lo) lo = x; if (x > hi) hi = x;
+    if (!at(x - 1, y)) segs.push(X(x), Y(y), X(x), Y(y + 1));
+    if (!at(x + 1, y)) segs.push(X(x + 1), Y(y), X(x + 1), Y(y + 1));
+    if (!at(x, y - 1)) segs.push(X(x), Y(y), X(x + 1), Y(y));
+    if (!at(x, y + 1)) segs.push(X(x), Y(y + 1), X(x + 1), Y(y + 1));
+  }
+  const out = { mode, obj: !!obj, res: r, u0, w, h, mask, segs: Float32Array.from(segs), box: { x0: X(lo), x1: X(hi + 1), y0: Y(top + 1), y1: base }, base, waist: !!(am && Number.isFinite(am.waistY)), height: (top + 1)*r, path: null, img: null };
+  if (t0) out.ms = performance.now() - t0;
+  return out;
+}
+// the outline up to date: built again, after a short wait, when what it depends on changed
+function avOutNow() {
+  const k = avOutKey();
+  if (!k) { AVOUT.key = ""; AVOUT.built = null; return null; }
+  if (k !== AVOUT.key && !AVOUT.timer) {
+    const build = () => { AVOUT.timer = 0; const kk = avOutKey(); if (!kk) return; const t0 = typeof performance !== "undefined" ? performance.now() : 0; AVOUT.built = avOutBuild(S.ui.avOut, S.ui.avOutObj); AVOUT.key = kk; if (t0) AVOUT.ms = performance.now() - t0; drawSoon(); };
+    if (!AVOUT.built || typeof setTimeout !== "function") build(); else AVOUT.timer = setTimeout(build, AVOUT_WAIT);
+  }
+  return AVOUT.built;
+}
+// drawn under the patterns: the mask as a light fill, its boundary as a thin dashed grey line
+function drawAvOutline() {
+  const o = avOutNow();
+  if (!o || !o.segs.length) return;
+  const s = S.view.s, z = toS(V(0, avOutDy()));
+  ctx.save();
+  if (!o.img && typeof document !== "undefined" && document.createElement) {
+    const c = document.createElement("canvas"); c.width = o.w; c.height = o.h;
+    const g = c.getContext && c.getContext("2d");
+    const im = g && g.createImageData ? g.createImageData(o.w, o.h) : null;
+    if (im && im.data) { for (let y = 0; y < o.h; y++) for (let x = 0; x < o.w; x++) if (o.mask[y*o.w + x]) { const k = ((o.h - 1 - y)*o.w + x)*4; im.data[k] = 80; im.data[k+1] = 82; im.data[k+2] = 88; im.data[k+3] = 34; } g.putImageData(im, 0, 0); o.img = c; }
+  }
+  if (o.img) { ctx.imageSmoothingEnabled = false; ctx.drawImage(o.img, z.x + o.u0*s, z.y + (o.base - o.h*o.res)*s, o.w*o.res*s, o.h*o.res*s); }
+  if (!o.path && typeof Path2D === "function") { const P = new Path2D(), g = o.segs; for (let i = 0; i < g.length; i += 4) { P.moveTo(g[i], g[i+1]); P.lineTo(g[i+2], g[i+3]); } o.path = P; }
+  if (o.path) {
+    ctx.translate(z.x, z.y); ctx.scale(s, s);
+    ctx.strokeStyle = "#6e6e74"; ctx.lineWidth = (S.avOutEdit ? 2 : 1)/s; ctx.setLineDash([5/s, 3/s]);
+    ctx.stroke(o.path);
+  }
+  ctx.restore();
+}
+/* (Round beta.6 / 0) the outline's vertical offset, the document's (in its avatar edits, so in undo and the file), and its edit mode */
+const avOutDy = () => { const o = S.avedit && S.avedit.outline; return o && Number.isFinite(o.dy) ? o.dy : 0; };
+function avOutDySet(dy) {
+  dy = Math.max(-3000, Math.min(3000, Math.round(dy*10)/10));
+  if (!Number.isFinite(dy)) return;
+  if (dy) S.avedit.outline = { dy }; else delete S.avedit.outline;
+}
+// the outline's frame in the 2D window (mm, the offset added), or null
+function avOutBox() { const o = avOutNow(); if (!o || !o.segs.length) return null; const d = avOutDy(); return { x0: o.box.x0, x1: o.box.x1, y0: o.box.y0 + d, y1: o.box.y1 + d }; }
+const avOutUnder = (w) => { const b = avOutBox(); return !!b && w.x >= b.x0 && w.x <= b.x1 && w.y >= b.y0 && w.y <= b.y1; };
+function avOutEditStart() {
+  if (!S.av) return toast("Edit Avatar Outline: there is no avatar in the scene (Avatar ▸ Load Avatar)");
+  if ((S.ui.avOut || "off") === "off") setAvOut("front");
+  S.avOutEdit = { on: true }; S.bgMode = null; S.place = null; S.draft = null; S.rotAxis = null;
+  toast("Edit Avatar Outline: drag it up or down; right-click it for Vertical Offset… and Reset. Esc, Enter or a click outside it ends", 6000);
+  ui(); draw();
+}
+function avOutEditEnd() { if (!S.avOutEdit) return false; S.avOutEdit = null; if (S.drag && S.drag.k === "avout") S.drag = null; ui(); draw(); return true; }
+// a press while it is edited: on it, a drag up or down (one step, taken at the first move); off it, editing ends
+function avOutDown(w) {
+  if (!avOutBox()) { avOutEditEnd(); return; }
+  if (avOutUnder(w)) { pushDrag("Move Avatar Outline"); S.drag = { k: "avout", at: w.y, dy0: avOutDy(), moved: false }; return; }
+  avOutEditEnd();
+}
+function avOutMove(d, w) { avOutDySet(d.dy0 + w.y - d.at); d.moved = true; drawSoon(); }
+// typed: the offset in the display unit, previewed, one step on OK
+function avOutOffsetDialog(at) {
+  const was = avOutDy(), u = UNIT_MM[S.unit];
+  numDialog("Avatar Outline Vertical Offset", [{ k: "dy", label: "Vertical Offset (down)", val: +(was/u).toFixed(unitDec()), unit: S.unit }], at || { x: 200, y: 160 }, (o) => {
+    avOutDySet(was); const v = o.dy*u;
+    if (!Number.isFinite(v)) return toast("Type a number");
+    if (Math.abs(v - was) < 0.05) return;
+    push("Avatar Outline Offset"); avOutDySet(v); commit();
+  }, { hint: "0 puts the avatar's waist on the 2D origin's horizontal line; a positive number moves the outline down.",
+       preview: (v) => { if (Number.isFinite(v.dy)) { avOutDySet(v.dy*u); drawSoon(); } return null; },
+       onCancel: () => { avOutDySet(was); draw(); } });
+}
+function avOutReset() { if (!avOutDy()) return toast("The waist is already on the origin"); push("Reset Avatar Outline Offset"); avOutDySet(0); commit(); }
+function avOutMenu(e) {
+  const at = { x: e.clientX, y: e.clientY };
+  listMenu([{ n: "Vertical Offset…", f: () => avOutOffsetDialog(at) }, { n: "Reset Vertical Offset", f: avOutReset, off: !avOutDy() }, { sep: 1 }, { n: "Finish Editing", f: avOutEditEnd }], e.clientX, e.clientY);
+}
+// while it is edited: its frame, the waist line, the words, over the patterns
+function drawAvOutEdit() {
+  if (!S.avOutEdit) return;
+  const b = avOutBox(), o = AVOUT.built;
+  if (!b || !o) return;
+  const p = toS(V(b.x0, b.y0)), q = toS(V(b.x1, b.y1)), wy = toS(V(0, avOutDy())).y;
+  ctx.save();
+  ctx.strokeStyle = "#111"; ctx.lineWidth = 3; ctx.strokeRect(p.x, p.y, q.x - p.x, q.y - p.y); ctx.strokeStyle = C_SEL; ctx.lineWidth = 1.5; ctx.strokeRect(p.x, p.y, q.x - p.x, q.y - p.y);
+  ctx.strokeStyle = "#111"; ctx.lineWidth = 1; ctx.setLineDash([8, 4]); ctx.beginPath(); ctx.moveTo(p.x - 20, wy); ctx.lineTo(q.x + 20, wy); ctx.stroke(); ctx.setLineDash([]);
+  ctx.restore();
+  lbl((o.waist ? "Waist" : "Waist (estimated)") + (avOutDy() ? "  " + (avOutDy() > 0 ? "+" : "") + fmt(avOutDy()) + " " + S.unit : ""), V(q.x + 24, wy - 4));
+  tag("Editing avatar outline — drag up or down, Esc to finish", V(p.x + 12, p.y - 10));
+}
+function setAvOut(mode, obj) {
+  const m = AVOUT_MODES.some(x => x[0] === mode) ? mode : (S.ui.avOut || "off");
+  S.ui = normUI({ ...S.ui, avOut: m, avOutObj: obj === undefined ? !!S.ui.avOutObj : !!obj });
+  saveUI(); AVOUT.key = ""; AVOUT.built = null;
+  if (m !== "off" && !S.av) toast("Avatar Outline: there is no avatar in the scene (Avatar ▸ Load Avatar)");
+  draw();
+}
+// the rows of Avatar Outline ▸ (the 2D Pattern display list and the empty window's More ▸)
+function avOutRows() {
+  const cur = S.ui.avOut || "off";
+  return [...AVOUT_MODES.map(([k, n]) => ({ n, on: cur === k, f: () => setAvOut(k) })), { sep: 1 }, { n: "Include Objects", on: !!S.ui.avOutObj, f: () => setAvOut(cur, !S.ui.avOutObj) },
+    { n: "Edit Avatar Outline", off: !S.av, f: avOutEditStart }];      // (Round beta.6 / 0)
 }
 /* ---- the mannequins (Round F / 8) ----
    Marty and Jessica are plain mannequins: their body in one smooth, matte grey plastic, no picture on it, and nothing else of
@@ -25426,6 +25959,8 @@ function normAvEdit(o) {
   }
   // (Round r18 / 5) the avatar's measurements, each held by places on the skin (normAvMeas())
   if (Array.isArray(o.meas)) { const m = o.meas.map(normAvMeas).filter(Boolean); if (m.length) out.meas = m; }
+  // (Round beta.6 / 0) the avatar outline's vertical offset in the 2D window, mm, kept only when not 0
+  if (o.outline && Number.isFinite(o.outline.dy) && o.outline.dy) out.outline = { dy: Math.max(-3000, Math.min(3000, Math.round(o.outline.dy*10)/10)) };
   return out;
 }
 /* (Round r18 / 5) an avatar measurement: { id, kind ("tape" two places, "circ" three places, or one with axis: the girth square to the
@@ -25442,7 +25977,7 @@ function normAvMeas(x) {
   if (x.showLen === false) out.showLen = false;
   return out;
 }
-const avEditOn = () => !!S.avedit && (Object.keys(S.avedit.joints || {}).length > 0 || !!S.avedit.lockR || !!S.avedit.lockT || !!S.avedit.size || !!S.avedit.meas || !!S.avedit.arrange || !!S.avedit.ik || !!S.avedit.suit || !!S.avedit.blend);
+const avEditOn = () => !!S.avedit && (Object.keys(S.avedit.joints || {}).length > 0 || !!S.avedit.lockR || !!S.avedit.lockT || !!S.avedit.size || !!S.avedit.meas || !!S.avedit.arrange || !!S.avedit.ik || !!S.avedit.suit || !!S.avedit.blend || !!S.avedit.outline);
 // the document's avatar edits put on the avatar, when they changed (commit(): undo, redo, a file opened, an edit made)
 function avEditSync() {
   const av = S.av;
@@ -28424,7 +28959,7 @@ function gizAt() {
 function gizBasis() {
   const d = gizDrag();
   if (d && d.B) return d.B;
-  const sp = (S.prefs && S.prefs.gizSpace) || "screen", I = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+  const sp = (S.prefs && S.prefs.gizSpace) || "world", I = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
   const turn = (q) => I.map(v => { const o = [0, 0, 0]; SIM3D.qRot(q, v[0], v[1], v[2], o); const l = Math.hypot(o[0], o[1], o[2]) || 1; return o.map(c => c/l); });
   if (sp === "screen") { const cam = view3d.camera(); if (cam && cam.quaternion) { const q = cam.quaternion; return turn([q.x, q.y, q.z, q.w]); } }
   if (sp === "local" && gizLight()) return I;
@@ -28578,6 +29113,8 @@ function gridFade() {
   }
 }
 view3d.before(gridFade);
+/* (Round UI-1b / A, the maintainer's brief) the floor shows only the plain grid: no axis lines, letters or side words (Round UI-1 / D had them;
+   three.js's AxesHelper before that). The view cube's triad shows the axes. */
 /* (Round r20 / 9) 3D Grid Brightness: the floor grid's lines lighter or darker (per machine, S.ui.grid3b, 1 as it came; guess r20/6:
    the reference's slider has no page) */
 function grid3Dialog() {
@@ -28966,8 +29503,8 @@ function gizType(d, e) {
 }
 // Gizmo ▸ (the 3D window's background menu, Preferences): the three ways, the one in use ticked
 function gizSpaceRows() {
-  const cur = (S.prefs && S.prefs.gizSpace) || "screen";
-  return GIZ_SPACES.map(([k, n]) => ({ n, on: cur === k, f: () => { setPrefs({ gizSpace: k }); view3d.ask(); } }));
+  const cur = (S.prefs && S.prefs.gizSpace) || "world";
+  return GIZ_SPACES.map(([k, n]) => ({ n, on: cur === k, f: () => { setPrefs({ gizSpace: k, gizPicked: true }); view3d.ask(); } }));
 }
 // a typed number as what gizApply() takes (null: it has no direction to go in yet)
 function gizTyped(d, n) {
@@ -30257,39 +30794,296 @@ function clothLineHit(e) {
       if (d < bd) { bd = d; best = { p: byId(it.pid), it, kind: l.kind, id: l.id }; }
     }
   }
+  if (best) best.d = bd;
   return best && best.p ? best : null;
 }
 /* ---- Fold Arrangement ---- */
-HINT.fold_arrangement = "Click an internal line or a baseline on the cloth: the cloth on one side of it is folded over by the angle you type (180 lays it flat on itself). Fold before simulating. Right-click a pattern to unfold it.";
-function foldDialog(h, at) {
-  const p = h.p, cur = (p.fold || []).find(f => f.kind === h.kind && f.id === h.id), sh = p[h.kind].find(s => s.id === h.id);
-  if (!sh || sh.closed || sh.pts.length < 2) return toast("A fold needs an open line: this one is a closed shape");
-  if (isLocked(p)) return toast("Locked — unlock the pattern to fold it");
-  numDialog("Fold Arrangement — " + p.name, [{ k: "angle", label: "Fold by", val: cur ? cur.angle : 170, unit: "°", step: 5 }], at, (v) => {
-    if (!Number.isFinite(v.angle) || Math.abs(v.angle) > 180) return toast("An angle between -180 and 180 degrees (0 unfolds)");
-    push("Fold Arrangement");
-    const rest = (p.fold || []).filter(f => !(f.kind === h.kind && f.id === h.id));
-    p.fold = normFolds([...rest, { kind: h.kind, id: h.id, angle: v.angle, flip: !!v.flip }]);
-    if (!p.fold.length) delete p.fold;
-    if (typeof simStop === "function") simStop();
-    const it = G3.items.get(p.id); if (it) it.placed = "";                       // folded again from flat
-    commit();
-    toast(v.angle ? p.name + " folded " + v.angle + "° along the line" : "Unfolded");
-  }, { hint: "The side of the line away from the pattern's middle is folded toward you (a negative angle folds it away). The line is taken as straight between its two ends. 180 lays the cloth on itself; a little less keeps the two layers apart.",
-       checks: [{ k: "flip", label: "Fold the other side instead", val: !!(cur && cur.flip) }] });
+/* (Round UI-1e / B, the maintainer's brief; the reference as recorded: 3d_tools.mp4 00:51-00:56, frames 0025-0027, a ring round a side
+   SEAM with a red and a green dot, one on each side: the red one dragged round swings the front panel open about the seam, live, the
+   green one and the back staying; session 4 Number 13a, 14:22-14:34, frames 237-240, a ring round an internal line with a red and a
+   green arm, one into each side: the red one dragged and the cloth below the line flares out by about 90 degrees KEEPING ITS DRAPED
+   SHAPE, the Property Editor's Fold Angle staying 180.) A click on an internal line, a baseline or a seam on the cloth puts a ring on
+   it, the line the hinge, with a handle on each side: side 1 a blue ball marked 1, side 2 an orange cube marked 2 (shape, number and
+   colour). Dragging a handle turns only its own side about the hinge as it lies in 3D now, rigidly, the drape kept (no laying flat, no
+   simulation), live; each handle's angle beside it in digits of one width, counted from where its side hung when the ring was put
+   on. Let go: one undo step, which puts the cloth back exactly (drape snapshots before and after it). A right-click opens a box with
+   both sides' angles; the cloth follows every number typed; OK keeps both (one step), Esc puts both back. Shift: steps of 15 degrees
+   (guess ui1e/3). Esc while dragging gives the drag up; Esc otherwise, another tool or a click off any hinge puts the ring away. */
+HINT.fold_arrangement = "Click an internal line, a baseline or a seam on the cloth: a ring with a handle on each side (1 blue ●, 2 orange ■). Drag a handle to turn its side about the line (Shift: steps of 15°); right-click to type both angles.";
+const FOLD_RING_PX = 70, FOLD_SNAP = 15, FOLD_SIDES = [{ col: 0x0072b2, css: "#0072b2", mark: "1", shape: "ball", name: "Side 1 (blue, ●)" }, { col: 0xf2745f, css: "#F2745F", mark: "2", shape: "cube", name: "Side 2 (orange, ■)" }];
+// a point on a pattern's cloth, where the cloth is now
+function foldAt(it, a) { let x = 0, y = 0, z = 0; for (let j = 0; j < 3; j++) { const v = 3*a.i[j]; x += a.w[j]*it.X[v]; y += a.w[j]*it.X[v+1]; z += a.w[j]*it.X[v+2]; } return new THREE.Vector3(x, y, z); }
+// a seam's sides as places on their cloth (anchors), kept per seam and cloth
+const FOLD_SEAM_CACHE = new Map();
+function foldSeamSides(sm) {
+  const out = [];
+  for (const k of ["a", "b"]) {
+    const list = [];
+    for (const part of sm[k] || []) {
+      const X = seamSide(part, S.pieces), it = X && G3.items.get(X.p.id);
+      if (!X || !it) continue;
+      const key = sm.id + k + JSON.stringify(part) + it.sig;
+      let an = FOLD_SEAM_CACHE.get(key);
+      if (!an) {
+        an = [];
+        for (const s of partSpans(X, part)) { const n = Math.max(1, Math.ceil(segLenT(X.sh, s.i, s.u, s.v)/20)); for (let j = 0; j <= n; j++) { const q = segPt(X.sh, s.i, s.u + (s.v - s.u)*j/n), a = SIM3D.triAnchor(it.mesh.xy, it.mesh.tri, q.x, q.y, 0); if (a) an.push(a); } }
+        if (FOLD_SEAM_CACHE.size > 400) FOLD_SEAM_CACHE.clear();
+        FOLD_SEAM_CACHE.set(key, an);
+      }
+      if (an.length > 1) list.push({ pid: X.p.id, an });
+    }
+    out.push(list);
+  }
+  return out;
+}
+// the seam on the cloth nearest the pointer (within 9 px): { seam } or null
+function foldSeamHit(e) {
+  let best = null, bd = 9;
+  for (const sm of S.seams || []) {
+    if (sm.hide || sm.zip) continue;
+    for (const side of foldSeamSides(sm)) for (const { pid, an } of side) {
+      const it = G3.items.get(pid);
+      for (const a of an) { const s = view3d.project(foldAt(it, a)); if (!s || s.z > 1) continue; const d = Math.hypot(s.x - e.clientX, s.y - e.clientY); if (d < bd) { bd = d; best = { seam: sm, d }; } }
+    }
+  }
+  return best;
+}
+// what a hinge folds: the hinge in the scene { A, d, M } and each side's points [{ pid, idx }], from a line or a seam; or why not
+function foldTarget(h) {
+  if (h.seam) {
+    const sides = foldSeamSides(h.seam), first = sides[0][0];
+    if (!first || !sides[1].length) return "That seam has no cloth on one of its sides";
+    const pa = new Set(sides[0].map(x => x.pid)), pb = new Set(sides[1].map(x => x.pid));
+    if ([...pa].some(id => pb.has(id))) return "That seam joins a pattern to itself: fold along an internal line there instead";
+    if ([...pa, ...pb].some(id => isLocked(byId(id)))) return "Locked — unlock the pattern to fold it";
+    const it = G3.items.get(first.pid), A = foldAt(it, first.an[0]), B = foldAt(it, first.an[first.an.length - 1]);
+    const all = (ids) => [...ids].map(pid => { const n = G3.items.get(pid).X.length/3, idx = new Int32Array(n); for (let i = 0; i < n; i++) idx[i] = i; return { pid, idx }; });
+    return { A, B, sides: [all(pa), all(pb)], what: "seam" };
+  }
+  const p = h.p, sh = p[h.kind].find(s => s.id === h.id), it = G3.items.get(p.id);
+  if (!sh || sh.closed || sh.pts.length < 2) return "A fold needs an open line: this one is a closed shape";
+  if (isLocked(p)) return "Locked — unlock the pattern to fold it";
+  const l = (it.lines || []).find(x => x.kind === h.kind && x.id === h.id);
+  if (!l || l.an.length < 2) return "That line is not on the cloth";
+  const a = sh.pts[0], b = sh.pts[sh.pts.length - 1], xy = it.mesh.xy, n = xy.length/2, s1 = [], s2 = [];
+  for (let i = 0; i < n; i++) (((b.x - a.x)*(xy[2*i+1] - a.y) - (b.y - a.y)*(xy[2*i] - a.x)) < 0 ? s1 : s2).push(i);
+  return { A: foldAt(it, l.an[0]), B: foldAt(it, l.an[l.an.length - 1]), sides: [[{ pid: p.id, idx: Int32Array.from(s1) }], [{ pid: p.id, idx: Int32Array.from(s2) }]], what: h.kind === "bases" ? "baseline" : "internal line" };
+}
+// a cheap mark of the folded cloth as it is now (to see that undo or a simulation changed it since)
+const foldSum = (F) => { let s = 0; for (const pid of F.base.keys()) { const X = G3.items.get(pid).X; for (let i = 0; i < X.length; i += 7) s += X[i]*((i % 13) + 1); } return s; };
+// put the ring on a hinge
+function foldStart(h) {
+  if (typeof simStop === "function" && SIM.on) simStop();
+  const t = foldTarget(h);
+  if (typeof t === "string") { toast(t); return false; }
+  const d = t.B.clone().sub(t.A);
+  if (d.length() < 1e-6) { toast("That line has no length on the cloth"); return false; }
+  d.normalize();
+  const M = t.A.clone().add(t.B).multiplyScalar(0.5), base = new Map();
+  for (const side of t.sides) for (const { pid } of side) if (!base.has(pid)) base.set(pid, G3.items.get(pid).X.slice());
+  // each side's arm: from the hinge's middle toward the middle of that side's cloth, square to the hinge
+  const arms = t.sides.map((side, k) => {
+    const c = new THREE.Vector3(); let n = 0;
+    for (const { pid, idx } of side) { const X = base.get(pid); for (let j = 0; j < idx.length; j += Math.max(1, idx.length >> 8)) { const v = 3*idx[j]; c.x += X[v]; c.y += X[v+1]; c.z += X[v+2]; n++; } }
+    if (n) c.multiplyScalar(1/n); else c.copy(M);
+    let u = c.sub(t.A); u.sub(d.clone().multiplyScalar(u.dot(d)));
+    if (u.length() < 1e-6) { u = new THREE.Vector3(0, 1, 0).cross(d); if (u.length() < 1e-6) u.set(1, 0, 0); if (k) u.negate(); }
+    return u.normalize();
+  });
+  G3.foldLive = { h, hinge: { A: t.A, d, M }, sides: t.sides, base, arms, ang: [0, 0], hot: -1, drag: null, what: t.what };
+  G3.foldLive.sum = foldSum(G3.foldLive);
+  foldReads(); note3d("Drag handle 1 (blue ●) or 2 (orange ■) to turn that side (Shift: 15° steps) · right-click to type both angles · Esc ends");
+  view3d.ask();
+  return true;
+}
+function foldEnd() { if (!G3.foldLive) return; G3.foldLive = null; foldReads(); note3d(""); view3d.ask(); }
+// the cloth as the two angles turn its sides: every point of a side from where it hung when the ring was put on, about the hinge
+function foldApply(F) {
+  const { A, d } = F.hinge;
+  for (let k = 0; k < 2; k++) {
+    const th = F.ang[k]*Math.PI/180*(k ? -1 : 1), cs = Math.cos(th), sn = Math.sin(th), dx = d.x, dy = d.y, dz = d.z;
+    for (const { pid, idx } of F.sides[k]) {
+      const it = G3.items.get(pid), X = it.X, B = F.base.get(pid);
+      for (let j = 0; j < idx.length; j++) {
+        const v = 3*idx[j], rx = B[v] - A.x, ry = B[v+1] - A.y, rz = B[v+2] - A.z, dot = dx*rx + dy*ry + dz*rz;
+        X[v] = A.x + rx*cs + (dy*rz - dz*ry)*sn + dx*dot*(1 - cs);
+        X[v+1] = A.y + ry*cs + (dz*rx - dx*rz)*sn + dy*dot*(1 - cs);
+        X[v+2] = A.z + rz*cs + (dx*ry - dy*rx)*sn + dz*dot*(1 - cs);
+      }
+      itemMoved(it);
+    }
+  }
+  F.sum = foldSum(F);
+  if (typeof clothLines === "function") clothLines();
+  foldReads(); view3d.ask();
+}
+// the cloth was changed since (undo, a simulation): the ring starts from the cloth as it is now
+function foldRebase(F) {
+  if (Math.abs(foldSum(F) - F.sum) < 1e-6) return;
+  const ok = foldStart(F.h);
+  if (ok) { const N = G3.foldLive; N.hot = F.hot; }
+}
+// a handle's tip in the scene: its arm turned by its side's angle, a ring's radius from the hinge's middle
+function foldTip(F, k, ang) {
+  const { d, M } = F.hinge, th = (ang == null ? F.ang[k] : ang)*Math.PI/180*(k ? -1 : 1), u = F.arms[k].clone().applyAxisAngle(d, th);
+  return M.clone().addScaledVector(u, view3d.wpp(M)*FOLD_RING_PX);
+}
+// the handle under the pointer (0, 1) or -1
+function foldHandleAt(e) {
+  const F = G3.foldLive;
+  if (!F) return -1;
+  let best = -1, bd = 13;
+  for (let k = 0; k < 2; k++) { const s = view3d.project(foldTip(F, k)); if (s && s.z < 1) { const dd = Math.hypot(s.x - e.clientX, s.y - e.clientY); if (dd < bd) { bd = dd; best = k; } } }
+  return best;
+}
+// the ring, the arms and the two handles: made once, placed each frame, the same size on the screen
+function foldRingFrame() {
+  const F = G3.foldLive, g = view3d.group && view3d.group("foldring");
+  if (!g) return;
+  if (!F) { g.visible = false; return; }
+  if (!g.children.length) {
+    const mat = (c) => new THREE.MeshBasicMaterial({ color: c, depthTest: false, depthWrite: false, transparent: true });
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(1, 0.018, 8, 72), mat(0xe8e8ec)); ring.name = "ring";
+    const axGeo = new THREE.BufferGeometry(); axGeo.setAttribute("position", new THREE.Float32BufferAttribute([0, 0, -1.6, 0, 0, 1.6], 3));
+    const axis = new THREE.Line(axGeo, new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.08, gapSize: 0.06, depthTest: false })); axis.computeLineDistances(); axis.name = "axis";
+    g.add(ring, axis);
+    FOLD_SIDES.forEach((sd, k) => {
+      const hg = new THREE.Group(); hg.name = "h" + k;
+      const armGeo = new THREE.BufferGeometry(); armGeo.setAttribute("position", new THREE.Float32BufferAttribute([0, 0, 0, 1, 0, 0], 3));
+      const arm = new THREE.Line(armGeo, new THREE.LineBasicMaterial({ color: sd.col, depthTest: false })); arm.name = "arm";
+      const knob = new THREE.Mesh(sd.shape === "ball" ? new THREE.SphereGeometry(0.09, 16, 12) : new THREE.BoxGeometry(0.15, 0.15, 0.15), mat(sd.col)); knob.name = "knob";
+      const mk = typeof jointMark === "function" ? jointMark(sd.mark) : null;
+      if (mk) { mk.name = "mark"; hg.add(mk); }
+      hg.add(arm, knob); g.add(hg);
+    });
+    for (const c of g.children) c.renderOrder = 20;
+  }
+  const { M, d } = F.hinge, r = view3d.wpp(M)*FOLD_RING_PX;
+  g.visible = true; g.position.set(0, 0, 0); g.quaternion.identity(); g.scale.setScalar(1);
+  const ring = g.getObjectByName("ring"), axis = g.getObjectByName("axis"), q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), d);
+  for (const o of [ring, axis]) { o.position.copy(M); o.quaternion.copy(q); o.scale.setScalar(r); }
+  for (let k = 0; k < 2; k++) {
+    const hg = g.getObjectByName("h" + k), tip = foldTip(F, k), arm = hg.getObjectByName("arm"), knob = hg.getObjectByName("knob"), mk = hg.getObjectByName("mark");
+    const P = arm.geometry.attributes.position.array; P[0] = M.x; P[1] = M.y; P[2] = M.z; P[3] = tip.x; P[4] = tip.y; P[5] = tip.z; arm.geometry.attributes.position.needsUpdate = true;
+    const big = F.hot === k || (F.drag && F.drag.k === k);                // under the pointer or dragged: larger (not by colour alone)
+    knob.position.copy(tip); knob.scale.setScalar(r*(big ? 1.4 : 1)); knob.quaternion.copy(q);
+    if (mk) mk.position.copy(tip.clone().addScaledVector(tip.clone().sub(M).normalize(), r*0.28));
+  }
+}
+view3d.before(foldRingFrame);
+// each handle's angle beside it, in digits of one width
+function foldReads() {
+  const F = G3.foldLive, host = document.getElementById("stage3d");
+  for (let k = 0; k < 2; k++) {
+    let el = document.getElementById("fold-r" + k);
+    if (!el && host && document.createElement) { el = document.createElement("div"); el.id = "fold-r" + k; el.className = "fold-read"; host.appendChild(el); }
+    if (!el) continue;
+    if (!F) { el.style.display = "none"; continue; }
+    const s = view3d.project(foldTip(F, k)), a = F.ang[k], r = host.getBoundingClientRect();
+    el.textContent = FOLD_SIDES[k].mark + " " + (k ? "■" : "●") + " " + (a < 0 ? "-" : "+") + Math.abs(a).toFixed(1).padStart(5, "0") + "°";
+    el.style.display = s ? "block" : "none";
+    if (s) { el.style.left = (s.x - r.left - 30) + "px"; el.style.top = (s.y - r.top + 14) + "px"; el.style.borderColor = FOLD_SIDES[k].css; }      // (under its handle: the handle's number stays clear)
+  }
+}
+// how far the pointer has to go for one degree of a handle (the handle's own way round on the screen)
+function foldRate(F, k) {
+  const a = view3d.project(foldTip(F, k)), b = view3d.project(foldTip(F, k, F.ang[k] + 1));
+  if (!a || !b) return { x: 0, y: -1, k: 1 };
+  let mx = b.x - a.x, my = b.y - a.y, l = Math.hypot(mx, my);
+  if (l < 0.3) { mx = 0; my = -1; l = 0.3; } else { mx /= l; my /= l; }
+  return { x: mx, y: my, k: 1/Math.max(l, 0.3) };
+}
+// one step: the cloth before it named by a drape snapshot, so undo puts it back exactly
+function foldStep(F) { if (F.pushed) return; drapeCapture(); push("Fold Arrangement"); F.pushed = true; }
+function foldSettle(F) {
+  for (const pid of F.base.keys()) { const it = G3.items.get(pid); if (it) it.draped = true; }
+  commit(); drapeCapture();                                  // the cloth after it, for redo
+  F.sum = foldSum(F); F.pushed = false;
+}
+function foldDragStart(e, k) {
+  const F = G3.foldLive;
+  if (!F) return false;
+  foldRebase(F);
+  const G = G3.foldLive;
+  G.drag = { k, x: e.clientX, y: e.clientY, a0: G.ang[k], acc: 0 };
+  return true;
+}
+function foldDragMove(e) {
+  const F = G3.foldLive, d = F && F.drag;
+  if (!d) return;
+  const r = foldRate(F, d.k);
+  d.acc += ((e.clientX - d.x)*r.x + (e.clientY - d.y)*r.y)*r.k; d.x = e.clientX; d.y = e.clientY;
+  let a = d.a0 + d.acc;
+  if (e.shiftKey) a = Math.round(a/FOLD_SNAP)*FOLD_SNAP;
+  a = Math.max(-360, Math.min(360, a));
+  if (Math.abs(a - F.ang[d.k]) < 1e-9) return;
+  foldStep(F); F.ang[d.k] = a; foldApply(F);
+}
+function foldDragEnd() {
+  const F = G3.foldLive, d = F && F.drag;
+  if (!d) return;
+  F.drag = null;
+  if (F.pushed) foldSettle(F);
+  view3d.ask();
+}
+// Esc while dragging: the side back where the drag began, no step
+function foldDragCancel() {
+  const F = G3.foldLive, d = F && F.drag;
+  if (!d) return false;
+  F.drag = null; F.ang[d.k] = d.a0; foldApply(F);
+  if (F.pushed) { unpush(); F.pushed = false; }
+  return true;
+}
+// the box: both sides' angles; the cloth follows every number typed; OK keeps both (one step, with a drag just before it), Esc puts both back
+function foldDialog(at) {
+  const F0 = G3.foldLive;
+  if (!F0) return;
+  if (!F0.drag) foldRebase(F0);
+  const F = G3.foldLive, a0 = F.ang.slice();
+  F.drag = null;
+  let done = false;
+  numDialog("Fold Arrangement", FOLD_SIDES.map((sd, k) => ({ k: "a" + k, label: sd.name, val: +a0[k].toFixed(1), unit: "°", step: 5 })), at, (v) => {
+    done = true;
+    const want = [0, 1].map(k => (Number.isFinite(v["a" + k]) ? Math.max(-360, Math.min(360, v["a" + k])) : a0[k]));
+    F.ang = a0.slice(); foldApply(F);
+    if (want[0] === a0[0] && want[1] === a0[1]) { if (F.pushed) foldSettle(F); return; }
+    foldStep(F); F.ang = want; foldApply(F); foldSettle(F);
+  }, { hint: "Each side turns about the line by its angle, from where it hung when the ring was put on; the cloth follows the numbers as you type. OK keeps both, Esc puts both back.",
+       preview: (v) => { if ([0, 1].every(k => Number.isFinite(v["a" + k]))) { F.ang = [v.a0, v.a1]; foldApply(F); } return null; },
+       onCancel: () => { if (done) return; F.ang = a0.slice(); foldApply(F); if (F.pushed) foldSettle(F); } });
 }
 TOOL3.fold_arrangement = {
   cursor: "crosshair",
-  down(e) { const h = clothLineHit(e); if (!h) return false; this.h = h; return true; },
-  up(e) { const h = this.h; this.h = null; if (h) foldDialog(h, { x: e.clientX, y: e.clientY }); },
+  down(e) {
+    if (G3.foldLive) { const k = foldHandleAt(e); if (k >= 0) return foldDragStart(e, k); }
+    const hl = clothLineHit(e), hs = foldSeamHit(e), h = hl && hs ? (hs.d < hl.d ? hs : hl) : hl || hs;      // the nearer of a line and a seam
+    if (!h) { foldEnd(); return false; }
+    foldStart(h);
+    return true;
+  },
+  move(e) {
+    const F = G3.foldLive;
+    if (!F || !F.drag) return;
+    // the right button going down while the left is held: the angle box (as the gizmo's)
+    const rbt = !!(e.buttons & 2), was = !!F.drag.rb;
+    F.drag.rb = rbt;
+    if (rbt && !was) return void foldDialog({ x: e.clientX, y: e.clientY });
+    foldDragMove(e);
+  },
+  up() { foldDragEnd(); },
   hover(e) {
+    const F = G3.foldLive;
+    if (F) { const k = foldHandleAt(e); if (k !== F.hot) { F.hot = k; view3d.ask(); } if (k >= 0) return; }
     const h = clothLineHit(e), was = G3.hotLine;
     G3.hotLine = h ? { pid: h.p.id, kind: h.kind, id: h.id } : null;
-    if (JSON.stringify(was) !== JSON.stringify(G3.hotLine)) { clothLines(); note3d(h ? "Click to fold " + h.p.name + " along this " + (h.kind === "bases" ? "baseline" : "internal line") : ""); view3d.ask(); }
+    if (JSON.stringify(was) !== JSON.stringify(G3.hotLine)) { clothLines(); view3d.ask(); }
+    if (!F) note3d(h ? "Click to put the fold ring on this " + (h.kind === "bases" ? "baseline" : "internal line") + " of " + h.p.name : foldSeamHit(e) ? "Click to put the fold ring on this seam" : "");
   },
-  menu(e) { garmentMenu(e); },
-  off() { G3.hotLine = null; clothLines(); },
+  menu(e) { if (G3.foldLive && (G3.foldLive.drag || foldHandleAt(e) >= 0 || clothLineHit(e) || foldSeamHit(e))) return foldDialog({ x: e.clientX, y: e.clientY }); garmentMenu(e); },
+  off() { G3.hotLine = null; clothLines(); foldEnd(); },
 };
+// Esc with Fold Arrangement in hand: a drag given up, else the ring put away
+function foldEsc() { if (S.tool3 !== "fold_arrangement" || !G3.foldLive) return false; if (!foldDragCancel()) foldEnd(); return true; }
 function unfoldPieces(only) {
   const ps = (only ? S.sel.map(byId).filter(Boolean) : S.pieces).filter(p => p.fold);
   if (!ps.length) return toast("Nothing is folded");

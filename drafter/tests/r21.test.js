@@ -168,7 +168,8 @@ test("r21 / 1, 2: the background image, the lights, each fabric's roll and nesti
     audit("Background Image: Scale", () => { app.ev("backdropStart")("scale"); const a = sc(110, 110), b = sc(210, 110); app.answer = () => ({ len: 50 }); app.click(a.x, a.y); app.click(b.x, b.y); app.answer = null; });
     audit("Background Image: Opacity", () => { app.answer = () => ({ op: 40 }); app.ev("backdropOpacity")({ x: 10, y: 10 }); app.answer = null; });
     const bgRow = (n) => app.ev("backdropRows")({ x: 10, y: 10 }).find(r => r.n === n).f();
-    audit("Background Image: Lock", () => bgRow("Lock Background Image"));
+    // (Round UI-1e / D: Lock Background Image is gone, the maintainer's brief; Rotate, typed in its box, in its place)
+    audit("Background Image: Rotate", () => { app.answer = () => ({ a: 15 }); app.ev("backdropRotateDialog")({ x: 0, y: 0 }); app.answer = null; });
     audit("Background Image: Hide", () => bgRow("Hide Background Image"));
     audit("Background Image: Remove", () => bgRow("Remove Background Image"));
     // the document's lights (r19 follow-up, H22)

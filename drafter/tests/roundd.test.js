@@ -279,8 +279,8 @@ test("D8: Settings ▸ Preferences as W31: Gizmo (World Coordinate is ours), Sma
     return out;` }).result;
   assert.deepStrictEqual(o.rows, ["Gizmo >", "---", "3D Grid Brightness…" /* (built in Round r20 / 9) */, "Smart Guide [x]", "Snap to Pattern [x]", "Snap to Grid", "Grid Properties…", "---", "History for New Projects >" /* (Round H1b / 3) */, "Show Tool Hints", "Keep the Old Future Without Asking" /* (Round H1c / A) */, "Keep Cloth at Branch Points" /* (Round H1b / 1) */, "Open Files with Their Display Settings", "---",      /* (Round r17b: Grid Properties built, the display settings of a file) */
     "Camera Properties >", "Simulation Properties…", "---", "Fit Properties (not built yet)"]);
-  // (Round r15 / 8: the three coordinates are built, Screen the default)
-  assert.deepStrictEqual(o.gizmo, ["Screen Coordinate [x]", "Local Coordinate", "World Coordinate", "Size: Small (110 px)", "Size: Medium (165 px) [x]", "Size: Large (220 px)"], "(Round F / 6: its size as well)");
+  // (Round r15 / 8: the three coordinates are built, Screen the default; Round UI-1 / C: World the default, the maintainer's decision)
+  assert.deepStrictEqual(o.gizmo, ["Screen Coordinate", "Local Coordinate", "World Coordinate [x]", "Size: Small (110 px)", "Size: Medium (165 px) [x]", "Size: Large (220 px)"], "(Round F / 6: its size as well)");
   assert.strictEqual(o.smart, false, "the tick switches the setting");
   assert.deepStrictEqual([o.grid1, o.grid0], [10, 0]);
   assert.strictEqual(o.sim, "Simulation Settings");

@@ -394,4 +394,34 @@ test("a right-click while a ring is dragged opens the box for the angle: Enter t
   assert.deepStrictEqual(o.opened[2], ["Turn in 3D", "Turn in 3D"]);
 });
 
+// (Round UI-1 / C, the maintainer's brief) World Coordinate is the default; seen from straight above, the rings about the two level axes
+// (X, Z) stand on edge as lines on the screen: each must still be found under the pointer somewhere along it (not only the arrow lying
+// on the same line), and a drag along it must turn the pattern about that level axis
+test("ui1 / C2: World Coordinate, the default: seen from straight above, the X and Z rings are picked along their lines and turn the pattern about the level axis", () => {
+  const r = boot({ script: DOC.replace('app.setPrefs({ gizSpace: "world" });', 'out.def = S.prefs.gizSpace;') + `
+    cam(0.3, Math.PI/2 - 0.002);
+    const C = app.ev("SIM3D");
+    for (const k of ["x", "z"]) {
+      // every place round the ring on the screen that picks it
+      const fs = []; for (let i = 0; i < 64; i++) { const f = i/64*2*Math.PI, q = onRing(k, f); if (hit(q.x, q.y) === "turn:" + k) fs.push(f); }
+      out["n" + k] = fs.length;
+      if (!fs.length) continue;
+      const f = fs[Math.floor(fs.length/2)], a = onRing(k, f), q0 = quat(A);
+      // drag along the line the ring makes on the screen, away from the gizmo's middle and back across
+      const g = geom(), dx = a.x - g.o2.x, dy = a.y - g.o2.y, L = Math.hypot(dx, dy) || 1;
+      press(a.x, a.y); drag(a.x - dy/L*30, a.y + dx/L*30); drag(a.x + dx/L*30, a.y + dy/L*30);
+      const deg = T3.d && T3.d.val ? T3.d.val.deg : 0; let_go(0, 0);
+      const q1 = quat(A), dq = C.qMul(q1, [-q0[0], -q0[1], -q0[2], q0[3]]), s = Math.hypot(dq[0], dq[1], dq[2]);
+      out["turn" + k] = [+Math.abs(deg).toFixed(1), s > 1e-6 ? [dq[0]/s, dq[1]/s, dq[2]/s].map(v => +Math.abs(v).toFixed(3)) : null];
+      app.undo();
+    }
+    return out;` });
+  assert.deepStrictEqual(r.errors, []);
+  const o = r.result;
+  assert.strictEqual(o.def, "world");
+  assert.ok(o.nx >= 6 && o.nz >= 6, "the rings on edge are picked along their lines: X " + o.nx + ", Z " + o.nz + " of 64 places");
+  assert.ok(o.turnx[0] > 3 && o.turnx[1][0] > 0.99, "turned about X: " + JSON.stringify(o.turnx));
+  assert.ok(o.turnz[0] > 3 && o.turnz[1][2] > 0.99, "turned about Z: " + JSON.stringify(o.turnz));
+});
+
 module.exports = T;

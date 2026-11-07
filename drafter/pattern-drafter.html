@@ -17,11 +17,21 @@
     --text:    #d2d2d2;
     --dim:     #8b8b8d;
     --dimmer:  #5c5c5e;
-    --sel:     #ecfd3f;
+    /* (Round UI-1 / B, the maintainer's brief) THE UI'S ONE ACCENT: the logo's orange, here and nowhere else. Grey scale, warm white and
+       these. Contrast (WCAG ratio, normal / protanopia / deuteranopia, Machado 2009): --accent-line on the chrome #2d2d2e 4.87 / 3.93 / 5.50,
+       on the lightest menu hover #3c3c3e 3.90 / 3.14 / 4.40 (lines and outlines need 3); --accent-text on #2d2d2e 6.70 / 5.79 / 7.30, on
+       #3c3c3e 5.36 / 4.63 / 5.84 (text needs 4.5); --accent (the brand orange) only on the darkest bar #1e1e20, 4.14 / 2.95 / 4.93, as a
+       mark beside a word or shape; white on --accent-fill 6.58 / 8.85 / 5.63. The 2D and 3D canvases keep their own colours (C_SEL, ...). */
+    --accent:      #E8412F;
+    --accent-line: #F2745F;
+    --accent-text: #FF9A88;
+    --accent-fill: #B02A1A;
+    --accent-bg:   #4a2420;
+    --warm-white:  #FAFAF7;
+    --sel:     var(--accent-line);
     --paper:   #ffffff;
     --ink:     #333333;
     --seam:    #8d8d8d;
-    --saband:  #81b2dc;
     --notch:   #ff0000;
     --base:    #5a7fa8;
     --sans: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -38,7 +48,8 @@
   #menubar { grid-column: 1/3; background: var(--bar); display: flex; align-items: center; gap: 2px; padding: 0 6px;
     font-size: 12px; color: #d0d0d0; border-bottom: 1px solid #101011; }
   #menubar .mb { padding: 3px 8px; border-radius: 2px; cursor: pointer; }
-  #menubar .mb:hover, #menubar .mb.on, #menubar .mb.open { background: var(--menu-hi); }
+  #menubar .mb:hover { background: var(--menu-hi); }
+  #menubar .mb.on, #menubar .mb.open { background: var(--accent-bg); box-shadow: inset 0 -2px 0 var(--accent-line); color: #fff; }
   #menubar .grow { flex: 1; }
   #title { font-size: 11px; color: #9a9a9a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   /* (Round r19 / H21) the mode: one drop-down naming the one in use, as the reference's "SIMULATION be" (two buttons before) */
@@ -50,7 +61,7 @@
   #s-lib { display: flex; align-items: center; margin-left: 8px; background: none; border: 1px solid transparent; border-radius: 2px; color: var(--text); padding: 1px 4px; cursor: pointer; }
   #s-lib:hover { border-color: #77777c; }
   /* (Round r24) a newer version: the desktop app's button, its state in words (and its frame dashed while downloading) */
-  #s-upd { margin-left: 8px; background: none; border: 1px solid #E8412F; border-radius: 2px; color: var(--text); padding: 1px 8px; font: 11px Segoe UI, Arial, sans-serif; cursor: pointer; }
+  #s-upd { margin-left: 8px; background: none; border: 1px solid var(--accent); border-radius: 2px; color: var(--text); padding: 1px 8px; font: 11px Segoe UI, Arial, sans-serif; cursor: pointer; }
   #s-upd:hover { background: #3c3c3e; }
   #s-upd:disabled { border-style: dashed; cursor: default; }
   #s-upd.ready { font-weight: 600; border-width: 2px; }
@@ -88,7 +99,7 @@
   #split:hover, #split:active { background: #3a3a3e; }
   /* a toolbar is dragged by its empty part to dock it elsewhere; the tools keep their own cursor */
   .rail { cursor: grab; } .rail .slot, .rail .tool { cursor: pointer; }
-  #dockhint { display: none; position: fixed; z-index: 96; background: #ecfd3f2e; border: 1px dashed var(--sel); pointer-events: none; }
+  #dockhint { display: none; position: fixed; z-index: 96; background: #e8412f2e; border: 1px dashed var(--sel); pointer-events: none; }
   /* the 2D toolbar docked along the top of its window */
   #pane2d.dock-top { flex-direction: column; }
   #pane2d.dock-top #rail { order: -1; display: flex; flex-wrap: wrap; width: auto; padding: 2px 4px; border-left: none; border-bottom: 1px solid #171718; overflow: visible; }
@@ -113,7 +124,7 @@
   #sel-lay { left: 8px; top: 8px; }
   /* (Round r19 / H23, H28) the fabric tabs along the top of Print Layout; its commands as icons down its right edge */
   #lay-bar .laytab { background: none; border: none; border-bottom: 2px solid transparent; color: #c4c4c4; font-size: 11px; padding: 3px 14px; cursor: pointer; flex: none; }
-  #lay-bar .laytab:hover { background: #ffffff14; } #lay-bar .laytab.on { border-bottom-color: var(--saband); color: #fff; font-weight: 600; }
+  #lay-bar .laytab:hover { background: #ffffff14; } #lay-bar .laytab.on { border-bottom-color: var(--accent-line); color: #fff; font-weight: 600; }
   #lay-tools { position: absolute; right: 0; top: 0; bottom: 0; width: 36px; display: flex; flex-direction: column; gap: 2px; padding: 4px 3px; background: var(--chrome); border-left: 1px solid #171718; z-index: 5; }
   #lay-tools button { width: 30px; height: 28px; border: 1px solid transparent; border-radius: 2px; background: none; cursor: pointer; padding: 0; display: grid; place-items: center; }
   #lay-tools button:hover:not(:disabled) { background: #ffffff1c; } #lay-tools button.on { border-color: var(--sel); }
@@ -124,10 +135,16 @@
   #stage3d { position: relative; isolation: isolate; background: #9c9c9f; overflow: hidden; flex: 1; min-height: 0; }
   #box3d { display: none; position: absolute; border: 1px dashed #fff; background: #ffffff22; pointer-events: none; }
   #lasso3d { display: none; position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
-  #cam3d { position: absolute; right: 8px; top: 8px; display: flex; gap: 2px; flex-wrap: wrap; justify-content: flex-end; max-width: 62%; }
-  #cam3d button { background: #2b2b2ecc; color: #d8d8dc; border: 1px solid #1a1a1c; font: 10px var(--mono); padding: 3px 6px; cursor: pointer; }
-  #cam3d button:hover { background: #3a3a3e; color: #fff; }
-  #posepanel { display: none; position: absolute; right: 8px; top: 34px; bottom: 26px; width: 268px; overflow-y: auto; background: #2b2b2ef2; border: 1px solid #1a1a1c; color: #d8d8dc; font: 11px Segoe UI, Arial, sans-serif; padding: 6px 8px; }
+  /* (Round UI-1b / B) the view cube and its house (above left of it), in the corner where the eight view buttons were */
+  #cam3d { position: absolute; right: 4px; top: 4px; width: 148px; height: 148px; z-index: 4; }
+  #cam3d #vcube { display: block; width: 148px; height: 148px; cursor: grab; touch-action: none; }
+  /* (Round UI-1c / C, the maintainer's brief) Home: the house alone, no button or frame, small and half see-through grey, close to the
+     cube's top left corner; under the pointer whole, orange and its lines thicker (the thickness as well as the colour) */
+  #cam3d #vhome { position: absolute; left: 2px; top: 2px; width: 18px; height: 18px; padding: 0; display: grid; place-items: center; background: none; border: none; color: #3a3a3e; opacity: .55; cursor: pointer; }
+  #cam3d #vhome:hover, #cam3d #vhome:focus-visible { opacity: 1; color: var(--accent); }
+  #cam3d #vhome svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  #cam3d #vhome:hover svg { stroke-width: 2.3; }
+  #posepanel { display: none; position: absolute; right: 8px; top: 156px; bottom: 26px; width: 268px; overflow-y: auto; background: #2b2b2ef2; border: 1px solid #1a1a1c; color: #d8d8dc; font: 11px Segoe UI, Arial, sans-serif; padding: 6px 8px; }
   #posepanel .pph { display: flex; align-items: center; margin-bottom: 4px; } #posepanel .pph .grow { flex: 1; }
   #posepanel button, #posepanel select { background: #3a3a3e; color: #e4e4e8; border: 1px solid #1a1a1c; font: 11px Segoe UI, Arial, sans-serif; padding: 2px 6px; cursor: pointer; }
   #posepanel .ppb { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; } #posepanel .ppb select { flex: 1; min-width: 0; }
@@ -142,14 +159,14 @@
   #aved .ae-title button { background: none; border: none; color: #e4e4e4; font-size: 16px; cursor: pointer; }
   #aved .ae-tabs { display: flex; gap: 2px; padding: 6px 8px 0; border-bottom: 1px solid #3a3a3e; }
   #aved .ae-tabs button { background: none; border: none; border-bottom: 2px solid transparent; color: #cfcfd4; padding: 4px 8px; cursor: pointer; font: 12px Segoe UI, Arial, sans-serif; }
-  #aved .ae-tabs button.on { color: #fff; font-weight: 600; border-bottom-color: #e4e4e8; }
+  #aved .ae-tabs button.on { color: #fff; font-weight: 600; border-bottom-color: var(--accent-line); }
   #aved .ae-body { flex: 1; overflow: auto; padding: 8px 14px 14px; }
   #aved .ae-icons { display: flex; justify-content: flex-end; gap: 4px; } #aved .ae-icons button { background: none; border: 1px solid transparent; color: #e4e4e4; cursor: pointer; font-size: 14px; }
   #aved .ae-sec { display: flex; align-items: center; gap: 6px; margin: 6px 0; } #aved .ae-sec b { border-left: 2px solid #d8d8dc; padding-left: 6px; margin-right: auto; font-weight: 600; }
   #aved select, #aved input[type="text"] { background: #1e1e20; color: #e4e4e8; border: 1px solid #101011; font: 12px Segoe UI, Arial, sans-serif; padding: 2px 4px; }
   #aved input[type="text"] { width: 72px; text-align: right; font-family: var(--mono); } #aved input.set { border-color: #e4e4e8; font-weight: 700; }
   #aved .ae-wh { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0 8px; } #aved .ae-wh label { margin-left: 6px; }
-  #aved .ae-link { background: #3a3a3e; color: #e4e4e8; border: 1px solid #101011; cursor: pointer; padding: 1px 4px; } #aved .ae-link.on { background: #e4e4e8; color: #111; }
+  #aved .ae-link { background: #3a3a3e; color: #e4e4e8; border: 1px solid #101011; cursor: pointer; padding: 1px 4px; } #aved .ae-link.on { background: var(--accent-line); color: #111; }
   #aved .ae-boxes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
   #aved .ae-box { background: #2b2b2e; padding: 6px 10px 8px; } #aved .ae-box h4 { margin: 4px 0; font-weight: 500; color: #cfcfd4; display: flex; justify-content: space-between; }
   #aved .ae-box h4 button { background: none; border: none; color: #e4e4e4; cursor: pointer; }
@@ -159,7 +176,7 @@
   #aved .hint { color: #b8b8be; margin: 10px 0; }
   #aved .ae-list { background: #2b2b2e; min-height: 160px; max-height: 40%; overflow: auto; padding: 4px 0; margin-bottom: 8px; } #aved .ae-tree { padding: 2px 10px; color: #cfcfd4; }
   #aved .ae-item { display: flex; width: 100%; align-items: center; gap: 6px; background: none; border: none; color: #d8d8dc; padding: 3px 10px 3px 26px; text-align: left; cursor: pointer; font: 12px Segoe UI, Arial, sans-serif; }
-  #aved .ae-item.on { background: #3a3f4c; color: #fff; font-weight: 600; box-shadow: inset 3px 0 0 #e4e4e8; }
+  #aved .ae-item.on { background: var(--accent-bg); color: #fff; font-weight: 600; box-shadow: inset 3px 0 0 var(--accent-line); }
   #aved .ae-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-left: auto; box-shadow: 0 0 0 1px #111; }
   #aved .ae-props.off { opacity: 0.5; } #aved .ae-ro { font-family: var(--mono); color: #d8d8dc; } #aved input.wide { width: 180px; text-align: left; font-family: Segoe UI, Arial, sans-serif; }
   #aved .ae-chk { flex: 0 0 auto !important; }
@@ -167,34 +184,35 @@
   #aved .ae-col .ae-row input[type="range"] { width: 90px; }
   #aved .ae-ikbtns { display: flex; gap: 6px; justify-content: flex-end; margin: 4px 0; } #aved .ae-body { display: block; height: 180px; margin: 6px auto; }
   #aved .ae-body path { fill: #4a4a50; } #aved .ae-body circle.on { fill: #ffffff; stroke: #111; stroke-width: 1.2; } #aved .ae-body circle.off { fill: none; stroke: #e4e4e8; stroke-width: 1; stroke-dasharray: 1.6 1.2; }
-  #aved .ae-body circle.armed { fill: #e69f00; stroke: #111; stroke-width: 1.4; }
-  #aved .ae-row.ik { margin: 1px 0; } #aved .ae-row.ik select { max-width: 52%; } #aved .ae-row.armed { background: #3a3f4c; box-shadow: inset 3px 0 0 #e69f00; }
+  #aved .ae-body circle.armed { fill: var(--accent-line); stroke: #111; stroke-width: 1.4; }
+  #aved .ae-row.ik { margin: 1px 0; } #aved .ae-row.ik select { max-width: 52%; } #aved .ae-row.armed { background: var(--accent-bg); box-shadow: inset 3px 0 0 var(--accent-line); }
   #aved .ae-slot { flex: 1; text-align: left; background: none; border: none; color: #d8d8dc; cursor: pointer; font: 12px Segoe UI, Arial, sans-serif; padding: 2px 4px; }
   #aved .ae-fold { background: none; border: none; color: #d8d8dc; cursor: pointer; font: 12px Segoe UI, Arial, sans-serif; padding: 3px 0; } #aved .ae-grp { margin-left: 4px; }
-  #aved .ae-ok { color: #fff; font-weight: 600; } #aved .ae-miss { color: #e69f00; font-weight: 600; }
+  #aved .ae-ok { color: #fff; font-weight: 600; } #aved .ae-miss { color: var(--accent-text); font-weight: 600; }
   #aved .ae-suit { display: grid; grid-template-columns: 1fr 1fr; align-items: center; } #aved .ae-mir { color: #8a8a90; font-size: 12px; }
-  #aved .ae-slot.armed { background: #3a3f4c; box-shadow: inset 3px 0 0 #e69f00; font-weight: 600; color: #fff; }
-  #aved .ae-body line { stroke-width: 2.2; } #aved .ae-body line.on { stroke: #ffffff; } #aved .ae-body line.off { stroke: #8a8a90; stroke-dasharray: 2 2; } #aved .ae-body line.armed { stroke: #e69f00; stroke-width: 3; }
-  #aved .ae-wide { width: 100%; margin-top: 10px; } #aved .ae-icons button.on { background: #e4e4e8; color: #111; }
+  #aved .ae-slot.armed { background: var(--accent-bg); box-shadow: inset 3px 0 0 var(--accent-line); font-weight: 600; color: #fff; }
+  #aved .ae-body line { stroke-width: 2.2; } #aved .ae-body line.on { stroke: #ffffff; } #aved .ae-body line.off { stroke: #8a8a90; stroke-dasharray: 2 2; } #aved .ae-body line.armed { stroke: var(--accent-line); stroke-width: 3; }
+  #aved .ae-wide { width: 100%; margin-top: 10px; } #aved .ae-icons button.on { background: var(--accent-line); color: #111; }
   #aved .ae-star { background: none; border: none; color: #b8b8be; cursor: pointer; font-size: 13px; } #aved .ae-star.on { color: #fff; }
   #avtabs { position: absolute; left: 0; right: 0; bottom: 0; height: 26px; z-index: 32; background: #1c1c1e; border-top: 1px solid #101011; display: flex; gap: 2px; padding: 0 6px; }
   #avtabs button { background: none; border: none; border-top: 2px solid transparent; color: #cfcfd4; padding: 0 10px; cursor: pointer; font: 12px Segoe UI, Arial, sans-serif; }
-  #avtabs button.on { color: #fff; font-weight: 600; border-top-color: #e4e4e8; background: #2b2b2e; }
-  #jointpanel { display: none; position: absolute; right: 8px; top: 34px; width: 188px; background: #2b2b2ef2; border: 1px solid #1a1a1c; color: #d8d8dc; font: 11px Segoe UI, Arial, sans-serif; padding: 0 0 6px; z-index: 6; }
+  #avtabs button.on { color: #fff; font-weight: 600; border-top-color: var(--accent-line); background: #2b2b2e; }
+  #jointpanel { display: none; position: absolute; right: 8px; top: 156px; width: 188px; background: #2b2b2ef2; border: 1px solid #1a1a1c; color: #d8d8dc; font: 11px Segoe UI, Arial, sans-serif; padding: 0 0 6px; z-index: 6; }
   #jointpanel.beside { right: 286px; }
   #jointpanel .jph { text-align: center; padding: 4px 6px; border-bottom: 1px solid #1a1a1c; margin-bottom: 4px; }
   #jointpanel .jpr { display: flex; align-items: center; gap: 4px; padding: 3px 8px; } #jointpanel .jpr .grow { flex: 1; }
   #jointpanel .jpr b { font-weight: 600; border-left: 2px solid #d8d8dc; padding-left: 5px; }
   #jointpanel .jpr.sub { background: #333336; margin: 0 6px; }
   #jointpanel button { background: #3a3a3e; color: #e4e4e8; border: 1px solid #1a1a1c; font: 11px Segoe UI, Arial, sans-serif; padding: 2px 7px; cursor: pointer; }
-  #jointpanel button.on { background: #e4e4e8; color: #111; font-weight: 700; box-shadow: inset 0 0 0 1px #111; }
+  #jointpanel button.on { background: var(--accent-line); color: #111; font-weight: 700; box-shadow: inset 0 0 0 1px #111; }
   #jointpanel button:disabled { opacity: 0.45; cursor: default; }
   #jointpanel .jseg { display: inline-flex; } #jointpanel .jseg button + button { border-left: none; }
   #jointpanel input { width: 44px; background: #1e1e20; color: #e4e4e8; border: 1px solid #1a1a1c; font: 11px var(--mono); padding: 1px 4px; text-align: right; }
   #jointpanel .jpn { padding: 4px 8px 0; color: #b8b8be; overflow-wrap: anywhere; }
   #jointpanel .ikrow { display: flex; gap: 4px; padding: 2px 8px 4px; } #jointpanel .ikrow button { flex: 1; padding: 2px 0; position: relative; }
   #jointpanel .ikrow svg { width: 22px; height: 22px; display: block; margin: 0 auto; fill: none; stroke: currentColor; stroke-width: 1.6; }
-  #giz3d { position: absolute; display: none; pointer-events: none; z-index: 5; background: #1c1c1eee; color: #fff; border: 1px solid #f0e442; font: 11px var(--mono); padding: 3px 7px; white-space: nowrap; }
+  .fold-read { position: absolute; display: none; pointer-events: none; z-index: 5; background: #1c1c1eee; color: #fff; border: 2px solid; font: 11px var(--mono); padding: 2px 6px; white-space: nowrap; }      /* (Round UI-1e / B) each fold handle's angle: its number and shape first, then the angle */
+  #giz3d { position: absolute; display: none; pointer-events: none; z-index: 5; background: #1c1c1eee; color: #fff; border: 1px solid var(--accent-line); font: 11px var(--mono); padding: 3px 7px; white-space: nowrap; }
   .fps3d { position: absolute; left: 10px; bottom: 30px; pointer-events: none; z-index: 4; background: #1c1c1ee6; color: #fff; font: 10px var(--mono); padding: 3px 6px; }
   #strain3d { position: absolute; right: 10px; bottom: 30px; display: none; pointer-events: none; z-index: 4; background: #1c1c1ee6; color: #fff; font: 10px var(--mono); padding: 5px 7px; width: 190px; }
   #strain3d .bar { height: 10px; margin: 4px 0 2px; border: 1px solid #fff; }
@@ -231,7 +249,7 @@
   #ob-tabs { display: flex; flex-wrap: wrap; gap: 1px; padding: 3px 4px 0; flex: none; }
   #ob-tabs button { width: 26px; height: 24px; border: none; border-bottom: 2px solid transparent; background: none; cursor: pointer; padding: 0; display: grid; place-items: center; }
   #ob-tabs button:hover { background: #ffffff14; }
-  #ob-tabs button.on { border-bottom-color: var(--saband); }
+  #ob-tabs button.on { border-bottom-color: var(--accent-line); }
   #ob-tabs button svg { width: 18px; height: 18px; fill: none; stroke: #d6d6d6; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
   #ob-bar { display: flex; align-items: center; gap: 4px; padding: 4px 6px; flex: none; font-size: 11px; color: var(--dim); }
   #ob-bar .nm { flex: 1; color: #c4c4c4; }
@@ -241,10 +259,10 @@
   #ob-body { flex: 1; overflow-y: auto; padding: 0 6px 6px; }
   .obi { display: flex; align-items: center; gap: 7px; padding: 3px 4px; border: 1px solid transparent; border-radius: 2px; cursor: pointer; }
   .obi:hover { background: #ffffff0d; }
-  .obi.on { background: #4a4a1e; border-color: var(--sel); }
+  .obi.on { background: var(--accent-bg); border-color: var(--sel); }
   /* (Round r19 / H16) the Scene tab's group headings: not rows to click */
   .obi.hd { cursor: default; padding-top: 7px; } .obi.hd:hover { background: none; } .obi.hd b { font-weight: 600; color: #c4c4c4; }
-  .obi .ck { width: 12px; color: var(--saband); font-size: 11px; flex: none; }
+  .obi .ck { width: 12px; color: var(--accent-text); font-size: 11px; flex: none; }
   .obi .sw { width: 30px; height: 22px; border: 1px solid #5a5a5a; border-radius: 2px; flex: none; background-size: cover; background-position: center; }
   .obi .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .obi .sub { font-family: var(--mono); font-size: 9px; color: var(--dimmer); }
@@ -256,7 +274,7 @@
   details.pe .row input.w, details.pe .row select.w { width: 112px; }
   /* Property Editor sections: a collapsible heading and two columns, label and value */
   details.pe { border-bottom: 1px solid #ffffff10; padding: 2px 0 4px; }
-  details.pe > summary { font-size: 11.5px; color: var(--saband); cursor: pointer; padding: 3px 0; list-style: none; }
+  details.pe > summary { font-size: 11.5px; color: var(--accent-text); cursor: pointer; padding: 3px 0; list-style: none; }
   details.pe > summary::before { content: "\25B8  "; color: #c4c4c4; }
   details.pe[open] > summary::before { content: "\25BE  "; }
   details.pe > summary::-webkit-details-marker { display: none; }
@@ -272,9 +290,9 @@
   .item { display: flex; align-items: center; gap: 5px; padding: 3px 4px; border-radius: 2px;
     cursor: pointer; border: 1px solid transparent; }
   .item:hover { background: #ffffff0d; }
-  .item.on { background: #4a4a1e; border-color: var(--sel); }
+  .item.on { background: var(--accent-bg); border-color: var(--sel); }
   .item .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .item .lk { font-family: var(--mono); font-size: 8px; color: var(--sel); }
+  .item .lk { font-family: var(--mono); font-size: 8px; color: var(--accent-text); }
   .item .eye { width: 14px; opacity: .5; display: grid; place-items: center; flex: none; }
   .item .eye:hover { opacity: 1; }
   .item .eye svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 1.4; }
@@ -284,12 +302,12 @@
   .chips { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 6px; }
   .chip { font-family: var(--mono); font-size: 10px; padding: 2px 6px; border: 1px solid var(--rule); border-left-width: 4px; border-radius: 2px; cursor: pointer; color: var(--dim); }
   .chip:hover { color: var(--text); }
-  .chip.on { background: #4a4a1e; color: var(--sel); }
+  .chip.on { background: var(--accent-bg); color: var(--accent-text); }
   .chip.base { color: var(--text); font-weight: 600; }
   /* the Grading tab, laid out as the file's program's Size panel (Round I2) */
   .gtabs { display: flex; gap: 14px; border-bottom: 1px solid var(--rule); margin: 6px 0 4px; }
   .gtab { font-size: 11px; padding: 3px 2px; color: var(--dim); }
-  .gtab.on { color: var(--text); border-bottom: 2px solid var(--text); }
+  .gtab.on { color: var(--text); border-bottom: 2px solid var(--accent-line); }
   .gtab.nb { opacity: .45; }
   .gtop { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 4px; }
   .gtb { background: none; border: none; color: var(--text); font-size: 11px; cursor: pointer; padding: 2px 4px; }
@@ -300,7 +318,7 @@
   .gname { flex: 1; }
   .gsz { padding-left: 18px; }
   .gsz .chip { border: none; padding: 2px 4px; min-width: 34px; }
-  .gsz.on { background: #4a4a1e; }
+  .gsz.on { background: var(--accent-bg); }
   .gsz.hid .chip, .gsz.hid .gsw { opacity: .4; }
   .gsw { width: 22px; height: 10px; flex: none; }
   .gswl { position: relative; display: inline-flex; flex: none; cursor: pointer; }
@@ -319,7 +337,9 @@
     color: var(--text); font-family: var(--mono); font-size: 11px; padding: 3px 5px;
     border-radius: 2px; width: 66px; }
   input[type=text]:not([data-num]), input[data-pct] { width: 100%; }
-  input:focus { outline: none; border-color: var(--saband); }
+  input:focus { outline: none; border-color: var(--accent-line); }
+  button:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1px; }
+  html { accent-color: var(--accent-line); }      /* check boxes, radio buttons, sliders (the brand orange is under 3 : 1 on the chrome for protanopia) */
   input:disabled, .btn:disabled { opacity: .45; cursor: default; }
   .row input.w { width: 118px; }
   .row input.s { width: 50px; }
@@ -334,15 +354,15 @@
     letter-spacing: .08em; text-transform: uppercase; padding-bottom: 3px; border-bottom: 1px solid var(--rule); }
   table.ed td { padding: 2px 0; border-bottom: 1px solid #ffffff08; cursor: pointer; color: var(--dim); }
   table.ed tr:hover td { background: #ffffff0d; color: var(--text); }
-  table.ed tr.on td { background: #4a4a1e; color: var(--sel); }
+  table.ed tr.on td { background: var(--accent-bg); color: var(--accent-text); }
   table.ed .n { text-align: right; }
   table.ed .f { text-align: center; width: 11px; }
-  table.ed .sa { text-align: right; color: var(--saband); width: 26px; }
+  table.ed .sa { text-align: right; color: var(--accent-text); width: 26px; }
   table.ed .tot td { border: none; border-top: 1px solid var(--rule); color: var(--text); padding-top: 4px; }
   .seam { padding: 3px 4px; border: 1px solid transparent; border-radius: 2px; cursor: pointer;
     border-bottom-color: #ffffff08; }
   .seam:hover { background: #ffffff0d; }
-  .seam.on { background: #4a4a1e; border-color: var(--sel); }
+  .seam.on { background: var(--accent-bg); border-color: var(--sel); }
   .seam .sh { display: flex; align-items: center; gap: 5px; font-size: 11px; }
   .seam .sh i { width: 9px; height: 9px; border-radius: 50%; flex: none; }
   .seam .sh b { font-weight: 400; font-family: var(--mono); font-size: 10px; color: var(--text); }
@@ -367,12 +387,12 @@
     background: none; cursor: pointer; display: grid; place-items: center; position: relative; padding: 0; }
   .tool img { width: 24px; height: 24px; image-rendering: auto; pointer-events: none; }
   .tool:hover { background: #ffffff14; }
-  .tool.on { background: #4a4a1e; border-color: var(--sel); }
+  .tool.on { background: var(--accent-bg); border-color: var(--sel); }
   /* not built yet: dimmed, with a small ring in the corner */
   .tool.off img { opacity: .36; }
   .tool.off { cursor: help; }
   .tool.off::after { content: ""; position: absolute; left: 2px; top: 2px; width: 5px; height: 5px;
-    border: 1px solid #c9a227; border-radius: 50%; }
+    border: 1px solid #9a9a9a; border-radius: 50%; }
   .tool .tri { position: absolute; right: 1px; bottom: 1px; width: 0; height: 0;
     border-left: 4px solid transparent; border-bottom: 4px solid #9a9a9a; }
   .flyout { position: fixed; background: var(--menu);
@@ -381,11 +401,11 @@
   .flyout.open { display: block; }
   .fly-row { display: flex; align-items: center; gap: 8px; padding: 3px 8px 3px 3px;
     border-radius: 2px; cursor: pointer; }
-  .fly-row:hover { background: var(--menu-hi); }
-  .fly-row.on { background: #4a4a1e; }
+  .fly-row:hover { background: var(--accent-bg); box-shadow: inset 3px 0 0 var(--accent-line); }
+  .fly-row.on { background: var(--accent-bg); outline: 1px solid var(--accent-line); outline-offset: -1px; }
   .fly-row.off img, .fly-row.off .fn { opacity: .5; }
   .fly-row.off { cursor: help; }
-  .fly-row .nb { font-size: 9px; color: #c9a227; border: 1px solid #6b5a1c; border-radius: 2px; padding: 0 3px; }
+  .fly-row .nb { font-size: 9px; color: #b8b8be; border: 1px solid #5a5a5e; border-radius: 2px; padding: 0 3px; }
   .fly-row img { width: 26px; height: 26px; flex: none; }
   .fly-row .fn { font-size: 11.5px; color: #e4e4e4; }
   .fly-row .fk { font-family: var(--mono); font-size: 9.5px; color: #8c8c8c;
@@ -398,7 +418,7 @@
     max-height: calc(100vh - 8px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
   #menu .mi, .msub .mi { padding: 4px 14px; font-size: 12px; cursor: pointer; display: flex;
     justify-content: space-between; gap: 20px; color: #e2e2e2; }
-  #menu .mi:hover, .msub .mi:hover { background: var(--menu-hi); }
+  #menu .mi:hover, .msub .mi:hover { background: var(--accent-bg); box-shadow: inset 3px 0 0 var(--accent-line); color: #fff; }
   #menu .mi .k, .msub .mi .k { font-family: var(--mono); font-size: 10px; color: #909090; }
   #menu .mi.sub, .msub .mi.sub { padding-left: 26px; }
   #menu .sep, .msub .sep { height: 1px; background: #3d3d3d; margin: 4px 0; }
@@ -428,11 +448,11 @@
   #timeline .tl-step .tl-k { position: absolute; left: 0; top: 0; width: 9px; height: 9px; background: #2f2f31; border-radius: 2px; }
   #timeline .tl-step .tl-k svg { width: 9px; height: 9px; stroke-width: 2.4; }
   #timeline .tl-step i { position: absolute; right: 1px; bottom: 0; font: 7.5px var(--mono); font-style: normal; color: #9a9a9a; }
-  #timeline .tl-step:hover { border-color: #6aa8ff; }
-  /* where the document is: a heavy yellow frame and a bar after it; what was undone: dashed and dim */
-  #timeline .tl-step.cur { border: 2px solid #ffd400; color: #fff; }
+  #timeline .tl-step:hover { border-color: var(--accent-line); }
+  /* where the document is: a heavy orange frame and a bar after it; what was undone: dashed and dim */
+  #timeline .tl-step.cur { border: 2px solid var(--accent-line); color: #fff; }
   #timeline .tl-step.later { border-style: dashed; opacity: .45; }
-  #timeline .tl-head { flex: none; width: 3px; height: 30px; background: #ffd400; border-radius: 1px; }
+  #timeline .tl-head { flex: none; width: 3px; height: 30px; background: var(--accent-line); border-radius: 1px; }
   #timeline .tl-nav { flex: none; width: 22px; height: 24px; border: 1px solid #4a4a4c; border-radius: 3px; background: none; color: #d0d0d0; cursor: pointer; font-size: 10px; }
   #timeline .tl-nav:disabled { opacity: .3; cursor: default; }
   #timeline .tl-name { flex: none; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 10px var(--mono); color: #b8b8b8; padding: 0 6px; }
@@ -447,7 +467,7 @@
   #s-lay { display: flex; gap: 4px; }
   #s-lay button { display: inline-flex; align-items: center; gap: 6px; height: 36px; min-width: 52px; padding: 0 10px; border: 1px solid #4a4a4c; border-radius: 4px; font-size: 12px; color: var(--text); }
   #s-lay button svg { width: 24px; height: 24px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; }
-  #s-lay button.on { border: 2px solid var(--saband); padding: 0 9px; background: #ffffff12; }
+  #s-lay button.on { border: 2px solid var(--accent-line); padding: 0 9px; background: #ffffff12; }
   #s-lay button.on svg .fill { fill: currentColor; fill-opacity: .35; }
   #s-lay #s-lay-reset { min-width: 40px; font-size: 18px; justify-content: center; }
   #status > * { white-space: nowrap; flex: none; }
@@ -460,11 +480,13 @@
   .wt-dirty { margin-left: 6px; font-size: 10px; line-height: 1; }
   #status #s-hint { display: none; }
   body.hints #status #s-hint { display: block; }
-  /* the position: a label and a slot each; the slot as wide as the widest value, the number at its right edge, digits of one width */
+  /* the position: a label and a slot each; the slot as wide as the widest value, the number at its right edge, digits of one width.
+     (Round UI-1 / D, the maintainer's brief) tighter: the slot 8 characters (-9999.99 mm, -999.99 cm, -393.70 in), the label 3 px before
+     its slot, 10 px between X's number and Y */
   #s-pos { display: inline-flex; align-items: baseline; }
-  #s-pos .pl { color: var(--dimmer); margin: 0 4px 0 8px; }
+  #s-pos .pl { color: var(--dimmer); margin: 0 3px 0 10px; }
   #s-pos .pl:first-child { margin-left: 0; }
-  #s-pos .pv { display: inline-block; width: 11ch; text-align: right; font-variant-numeric: tabular-nums; color: var(--dim); }
+  #s-pos .pv { display: inline-block; width: 8ch; text-align: right; font-variant-numeric: tabular-nums; color: var(--dim); }
   #timeline .tl-name .num { display: inline-block; min-width: 4ch; text-align: right; font-variant-numeric: tabular-nums; }
   #s-save.ok { color: var(--dimmer); }
   #s-save.pending { color: var(--dim); }
@@ -472,7 +494,15 @@
   #status button { background: none; border: none; color: var(--dim); font-family: var(--mono);
     font-size: 11px; cursor: pointer; min-height: 30px; }
   #status button:hover { color: var(--text); }
-  #status button.on { color: var(--saband); }
+  #status button.on { color: var(--accent-text); }
+  /* (Round UI-1 / D, the maintainer's brief) History: a button of the layout buttons' size, its own icon in the UI grey, orange with a thick
+     frame while the panel is open (the frame, not the colour alone). (Round UI-1c / D) The icon is a seam ripper's tip, drawn for this program,
+     diagonal: a short stub of the shaft, the fork's curved blade (the U), the long pointed prong (filled, tapering to its point) and the
+     short prong with its ball; no handle. Drawn at 20 px and checked at 16 and 20 px (UI-1b's had the whole tool, UI-1's a sewing machine) */
+  #status #s-hist { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 12px 0 9px; border: 1px solid #4a4a4c; border-radius: 4px; font: 12px var(--sans); color: var(--text); letter-spacing: .02em; }
+  #status #s-hist:hover { border-color: #77777c; }
+  #status #s-hist.on { border: 2px solid var(--accent-line); padding: 0 11px 0 8px; color: var(--accent-text); background: #ffffff12; }
+  #s-hist .hist-ic { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
   #dlg { position: fixed; z-index: 120; background: var(--menu); border: 1px solid #5a5a5a;
     border-radius: 3px; box-shadow: 0 10px 30px #000b; padding: 0; display: none; min-width: 196px; }
   #dlg .dt { font-size: 11px; color: #cfcfcf; padding: 6px 10px; background: #303032;
@@ -528,13 +558,13 @@
   #tracepanel .tp-r > span:first-child { border-left: 2px solid #8a8a8a; padding-left: 5px; flex: 1; }
   #tracepanel .tp-sw { display: inline-flex; border: 1px solid #6a6a6a; border-radius: 3px; overflow: hidden; }
   #tracepanel .tp-m { background: transparent; border: none; color: #cfcfcf; padding: 2px 8px; font-size: 11px; }
-  #tracepanel .tp-m.on { background: #2f80ed; color: #fff; font-weight: 600; }
+  #tracepanel .tp-m.on { background: var(--accent-fill); color: #fff; font-weight: 600; }
   #tracepanel .tp-m[disabled] { opacity: .45; }
   /* (Round r17b / 5) Shape mode's four buttons: an icon and its name, dim until a shape is selected */
   #tracepanel .tp-ops { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 0 6px 6px; }
   #tracepanel .tp-op { display: flex; flex-direction: column; align-items: center; gap: 1px; background: transparent; border: 1px solid transparent; border-radius: 3px; color: #e4e4e4; padding: 3px 1px; cursor: pointer; font-size: 9px; }
   #tracepanel .tp-op svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.4; }
-  #tracepanel .tp-op:hover:not([disabled]), #tracepanel .tp-op.on { background: #2f80ed; color: #fff; }
+  #tracepanel .tp-op:hover:not([disabled]), #tracepanel .tp-op.on { background: var(--accent-fill); color: #fff; }
   #tracepanel .tp-op[disabled] { opacity: .4; cursor: default; }
   /* the BOM Editor: in the 2D window's place, as Grading Review */
   /* Pattern Information (Round r12 / 7): a pane over the bottom of the 2D window, styled as the BOM */
@@ -609,7 +639,7 @@
   #dlg.snap2 .sum, #dlg.snap3 .sum { font-family: var(--mono); font-size: 10.5px; color: var(--text); margin: 8px 0; }
   #dlg.snap3 .tabs { display: flex; gap: 14px; margin-bottom: 6px; }
   #dlg.snap3 .tabs .tb { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--dim); font-size: 11.5px; padding: 2px 0; cursor: pointer; }
-  #dlg.snap3 .tabs .tb.on { color: var(--text); border-bottom-color: currentColor; }
+  #dlg.snap3 .tabs .tb.on { color: var(--text); border-bottom-color: var(--accent-line); }
   #dlg.snap3 .views { display: flex; flex-wrap: wrap; gap: 4px 10px; }
   #dlg.snap3 .views .df span { font-family: var(--mono); font-size: 10px; color: var(--dimmer); }
   #dlg h3 { font-size: 9px; font-weight: 400; letter-spacing: .08em; text-transform: uppercase; color: var(--dimmer); margin: 8px 0 4px; }
@@ -642,7 +672,7 @@
   .ctile.on { border: 2px solid var(--sel); }
   .ctile:disabled { color: var(--dimmer); cursor: default; }
   .chipb { padding: 1px 2px; margin-right: 4px; }
-  .chipb[aria-pressed="true"] { outline: 2px solid var(--text); }
+  .chipb[aria-pressed="true"] { outline: 2px solid var(--accent-line); }
   #dlg .df .rds label { width: auto; display: flex; align-items: center; gap: 3px; cursor: pointer; }
   #dlg .df .rds input { width: auto; }
   #dlg .da { display: flex; gap: 5px; }
@@ -662,14 +692,14 @@
   #rw-tools button { width: 28px; height: 28px; padding: 3px; background: none; border: 1px solid transparent; border-radius: 3px; color: #e4e4e4; cursor: pointer; }
   #rw-tools button:hover:not(:disabled) { background: #ffffff14; }
   #rw-tools button:disabled { opacity: .35; cursor: default; }
-  #rw-tools button.on { background: #111; border-color: #e4e4e8; }
+  #rw-tools button.on { background: var(--accent-bg); border-color: var(--accent-line); }
   #rw-tools svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
   #rw-foot { flex: none; display: flex; align-items: center; gap: 4px; height: 26px; padding: 0 6px; border-top: 1px solid #3a3a3e; font-size: 11px; color: #cfcfd4; }
   #rw-foot .btn { flex: none; width: auto; padding: 0 6px; height: 20px; font-size: 11px; }
   #rw-seq { display: flex; align-items: center; gap: 4px; margin-left: 8px; }
   #rwin .rw-prog { position: relative; margin-left: auto; width: 45%; min-width: 220px; height: 18px; border: 1px solid #777; background: #1e1e20; display: none; }
   #rwin .rw-prog.on { display: block; }
-  #rw-bar { height: 100%; width: 0; background: #0072b2; }
+  #rw-bar { height: 100%; width: 0; background: var(--accent-line); }
   #rwin .rw-prog.prep #rw-bar { width: 30% !important; animation: rw-prep 1.6s ease-in-out infinite alternate; }
   @keyframes rw-prep { from { margin-left: 0; } to { margin-left: 70%; } }
   /* (Round r34 / 8) opening a large file: a line with a moving bar at the foot of the window */
@@ -703,14 +733,14 @@
   #rw-side .lt-list .obi .btn { margin-left: auto; padding: 0 4px; }
   /* (Round r29) Schematic Render over the 3D window: the picture, which the mouse passes through, and its panel */
   #sch3d { display: none; position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; background: #fff; }
-  #schpanel { display: none; position: absolute; right: 8px; top: 34px; width: 262px; background: #2b2b2ef2; border: 1px solid #1a1a1c; color: #d8d8dc; font: 11px Segoe UI, Arial, sans-serif; padding: 0 8px 8px; z-index: 7; }
+  #schpanel { display: none; position: absolute; right: 8px; top: 156px; width: 262px; background: #2b2b2ef2; border: 1px solid #1a1a1c; color: #d8d8dc; font: 11px Segoe UI, Arial, sans-serif; padding: 0 8px 8px; z-index: 7; }
   #schpanel .sph { position: relative; text-align: center; padding: 5px 0; margin: 0 -8px 4px; border-bottom: 1px solid #1a1a1c; } #schpanel .sph button { position: absolute; right: 4px; top: 3px; background: none; border: none; color: #e4e4e4; cursor: pointer; }
   #schpanel h4 { margin: 6px 0 4px; font-weight: 500; font-size: 11px; color: #cfcfd4; border-left: 2px solid #d8d8dc; padding-left: 6px; }
   #schpanel .sr { display: flex; align-items: center; gap: 5px; margin: 3px 0; } #schpanel .sr label { flex: 1; } #schpanel .sr.nb { opacity: .5; }
   #schpanel input[type="text"] { width: 44px; text-align: right; background: #1e1e20; color: #e4e4e8; border: 1px solid #101011; font: 11px var(--mono); padding: 2px 3px; }
   #schpanel select { background: #1e1e20; color: #e4e4e8; border: 1px solid #101011; font: 11px Segoe UI, Arial, sans-serif; } #schpanel .u { font: 10px var(--mono); color: #9a9aa0; }
   #schpanel .eye { width: 20px; height: 18px; padding: 0; background: none; border: 1px solid transparent; color: #e4e4e4; cursor: pointer; font-size: 12px; line-height: 1; } #schpanel .eye.off { color: #8a8a90; border-color: #5a5a5e; }
-  #sel3d button.on { outline: 2px solid #e4e4e8; outline-offset: -2px; background: #111; }
+  #sel3d button.on { outline: 2px solid var(--accent-line); outline-offset: -2px; background: #111; }
   #dlg .s3-pv { display: flex; justify-content: center; background: #1e1e20; padding: 8px; margin-bottom: 6px; overflow: auto; } #dlg .s3-pv canvas { max-width: 100%; }
   #dlg .hint { font-size: 10px; color: var(--dimmer); margin-bottom: 7px; }
   #dlg .df .lc { display: inline-block; padding: 1px 5px; border-radius: 2px; font-weight: 600; }
@@ -724,7 +754,7 @@
   #modal .mtext { padding: 14px 12px 12px; font-size: 12px; line-height: 1.55; color: var(--text); user-select: text; }
   #modal .da { display: flex; gap: 6px; padding: 0 12px 12px; }
   #modal .btn { padding: 6px 10px; font-size: 11.5px; }
-  #modal .btn.pri { border-color: var(--sel); color: var(--sel); }
+  #modal .btn.pri { border-color: var(--accent-line); color: var(--accent-text); }
   #modal .mbox.wide { max-width: 600px; }
   #modal .mtext pre.bug { max-height: 220px; overflow: auto; background: #1e1e20; border: 1px solid #464648; padding: 8px; margin: 10px 0; font-family: var(--mono); font-size: 10.5px; line-height: 1.45; white-space: pre-wrap; user-select: text; }
   #modal .mtext .mhead { margin-bottom: 12px; }
@@ -738,7 +768,7 @@
   #dlg.avatar { width: 328px; }
   #dlg.avatar .avrow { display: flex; gap: 8px; margin-bottom: 8px; }
   #dlg.avatar .avc { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 6px 7px; background: #202021; border: 1px solid var(--rule); border-radius: 3px; color: var(--text); cursor: pointer; font-family: var(--sans); }
-  #dlg.avatar .avc:hover { border-color: var(--saband); background: #2a2a2c; }
+  #dlg.avatar .avc:hover { border-color: var(--accent-line); background: #2a2a2c; }
   #dlg.avatar .avc.none { border-style: dashed; cursor: help; }
   #dlg.avatar .avc.soon { opacity: 0.55; cursor: default; }
   #dlg.avatar .avc.soon:hover { border-color: var(--rule); background: #202021; }
@@ -831,7 +861,7 @@
   <div id="status">
     <span id="s-pos"><span class="pl">X</span><span class="pv" id="s-x">—</span><span class="pl">Y</span><span class="pv" id="s-y">—</span></span><span id="s-zoom" class="gone">—</span>
     <button id="s-unit" title="Display unit: millimetres, centimetres or inches">MM</button><button id="s-snap" class="gone" title="Grid snap. Off by default: points move freely.">GRID OFF</button><button id="s-sa" class="on gone" title="Show or hide seam allowances">SA</button><button id="s-sew" class="gone" title="Check Sewing Length: paint seams whose two sides differ. Right-click for the limits.">SEW CHECK</button>
-    <button id="s-av" class="gone" title="No avatar is loaded. Click to load one (.fbx or .glb).">NO AVATAR</button><button id="s-hist" title="History panel (D): every step as a card, the branches you made by going back, a double-click on a card goes back to it">HISTORY</button><button id="s-unbuilt" class="on gone" title="Show unbuilt tools: every planned tool has its place in the toolbars; the ones not built yet are marked with a ring. Off shows only the tools that work.">ALL TOOLS</button><span id="s-save" class="gone"></span><span id="s-over" class="gone" hidden title="Patterns that overlap another on the layout (hatched, marked ⚠): move them apart, or nest again"></span><span class="sp"></span><span id="s-hint"></span><span id="s-lay" title="Window layout"><button id="s-lay-3d" title="3D window only" aria-label="3D window only"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9"/></svg>3D</button><button id="s-lay-both" class="on" title="3D and 2D windows side by side" aria-label="3D and 2D windows side by side"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M3 5h8v14H3z"/><path d="M3 5h18v14H3zM12 5v14"/></svg>3D|2D</button><button id="s-lay-2d" title="2D window only" aria-label="2D window only"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M5 4h10l4 4v12H5z"/><path d="M5 4h10l4 4v12H5zM15 4v4h4"/></svg>2D</button><button id="s-lay-reset" title="Reset the window layout: both windows half and half, the panels' sizes, windows taken out docked back, the 2D view on its origin and the 3D view as at the start (the toolbars stay where you put them: Settings ▸ Reset Toolbars)">⟲</button></span>
+    <button id="s-av" class="gone" title="No avatar is loaded. Click to load one (.fbx or .glb).">NO AVATAR</button><button id="s-hist" title="History panel (D): every step as a card, the branches you made by going back, a double-click on a card goes back to it"><svg class="hist-ic" viewBox="0 0 24 24" aria-hidden="true"><g transform="translate(-0.6 1.8)"><path d="M5.6 18.4 8.5 15.5" stroke-width="2.1"/><path d="M8.79 12.39Q7.79 16.21 11.76 15.36"/><path d="M8.12 11.72 19.04 2.14 9.46 13.06Z" fill="currentColor" stroke-width="0.9"/><path d="M11.76 15.36 14.31 12.81"/><circle cx="15.37" cy="11.75" r="2.1" fill="currentColor" stroke="none"/></g></svg><span>History</span></button><button id="s-unbuilt" class="on gone" title="Show unbuilt tools: every planned tool has its place in the toolbars; the ones not built yet are marked with a ring. Off shows only the tools that work.">ALL TOOLS</button><span id="s-save" class="gone"></span><span id="s-over" class="gone" hidden title="Patterns that overlap another on the layout (hatched, marked ⚠): move them apart, or nest again"></span><span class="sp"></span><span id="s-hint"></span><span id="s-lay" title="Window layout"><button id="s-lay-3d" title="3D window only" aria-label="3D window only"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9"/></svg>3D</button><button id="s-lay-both" class="on" title="3D and 2D windows side by side" aria-label="3D and 2D windows side by side"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M3 5h8v14H3z"/><path d="M3 5h18v14H3zM12 5v14"/></svg>3D|2D</button><button id="s-lay-2d" title="2D window only" aria-label="2D window only"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M5 4h10l4 4v12H5z"/><path d="M5 4h10l4 4v12H5zM15 4v4h4"/></svg>2D</button><button id="s-lay-reset" title="Reset the window layout: both windows half and half, the panels' sizes, windows taken out docked back, the 2D view on its origin and the 3D view as at the start (the toolbars stay where you put them: Settings ▸ Reset Toolbars)">⟲</button></span>
   </div>
 </div>
 <div id="menu"></div>

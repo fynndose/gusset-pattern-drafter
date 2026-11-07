@@ -792,7 +792,9 @@ test("B5 Save writes the history timeline into the file and Open brings it back:
     app.histGo(0); out.first = S.pieces[0].pts[2]; out.firstName = S.pieces[0].name; out.firstPts = S.pieces[0].pts.length;
     app.histGo(2); out.second = S.pieces[0].pts.length;
     app.checkDoc(S.pieces, S.seams);
-    // (Round H1) a new edit from there keeps what was undone as a branch (it was discarded): off the path, three steps
+    // (Round H1) a new edit from there keeps what was undone as a branch (it was discarded): off the path, three steps. (Round UI-1 / A:
+    // only when the step was gone to from the History panel, treeGo(); histGo() alone is plain undo, whose future a change discards)
+    app.ev("treeGo")(S.un[1].id);
     app.ev("push('Rename'); S.pieces[0].name = 'Fork'; commit()"); out.fork = [S.undo.length, S.redo.length, S.hoff.size];
     // Clear History: the document stays, the timeline is empty
     app.ev("clearHistory()"); out.cleared = [S.undo.length, S.redo.length, S.pieces[0].name];

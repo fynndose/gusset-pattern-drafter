@@ -82,9 +82,8 @@ test("r17b / 1: the background image's commands from More ▸ Background Image: 
     // Opacity…
     app.answer = (title) => (title === "Background Image Opacity" ? { op: 80 } : null);
     sub("Opacity\\u2026"); out.op = S.backdrop.opacity;
-    sub("Lock Background Image"); out.lock = S.backdrop.lock;
-    sub("Move Background Image"); out.lockedMove = S.bgMode === null && toasts.some(t => /locked/.test(t));
-    sub("Unlock Background Image");
+    // (Round UI-1e / D: Lock / Unlock is gone, the maintainer's brief: the image is touched only in edit mode)
+    out.noLock = !app.ev("backdropRows")({ x: 0, y: 0 }).some(x => x && /Lock/.test(x.n || ""));
     sub("Hide Background Image"); out.hide = S.backdrop.hide;
     sub("Show Background Image");
     sub("Remove Background Image"); out.removed = S.backdrop;
@@ -100,9 +99,9 @@ test("r17b / 1: the background image's commands from More ▸ Background Image: 
   assert.deepStrictEqual(r.moved, [30, 420]); assert.strictEqual(r.modeAfter, null);
   assert.ok(r.still);
   assert.deepStrictEqual(r.scaled, [30, 508, 254], "scaled × 2 about the first point clicked (x 30)");
-  assert.strictEqual(r.op, 0.8); assert.strictEqual(r.lock, true); assert.ok(r.lockedMove, "a locked picture is not moved");
+  assert.strictEqual(r.op, 0.8); assert.strictEqual(r.noLock, true, "(Round UI-1e / D) no Lock / Unlock row");
   assert.strictEqual(r.hide, true); assert.strictEqual(r.removed, null);
-  assert.deepStrictEqual(r.steps, ["Move Background Image", "Scale Background Image", "Background Image Opacity", "Lock Background Image", "Unlock Background Image", "Hide Background Image", "Show Background Image", "Remove Background Image"]);
+  assert.deepStrictEqual(r.steps, ["Move Background Image", "Scale Background Image", "Background Image Opacity", "Hide Background Image", "Show Background Image", "Remove Background Image"]);
   assert.deepStrictEqual(r.undone, [0, 400, 254]); assert.strictEqual(r.redone, null);
 });
 

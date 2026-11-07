@@ -55,7 +55,7 @@ const CLASS = {
     traceFold: "session", pleatPick: "session", pleatSet: "session", blockDraft: "session", sticker: "session", fastenFrom: "session", zipTarget: "session", noteLink: "session",
     dartCap: "session", only3: "session", added: "session", clip: "session", gradeClip: "session", btnClip: "session", tps: "session", snapG: "session", snapMark: "session",
     laySel: "session", layDrag: "session", layHover: "session", layManual: "session", layTape: "session", avPick: "session", btnPick: "session", spread: "session",
-    lockCurve: "session", angKeep: "session", sewBad: "session", busyMin: "session", calcExpr: "session", graphicAt: "session", bgMode: "session", autoAt: "session",
+    lockCurve: "session", angKeep: "session", sewBad: "session", busyMin: "session", calcExpr: "session", graphicAt: "session", bgMode: "session", avOutEdit: "session", autoAt: "session",
     dirty: "session", drapeWant: "session", docAvAsk: "session", docAvTried: "session", av: "session", avErr: "session", avPresets: "session", known3: "session", bakeWas: "session",
     curvesIn: "session",
     // the last values a dialog of this session opened with (each dialog's own memory, not the document)
@@ -78,7 +78,7 @@ const CLASS = {
     q3: "derived", q3Env: "derived", q3Hemi: "derived", shadow3: "derived", schPanel: "view", schSig: "derived", schT: "derived" },
 };
 // S.ui: its preferences are the app's own list (UI_PREFS); everything else in it is view state, named here
-CLASS.uiView = ["layout", "arrPts", "timeline", "render", "mesh2", "render3", "wire3", "joints3", "jointMode", "ikEdit", "quality3", "schem3", "bv3", "meas3", "suit3", "show3d", "strain3",
+CLASS.uiView = ["layout", "arrPts", "timeline", "render", "mesh2", "render3", "wire3", "joints3", "avOut", "avOutObj", "jointMode", "ikEdit", "quality3", "schem3", "bv3", "meas3", "suit3", "show3d", "strain3",
   "fit3", "stress3", "press3", "shadow3", "lights3", "lightsR", "split", "panelW", "obH", "obFold", "obFloat", "float2", "float3"];
 // S.avSet (pdraft:avatar): what is loaded is the session's; how it stands is the document's (the avatar record); how it is shown is view state; the collision detail is this machine's
 CLASS.avSet = { path: "session", name: "session", height: "file", pose: "file", base: "file", display: "view", showCol: "view", panel: "view", cell: "pref" };
@@ -175,6 +175,8 @@ const SCENE = DUMP + `
     // a point of measure
     app.push("Point of Measure"); S.measures.push({ id: 1, a: app.ev("mkAnchor")(C, C, 0), b: app.ev("mkAnchor")(C, C, 1), kind: "line", name: "Width" }); app.commit();
     app.setTool("transform_pattern");
+    // (Round UI-1d / B) a background image scaled, turned, see-through and locked
+    { const im = app.ev("addImage")("scan.png", "data:image/png;base64,iVBORw0KGgo=", 400, 300); app.push("Add Background Image"); S.backdrop = { img: im.id, x: -120.5, y: 33.25, w: 812.4, h: 609.3, opacity: 0.3, lock: true, hide: false, angle: 12.5 }; app.commit(); }
     // lights, the Print Layout's own settings
     app.push("Add Light"); S.lights.push(app.ev("normLight")({ type: "spot", intensity: 3, az: 60, name: "Key" }, 1), app.ev("normLight")({ type: "rect", w: 800, name: "Fill" }, 2)); app.commit();
     app.push("Print Layout"); S.layout = app.ev("normLayout")({ ...S.layout, margin: 12, cols: 4, gap: 7 }); app.commit();
@@ -195,7 +197,7 @@ const SCENE = DUMP + `
     // the three kept as a branch, its branch point a node whose cloth is kept
     const draped = app.ev("histAtId")(); S.hsave.set(draped, "Draped"); S.hui[draped] = { x: 40, y: 12 };
     for (let k = 0; k < 55; k++) { app.push("Move"); C.pts.forEach(q => { q.y += 1; }); app.commit(); }
-    app.undo(); app.undo(); app.undo();
+    { const t = app.ev("histNodes")(); app.ev("treeGo")(t.path[t.at - 3]); }      // (Round UI-1 / A: from the History panel; Ctrl+Z three times would discard them)
     app.push("Rename"); C.name = "Panel C (variant)"; app.commit();
     // (Round H1d / B) a History Group of C, a step in its lane, and the group taken back to its first step
     app.promptAnswer = "Panel"; app.ev("hgCreate")([C.id]); app.promptAnswer = undefined;
