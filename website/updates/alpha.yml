@@ -1,8 +1,8 @@
-version: 1.0.0-beta.5
+version: 1.0.0-beta.6
 files:
-  - url: https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.5/Gusset-1.0.0-beta.5-win-x64-setup.exe
-    sha512: rTFAqQSZZ1scaETPpJ7yll+IFHAHbV8mSf8zXmhRC9JjuAR7wEXoTC5JtuK1Vw8FRxxTGS1aak85jb2lReBoew==
-    size: 114606228
-path: https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.5/Gusset-1.0.0-beta.5-win-x64-setup.exe
-sha512: rTFAqQSZZ1scaETPpJ7yll+IFHAHbV8mSf8zXmhRC9JjuAR7wEXoTC5JtuK1Vw8FRxxTGS1aak85jb2lReBoew==
-releaseDate: '2026-11-06T22:02:12.576Z'
+  - url: https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.6/Gusset-1.0.0-beta.6-win-x64-setup.exe
+    sha512: 6NcMrze9X6yYnaS1YDTMK2237FSTEO1Kbhu32fZBZhYQ1C509CiI2NQrFjO8Yj1EbsRXFnL6CbjljnYy1DEVRQ==
+    size: 114622172
+path: https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.6/Gusset-1.0.0-beta.6-win-x64-setup.exe
+sha512: 6NcMrze9X6yYnaS1YDTMK2237FSTEO1Kbhu32fZBZhYQ1C509CiI2NQrFjO8Yj1EbsRXFnL6CbjljnYy1DEVRQ==
+releaseDate: '2026-11-07T20:55:33.714Z'
