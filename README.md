@@ -72,6 +72,179 @@ A build looks for updates on the project's website, which lists only published r
 
 The portable `.exe` (`Gusset-<version>-win-x64-portable.exe`) needs no installation: put it anywhere and start it. It keeps its settings, recent files and unsaved work in `%APPDATA%\Gusset` (`~/Library/Application Support/Gusset` on a Mac, `~/.config/Gusset` on Linux).
 
+<!-- keys:start -->
+## Keyboard shortcuts
+
+Help ▸ Keyboard Shortcuts… lists the same keys in the program. On a Mac, Cmd stands for Ctrl (but for Ctrl+H, Ctrl+Q and Ctrl+W) and Option for Alt.
+
+### Tools
+
+| Key | What it does |
+|---|---|
+| ; | Seamline Topstitch |
+| A | Transform Pattern |
+| B | Edit Sewing |
+| C | Edit Curvature |
+| E | Ellipse |
+| G | Internal Polygon / Line |
+| H | Polygon |
+| I | Trace |
+| J | Edit Topstitch |
+| K | Segment Topstitch |
+| L | Free Topstitch |
+| M | Free Sewing |
+| N | Segment Sewing |
+| P | Zipper |
+| Q | Select/Move |
+| R | Internal Ellipse |
+| S | Rectangle |
+| T | Edit Texture (Grainline) |
+| V | Edit Curve Point |
+| W | Pin (Box) |
+| X | Add Point / Split Line |
+| Z | Edit Pattern |
+
+### File
+
+| Key | What it does |
+|---|---|
+| Ctrl+N | New (desktop app only) |
+| Ctrl+O | Open |
+| Y | Library: open or add a block or one of your patterns |
+| Ctrl+Shift+O | Add Project (another document put into this one) |
+| Ctrl+Shift+D | Import DXF |
+| Ctrl+Shift+F | Import DXF, added to this document |
+| Ctrl+S | Save |
+| Ctrl+Shift+S | Save As |
+| F10 | Snapshot of the 3D Window |
+
+### Edit
+
+| Key | What it does |
+|---|---|
+| Ctrl+Z | Undo |
+| Ctrl+Y / Ctrl+Shift+Z | Redo |
+| Ctrl+C | Copy |
+| Ctrl+V | Paste |
+| Ctrl+R / Ctrl+Shift+V | Mirror Paste |
+| Ctrl+D | Symmetric Pattern (with Sewing) |
+| Ctrl+A | Select All |
+| Ctrl+Shift+I | Invert Selection |
+| Ctrl+Alt+A | Select All Sewn |
+| Ctrl+Shift+C | Clone as Pattern (the selected closed internal shape) |
+| Ctrl+B / Ctrl+Shift+B | Reverse Sewing |
+| Ctrl+Right | Transform Pattern: turn clockwise (45°) |
+| Ctrl+Down | Transform Pattern: turn clockwise (90°) |
+| Ctrl+Left | Transform Pattern: turn counterclockwise (45°) |
+| Ctrl+Up | Transform Pattern: turn counterclockwise (90°) |
+| Ctrl+] | Bring Forward (the selected patterns, one step) |
+| Ctrl+[ | Send Backward (the selected patterns, one step) |
+| Ctrl+Shift+] | Bring to Front (the selected patterns) |
+| Ctrl+Shift+[ | Send to Back (the selected patterns) |
+| U | Edit Pattern: link the selected lines |
+
+### View
+
+| Key | What it does |
+|---|---|
+| F12 | Grid Properties (desktop app only) |
+| D | History panel |
+| F | Zoom to the selection, or to fit (in 3D: Focus Zoom on the selected patterns) |
+| + | Zoom in |
+| − | Zoom out |
+| Shift+W | Show Garment (3D window) |
+| Shift+S | Show Seamlines (3D window) |
+| Shift+A | Show Avatar (3D window) |
+| Shift+Z | Show Line Length (2D window) |
+| Shift+T | Front Texture Surface (2D window) |
+| Alt+1 | Thick Textured Surface (3D window) |
+| Alt+2 | Textured Surface (3D window) |
+| Alt+3 | Thick Monochrome Surface (3D window) |
+| Alt+4 | Monochrome Surface (3D window) |
+| Alt+5 | Translucent Surface (3D window) |
+| Alt+9 | Random Color Surface (3D window) |
+| Alt+7 | Strain Map (3D window) |
+| Alt+8 | Fit Map (3D window) |
+| Alt+6 | Stress Map (3D window) |
+| Shift+I | Isolate Selection (3D window) |
+| Alt+W | Show Wireframe (3D window) |
+| Shift+X | Show Avatar Joints (3D window) |
+
+### 3D window
+
+| Key | What it does |
+|---|---|
+| Space | Simulate / stop simulating |
+| Ctrl+Shift+A | Load Avatar |
+| Ctrl+Shift+P | Load Pose File |
+| Ctrl+F | Reset 3D Arrangement (Selected) |
+| Ctrl+J | Deactivate (Pattern Only) (selected) |
+| F9 | Show 3D Garment Window Size |
+| Ctrl+H | Strengthen (selected) |
+| Ctrl+E | Solidify (selected) |
+| Ctrl+K | Freeze (selected) |
+| Shift+Q | Hide 3D Pattern (selected) |
+| Shift+C | Hide All 3D Patterns |
+| Ctrl+Q | Quick Pinching |
+| Ctrl+W | Remove All Pins (desktop app only) |
+
+### With the pointer over the 3D window
+
+| Key | What it does |
+|---|---|
+| 2 | Front view |
+| 3 | 3/4 Left view |
+| 8 | Back view |
+| 6 | Left view |
+| 4 | Right view |
+| 1 | 3/4 Right view |
+| 5 | Top view |
+| 0 | Bottom view |
+| Shift+F | Show Arrangement Points |
+| Shift+H | Turn the selected patterns half round |
+| Shift+V | Flip the selected patterns over (inside out) |
+| Ctrl+[ | Superimpose (Over) (selected) |
+| Ctrl+] | Superimpose (Under) (selected) |
+
+### Print Layout
+
+| Key | What it does |
+|---|---|
+| Ctrl+P | Print |
+| F | Fit the sheet to the window |
+| Arrow keys | Move the selected pattern 1 mm (with Manual Nesting it stops at the next one) |
+| Shift+Arrow keys | Select the next pattern that way |
+| R | Turn the selected pattern |
+
+### While working
+
+| Key | What it does |
+|---|---|
+| F1 | Type the value instead of dragging |
+| Enter | Finish (a line, a seam side, a walk, Smooth Curve) |
+| Esc | Give up what is being done |
+| Delete | Delete what is selected; while drawing, the last point |
+| Arrow keys | Transform Pattern: move the selection 1 mm (Shift: 10 mm). Edit Pattern with a size picked: move the grading |
+| Middle button + drag | Pan the 2D window (in Print Layout also Space + drag) |
+| Right button + drag | 3D window: turn the view (Settings: View controls) |
+| Middle button + drag | 3D window: pan the view |
+| Wheel forward | Zoom in (2D window, 3D window, Print Layout) |
+| Alt + drag | Pan the 2D window or the 3D window (for a trackpad; on Transform Pattern's center mark it moves the pivot) |
+| Shift | Constrain: 45°, 15° steps, straight, proportional |
+| Ctrl + drag a point | Keep it on a line through where it was |
+| Ctrl + marquee | Transform Pattern: select every pattern the box touches |
+| Ctrl while dragging a rectangle or ellipse | Draw it from the center (let go: from the corner again) |
+| Right-click during a drag | Type the amount |
+
+### Kept for what is not built yet
+
+| Key | What it does |
+|---|---|
+| O | Colorway (not built yet) |
+| Shift+P | Show Scene and Props (not built yet) |
+
+<!-- keys:end -->
+
 ## The `.pdraft` file
 
 A document is saved as a `.pdraft` file. It is a ZIP container, so any ZIP tool opens it, and what is in it can be read, compared and converted with ordinary tools:

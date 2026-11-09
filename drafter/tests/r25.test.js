@@ -325,9 +325,11 @@ test("r25 / 5 each corner type on a square corner with 10 mm allowances, as the 
   assert.deepStrictEqual(o.slant, [[0, -10], [10, 0]], "Slant 10 / 10: 10 back from where the cut lines meet, on each");
   assert.deepStrictEqual(o.slantOld, o.slant, "a Slant from an older file (no distances) keeps its shape");
   assert.deepStrictEqual(o.slant515, [[5, -10], [10, 5]]);
-  assert.strictEqual(o.round[0], 9); assert.ok(o.round[1] < 1e-6, "on the circle of the allowance about the corner"); assert.deepStrictEqual(o.round.slice(2), [[0, -10], [10, 0]]);
+  assert.strictEqual(o.round[0], 15 /* (REC-SHORT: the arc is drawn finer, 15 points; on a square corner it is still the circle about the corner) */); assert.ok(o.round[1] < 1e-6, "on the circle of the allowance about the corner"); assert.deepStrictEqual(o.round.slice(2), [[0, -10], [10, 0]]);
   assert.deepStrictEqual(o.pocket1, [[5, -10], [5, -5], [10, -5]], "Style 1: a 5 × 5 step");
-  assert.deepStrictEqual(o.pocket2, [[5, -10], [5, -5], [10, 0]], "Style 2: a 5 mm step down, then 45° to the other cut line");
+  // (REC-SHORT, the sixth check session: Style 2 has no rows and is a zigzag from Line 1 mirrored in Line 2's seam line, which on a
+  // square corner folds away to the plain corner, guess recshort/2; it was a 5 mm step and a 45° cut from session 3's frames)
+  assert.deepStrictEqual(o.pocket2, [[0, -10], [10, -10]], "Style 2 on a square corner: along the cut line to the plain corner");
 });
 
 test("r25 / 5 Line 1 is the line coming into the point, on any outline (Number 15); a stored corner keeps its line, only its label changes; Slant's Distance A / B, Round without rows, Pocket's rows unprimed; Reverse greys Distance at half the allowance", () => {
@@ -349,7 +351,7 @@ test("r25 / 5 Line 1 is the line coming into the point, on any outline (Number 1
     out.menu = app.ev("cornerRows")(cw, 3, { x: 0, y: 0 }).map(r => r.n).filter(Boolean);
     app.ev("cornerPick")(cw, [0], "pocket"); S.ui.unbuilt = false; const ph = html(cw, 0, "");
     out.pocket = [/Distance A [(]/.test(ph), /Distance A'/.test(ph), /Style 3/.test(ph)];
-    S.ui.unbuilt = true; out.pocket3 = /value="3" disabled>Style 3 [(]not built yet[)]/.test(html(cw, 0, "")); S.ui.unbuilt = false;
+    S.ui.unbuilt = true; out.pocket3 = /value="3">Style 3/.test(html(cw, 0, "")); S.ui.unbuilt = false;
     out.saved = JSON.parse(app.ev("docJSON")()).pieces[0].segs.map(s => s.corner || null);
     return out;` }).result;
   assert.deepStrictEqual(o.l1, ["in", "in"], "clockwise or anticlockwise, Line 1 is the incoming line");
@@ -359,8 +361,9 @@ test("r25 / 5 Line 1 is the line coming into the point, on any outline (Number 1
   assert.strictEqual(o.roundRows, false, "Round has no rows");
   assert.deepStrictEqual(o.roundAgain, { t: "round" }, "picked again it starts afresh: an older file's length goes");
   assert.ok(o.menu.includes("Round") && !o.menu.some(n => /^Round./.test(n)), "the menu's Round opens no box: " + o.menu);
-  assert.deepStrictEqual(o.pocket, [true, false, false], "Distance A without the prime; Style 3 hidden while the not-built switch is off");
-  assert.strictEqual(o.pocket3, true, "and greyed while it is on");
+  // (REC-SHORT: Style 3 is built, from the sixth check session; it was hidden, and greyed "not built yet" with the switch on)
+  assert.deepStrictEqual(o.pocket, [true, false, true], "Distance A without the prime; Style 3 offered");
+  assert.strictEqual(o.pocket3, true, "and offered with the not-built switch on too");
   assert.deepStrictEqual(o.saved[2], { t: "slant", a: 10, b: 10 }, "kept in the file");
 });
 

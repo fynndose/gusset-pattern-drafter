@@ -67,7 +67,8 @@ test("r26 / 1: Pocket Style 1 measures along the lines (session 4 frame 066); on
   same(pts(C60, { t: "pocket", st: 1, din: 5, dout: 5 }), [[14.2, -4.3], [7.4, -4.3], [10.6, -10]], 0.3, "the frame at 60");
   const sq = cornerPts(V(0, 0), dir(0), dir(90), 10, 10, 1, { t: "pocket", din: 5, dout: 3 }).map(q => [+q.x.toFixed(6), +q.y.toFixed(6)]);
   assert.deepStrictEqual(sq, [[3, -10], [3, -5], [10, -5]], "din from the incoming line, dout from the outgoing one, as before");
-  same(pts(C60, { t: "pocket", st: 2, din: 5, dout: 5 }), [[14.4, -5], [8.7, -5], [3.7, -10]], 0.1, "Style 2");
+  // (REC-SHORT, the sixth check session at 193 s: Style 2 has no rows and is a zigzag on 60°, as measured there; it was a step and a 45° cut)
+  same(pts(C60, { t: "pocket", st: 2, din: 5, dout: 5 }), [[8.7, 5], [5.8, 0], [8.7, -5], [5.8, -10]], 0.1, "Style 2");
   assert.strictEqual(cornerPts(V(0, 0), dir(0), dir(90), 10, 10, 1, { t: "pocket", din: 12, dout: 5 }).length, 1, "deeper than the allowance: the plain corner");
 });
 

@@ -330,7 +330,8 @@ test("r14 / 5: the solver folds a seam by its angle once it is closed: 90° a sq
   assert.ok(flat.pairs >= 10); assert.strictEqual(flat.n, 0, "no fold on a plain seam");
   assert.ok(f90.n >= 8, "a fold for the stitches along the seam: " + f90.n);
   near(f90.at, -90, 20, "90°: towards the back"); near(f270.at, 90, 20, "270°: towards the front");
-  assert.ok(turned.at < 0 && turned.at > -40, "Turned: back against back, (nearly) flat: " + turned.at.toFixed(1));
+  // (REC-SHORT: Turned no longer folds, the sixth check session; angle 0 is still a Fold Angle the solver keeps, back against back)
+  assert.ok(turned.at < 0 && turned.at > -40, "Fold Angle 0: back against back, (nearly) flat: " + turned.at.toFixed(1));
 });
 
 test("r14 / 5: a seam's Sewing Line Type in the Property Editor (Turned, Fold Strength, Fold Angle greyed while Turned): one undo step each 'Sewing Line Type', kept on the seam only when not the default, in the Seams panel, given to the solver, saved and opened", () => {
@@ -356,7 +357,8 @@ test("r14 / 5: a seam's Sewing Line Type in the Property Editor (Turned, Fold St
   assert.strictEqual(o.grey, true, "Turned: the angle greyed");
   assert.strictEqual(o.panel, true, "the Seams panel says turned");
   assert.deepStrictEqual(o.steps, ["Sewing Line Type", "Sewing Line Type", "Sewing Line Type"]);
-  assert.deepStrictEqual(o.spec, [{ a: 0, k: 16000 }, null], "Turned: 0° (back against back), FOLD_K × 40; the other seam flat");
+  // (REC-SHORT: Turned folds nothing, the sixth check session; it was 0°, back against back)
+  assert.deepStrictEqual(o.spec, [null, null], "Turned: no fold, whatever the greyed rows say; the other seam flat");
   assert.deepStrictEqual(o.opened, [true, 120, 40]);
 });
 

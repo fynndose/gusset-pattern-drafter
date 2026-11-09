@@ -399,7 +399,7 @@ const WALK = `
 `;
 test("r21 / 3: every test file (versions 11, 12, 18 to 24) opens with no error, saves and opens again the same, saves again to the same bytes, and its whole history undoes and redoes", () => {
   const files = FILES.map(n => [n, Array.from(fs.readFileSync(path.join(__dirname, "files", n)))]);
-  assert.ok(["v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28" /* (Round r33b) */, "v29" /* (Round r34) */, "v30" /* (Round H1a) */].every(v => files.some(([n]) => n.startsWith(v + "/"))), "a file of each version: " + files.map(x => x[0]));
+  assert.ok(["v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28" /* (Round r33b) */, "v29" /* (Round r34) */, "v30" /* (Round H1a) */, "v33" /* (Round REC-SHORT) */].every(v => files.some(([n]) => n.startsWith(v + "/"))), "a file of each version: " + files.map(x => x[0]));
   const o = boot({ blank: true, three: true, script: AUDIT + WALK + `
     const files = ${JSON.stringify(files)};
     for (const [n, b] of files) { app.ev("openFile")(n, new Uint8Array(b), null, true); walk(n); }

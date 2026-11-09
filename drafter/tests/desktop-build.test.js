@@ -83,8 +83,8 @@ test("Help ▸ Send Feedback: the bug information goes to the clipboard and the 
   assert.ok(o.rows.includes("Send Feedback\u2026") && o.rows.includes("Save Bug Report\u2026") && o.rows.includes("Welcome\u2026") && o.rows.includes("About\u2026"), o.rows.join());
   // (Round r24 follow-up: config.js has the project's own address again, feedback@gussetdrafter.com, so the link opens)
   assert.deepStrictEqual(o.calls.filter(c => /copyText|openFeedback/.test(c)), ["copyText", "openFeedback"], "copied first, then the link");
-  // (Round desk-2: the version is now 0.9.0-beta.2; release beta.3: 0.9.0-beta.3; release beta.4: 0.9.0-beta.4; Round r28: 1.0.0-beta.1; release beta.2: 1.0.0-beta.2; release beta.3: 1.0.0-beta.3; release beta.4: 1.0.0-beta.4; release beta.5: 1.0.0-beta.5; release beta.6: 1.0.0-beta.6, here and in the welcome box below)
-  assert.ok(/^Gusset: bug information\nVersion: 1[.]0[.]0-beta[.]6 [(]desktop app, built 2026-01-01 from abc1234[)]\nSystem: Windows 11 [(]10[.]0[.]26200[)], x64/.test(clip), clip);
+  // (Round desk-2: the version is now 0.9.0-beta.2; release beta.3: 0.9.0-beta.3; release beta.4: 0.9.0-beta.4; Round r28: 1.0.0-beta.1; release beta.2: 1.0.0-beta.2; release beta.3: 1.0.0-beta.3; release beta.4: 1.0.0-beta.4; release beta.5: 1.0.0-beta.5; release beta.6: 1.0.0-beta.6; release beta.7: 1.0.0-beta.7, here and in the welcome box below)
+  assert.ok(/^Gusset: bug information\nVersion: 1[.]0[.]0-beta[.]7 [(]desktop app, built 2026-01-01 from abc1234[)]\nSystem: Windows 11 [(]10[.]0[.]26200[)], x64/.test(clip), clip);
   assert.ok(/Screen: .*the window 1200 \u00d7 900/.test(clip) && /Document: \d+ patterns?, 0 seams; avatar none/.test(clip), clip);
   assert.ok(/Couldn't read <home>\\Documents\\x[.]pdraft for <e-mail>/.test(clip), "the user's folder and address are cut out: " + clip);
   assert.ok(/Last steps [(]\d+, the newest last[)]:[\s\S]*  Rename\n/.test(clip), clip);

@@ -65,7 +65,7 @@ function pullTube(opt) {
   return { place: r1(held.place), A: r1(held.A), B: r1(held.B), strain: +held.strain.toFixed(3), stayedA: r1(meanY(0, top) - yA), stayedB: r1(meanY(top, sim.n) - yB), gap: +gap.toFixed(2), inside, nB, dragNow: sim.drag };
 }
 test("r33b / 1: the pull takes a handful of cloth and lets it slide while held: a snug tube on a cylinder (a sleeve on an arm) pulled up at one place moves as a whole, the far side too, and stays up once let go; no seam opens, nothing goes into the cylinder, its fabric's limit holds; one point and no sliding (as before) moves it far less", () => {
-  const now = pullTube({}), before = pullTube({ dragReach: 0, dragMax: 1e6, dragSlideReach: 0, dragLimitIters: 0 });
+  const now = pullTube({ dragPin: false, dragRelease: 0, dragLimitIters: 12 }), before = pullTube({ dragReach: 0, dragMax: 1e6, dragSlideReach: 0, dragLimitIters: 0, dragPin: false, dragRelease: 0 });      // (REC-SHORT: r33b's handful as it was, pin and release off; recshort / B6 tests the pin)
   const both = JSON.stringify({ now, before });
   assert.ok(now.B > 2*before.B + 5, "the far side follows: " + both);
   assert.ok(now.A > 2*before.A + 5, "the pulled panel as a whole: " + both);
@@ -100,7 +100,7 @@ test("r33b / 2: Seamless Blocking: from the outline through a point to the outli
     // a fabric of the library for the left section
     const red = app.ev("normLibItem")("fabric", { name: "Red", color: "#cc3311" }, 99); S.lib.fabric.push(red); app.commit();
     click(60, 100); out.selected = !!S.blockSel;
-    out.panel = /Section fabric/.test(app.el("props").innerHTML) && /simulation uses the pattern/i.test(app.el("props").innerHTML);
+    out.panel = /Section fabric/.test(app.el("props").innerHTML) && /simulates with its own fabric/i.test(app.el("props").innerHTML);      // (REC-SHORT: a section simulates with its own fabric; it said the simulation used the pattern's)
     app.el("blk-f").value = "99"; app.el("blk-f").onchange();
     out.looks = app.ev("sectionLooks")(A, "front").map(x => x.color);
     out.blocks = JSON.parse(JSON.stringify(A.blocks)); out.step = steps().slice(-1)[0];

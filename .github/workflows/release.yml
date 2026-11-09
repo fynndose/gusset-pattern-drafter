@@ -175,22 +175,10 @@ jobs:
           command -v xvfb-run || (sudo apt-get update && sudo apt-get install -y xvfb)
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
 
-      # one known bug may fail here, on an Apple chip only: the 270° fold test (r14 / 2) settles at 106°
-      # there (104° elsewhere, limit 90 ± 15) because a fold line's edges disagree (78–138°) and the test takes their mean.
-      # It stays in the suite, unchanged; any other failure, or this one anywhere else, stops the build.
+      # (Round POLISH-1: the fold line's wavy crease is fixed, so the Apple chip's one allowed failure, r14 / 2, is gone: any failure stops the build)
       - name: Unit tests (not the slow drapes)
         shell: bash
-        run: |
-          set +e
-          node drafter/tests/run.js --fast > "$RUNNER_TEMP/tests.log" 2>&1; code=$?
-          set -e
-          cat "$RUNNER_TEMP/tests.log"
-          if [ $code -ne 0 ]; then
-            fails=$(grep -c '^  FAIL ' "$RUNNER_TEMP/tests.log")
-            if [ "$RUNNER_ARCH" = ARM64 ] && [ "$fails" = 1 ] && grep -q '^  FAIL r14 / 2: the solver folds the cloth along a fold line' "$RUNNER_TEMP/tests.log"; then
-              echo "::warning title=Known bug::r14 / 2 (the 270° fold) fails on an Apple chip: the fold line is wavy. Released as a known bug (Round desk-2)."
-            else exit $code; fi
-          fi
+        run: node drafter/tests/run.js --fast
 
       # the release check stays in the private repository (it names what must not be published); the public one has no such file
       - name: Release check (the source)
@@ -319,21 +307,10 @@ jobs:
           npm ci --no-audit --no-fund
           npm ci --no-audit --no-fund --prefix desktop
           node desktop/node_modules/electron/install.js
-      # (as in build: the one known bug on an Apple chip)
       - name: Unit tests on an Apple chip (not the slow drapes)
         if: steps.has.outputs.yes == 'true'
         shell: bash
-        run: |
-          set +e
-          node drafter/tests/run.js --fast > "$RUNNER_TEMP/tests.log" 2>&1; code=$?
-          set -e
-          cat "$RUNNER_TEMP/tests.log"
-          if [ $code -ne 0 ]; then
-            fails=$(grep -c '^  FAIL ' "$RUNNER_TEMP/tests.log")
-            if [ "$fails" = 1 ] && grep -q '^  FAIL r14 / 2: the solver folds the cloth along a fold line' "$RUNNER_TEMP/tests.log"; then
-              echo "::warning title=Known bug::r14 / 2 (the 270° fold) fails on an Apple chip: the fold line is wavy. Released as a known bug (Round desk-2)."
-            else exit $code; fi
-          fi
+        run: node drafter/tests/run.js --fast
       - uses: actions/download-artifact@v8
         if: steps.has.outputs.yes == 'true'
         with:

@@ -619,7 +619,8 @@ test("r20 / 9: Superimpose (Over) lays a pattern onto the one it is sewn to, fac
     const a2 = cen(S.pieces[0]), b2 = cen(S.pieces[1]); out.under = Math.hypot(a2.c[0], a2.c[2]) < Math.hypot(b2.c[0], b2.c[2]);
     out.keys = [app.keyOf("superOver"), app.keyOf("superUnder")];
     return out;` });
-  assert.deepStrictEqual(o.over, [8, 1, "Superimpose (Over)"]); assert.strictEqual(o.out, true); assert.strictEqual(o.under, true);
+  // (REC-SHORT: the gap is 3 mm, the maintainer's figure from session 4; it was 8)
+  assert.deepStrictEqual(o.over, [3, 1, "Superimpose (Over)"]); assert.strictEqual(o.out, true); assert.strictEqual(o.under, true);
   assert.deepStrictEqual(o.keys, ["Ctrl+[", "Ctrl+]"]);
 });
 

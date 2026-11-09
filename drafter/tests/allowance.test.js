@@ -56,14 +56,18 @@ test("corner types on a square corner: all the meeting types give the same point
   assert.strictEqual(CORNERS.length, 8);
 });
 
-test("Round corner: an arc about the point, or rounded by a length", () => {
+test("Round corner: an arc tangent to both cut lines (about the point on a square corner), or rounded by a length", () => {
+  // (REC-SHORT, the sixth check session: the reference's Round touches each cut line one allowance back from where they meet; on
+  // a square corner with even allowances that is still the arc about the point. Drawn finer now: 15 points where it was 9)
   const arc = corner("round", V(0, 1), 10, 10);
-  assert.strictEqual(arc.length, 9);
-  samePt(arc[0], V(0, -10)); samePt(arc[8], V(10, 0));
+  assert.strictEqual(arc.length, 15);
+  samePt(arc[0], V(0, -10)); samePt(arc[14], V(10, 0));
   for (const q of arc) near(dist(q, P), 10, 1e-9, "on the circle");
-  samePt(arc[4], V(10*Math.SQRT1_2, -10*Math.SQRT1_2), "midway");
+  samePt(arc[7], V(10*Math.SQRT1_2, -10*Math.SQRT1_2), "midway");
+  // (REC-SHORT: uneven allowances touch the average, 15, back from where the cut lines meet (10, -10); it grew from 10 to 20 about P)
   const uneven = corner("round", V(0, 1), 10, 20);
-  samePt(uneven[0], V(0, -10)); samePt(uneven[8], V(20, 0)); near(dist(uneven[4], P), 15, 1e-9, "radius grows evenly");
+  samePt(uneven[0], V(5, -10)); samePt(uneven[uneven.length - 1], V(20, 5));
+  for (const q of uneven) near(dist(q, V(5, 5)), 15, 1e-9, "one circle, tangent to both cut lines");
   const byLen = corner("round", V(0, 1), 10, 10, 4);
   samePt(byLen[0], V(6, -10), "starts 4 before the corner"); samePt(byLen[8], V(10, -6), "ends 4 after it");
   assert.ok(byLen.every(q => q.x <= 10 + 1e-9 && q.y >= -10 - 1e-9), "inside the pointed corner");
@@ -150,24 +154,23 @@ test("r15 / 3: Turnback on the chosen hem line; Extension moves the fold line ou
   near(offLine(y0, P, uB), 0, 1e-9, "the hem chosen: the outgoing line, though its allowance is the smaller"); assert.ok(y1);
 });
 
-test("r15 / 3: Slant is straight across; Envelope cuts the corner square to its middle at Distance from the point; Pocket cuts a step (Style 1) or a slant (Style 2) at A' / B'", () => {
+test("r15 / 3: Slant is straight across; Envelope cuts the corner (a shallow V since REC-SHORT); Pocket cuts a step (Style 1) at A' / B'; Style 2 (REC-SHORT) folds away on a square corner", () => {
   const down = V(0, 1);
   assert.deepStrictEqual(cornerPts(P, uA, down, 10, 10, 1, { t: "slant" }), [V(0, -10), V(10, 0)]);
-  // Envelope: the check videos' frame, 10 mm allowances and Distance 4: the cut 4 from the corner, across its middle
+  // Envelope: (REC-SHORT, the sixth check session on 60° and 120°: each cut line stops Distance back along its seam line, and the cut
+  // bends in to the point Distance out on the corner's middle; it was one straight cut square to the middle, which on this square
+  // corner the V nearly is, as the first check videos read it)
   const env = cornerPts(P, uA, down, 10, 10, 1, { t: "env", d: 4 });
-  assert.strictEqual(env.length, 2);
-  for (const q of env) near((q.x - q.y)/Math.SQRT2, 4, 1e-9, "4 from P along the corner's middle");
-  near(env[0].y, -10, 1e-9, "from the incoming cut line"); near(env[1].x, 10, 1e-9, "to the outgoing one");
-  assert.ok(env[0].x < 0, "nearer than the allowance's width: the cut starts before the corner, as in the frame");
-  const env8 = cornerPts(P, uA, down, 10, 10, 1, { t: "env", d: 10 });
-  assert.ok(env8[0].x > 0 && env8[0].x < 10, "further out: between the slant and the mitre point");
+  assert.deepStrictEqual(env.map(q => [+q.x.toFixed(9), +q.y.toFixed(9)]), [[-4, -10], [+(4*Math.SQRT1_2).toFixed(9), +(-4*Math.SQRT1_2).toFixed(9)], [10, 4]]);
+  assert.ok(env[0].x < 0, "the cut starts before the corner, as in the frame");
   assert.deepStrictEqual(cornerPts(P, uA, down, 10, 10, 1, { t: "env", d: 20 }), [V(10, -10)], "past the mitre point: the plain corner");
   assert.deepStrictEqual(cornerPts(P, uA, down, 10, 10, 1, { t: "env" }), env, "4 mm when none is given");
   // Pocket: the frame's step, 5 and 5 on 10 mm allowances
   assert.deepStrictEqual(cornerPts(P, uA, down, 10, 10, 1, { t: "pocket", din: 5, dout: 5 }), [V(5, -10), V(5, -5), V(10, -5)]);
-  // (Round r25, session 3 Number 12: Style 2 is a step and then a 45° cut, not a straight cut: from the incoming cut line down to
-  // the step's corner, then at 45° out to the outgoing cut line)
-  assert.deepStrictEqual(cornerPts(P, uA, down, 10, 10, 1, { t: "pocket", din: 5, dout: 3, st: 2 }).map(q => [+q.x.toFixed(9), +q.y.toFixed(9)]), [[3, -10], [3, -5], [10, 2]]);
+  // (REC-SHORT, the sixth check session: Style 2 has no rows and is a zigzag built from Line 1's cut line mirrored in Line 2's seam
+  // line; on a square corner the mirror is the cut line itself, so it folds away to the plain corner (guess recshort/2). It was a
+  // step and a 45° cut at A' / B', from session 3's low-zoom frames)
+  assert.deepStrictEqual(cornerPts(P, uA, down, 10, 10, 1, { t: "pocket", din: 5, dout: 3, st: 2 }).map(q => [+q.x.toFixed(9), +q.y.toFixed(9)]), [[0, -10], [10, -10]]);
   assert.deepStrictEqual(cornerPts(P, uA, down, 10, 10, 1, { t: "pocket", din: 12, dout: 5 }), [V(10, -10)], "deeper than the allowance: the plain corner");
   // Dart Cap is not built: drawn as Extension
   assert.deepStrictEqual(cornerPts(P, uA, down, 10, 10, 1, { t: "dartcap" }), [V(10, -10)]);
@@ -187,7 +190,7 @@ test("r15 / 3: the old names as a file opens (cornerMigrate): renamed, Right Ang
   for (const q of after) near(toPoly(before, q), 0, 1e-3, "and nothing else: " + JSON.stringify(q));
   p.segs[0].corner = { t: "unfilled" }; p.segs[1].corner = { t: "extend" }; cornerMigrate(p);
   assert.deepStrictEqual([p.segs[0].corner, p.segs[1].corner], [{ t: "slant" }, undefined]);
-  assert.deepStrictEqual(cornerMirror({ t: "pocket", st: 2, din: 3, dout: 7 }), { t: "pocket", st: 2, din: 7, dout: 3 });
+  assert.deepStrictEqual(cornerMirror({ t: "pocket", st: 2, din: 3, dout: 7 }), { t: "pocket", st: 2, din: 7, dout: 3, on: "out" });   // (REC-SHORT: Styles 2 and 3 are built from one line; the mirror image builds from the other)
   assert.deepStrictEqual(cornerMirror({ t: "perp", on: "in", d: 10 }), { t: "perp", on: "out", d: 10 });
   assert.deepStrictEqual(cornerMirror({ t: "perp1" }), { t: "perp", on: "out" });
   // (Round r25, the third check session Number 15: Line 1 is the line coming into the point in the outline's order, whichever way

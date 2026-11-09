@@ -280,7 +280,9 @@ test("r26 / 4: the waistband as the reference closed it, on Jessica" + skip("jes
   const r = boot(LIB("jessica") + NO_END + SKIRT + TAIL(500) + BAND_LEN); assert.deepStrictEqual(r.errors, [], "Jessica");
   bandChecks(r.result, "Jessica", 597);
 });
-test("[blocked: the maintainer's comparison test] the release bar, a skirt from the block on Marty" + skip("marty") + ": the block's dialog as it comes, filled with his measurements, sewn by the block, arranged with the gizmo, draped: the side seams close; saved and opened again with the same drape point for point, printed at true size", () => {
+// (REC-SHORT: the label "[blocked: the maintainer's comparison test]" is gone: the waistband is closed, PROJECT-KNOWLEDGE §1, and the
+// maintainer lifted the no-tuning rule in the REC-SHORT brief; nothing in the solver was tuned for this test)
+test("the release bar, a skirt from the block on Marty" + skip("marty") + ": the block's dialog as it comes, filled with his measurements, sewn by the block, arranged with the gizmo, draped: the side seams close; saved and opened again with the same drape point for point, printed at true size", () => {
   if (!has("marty")) return;
   const o = checkBar(boot(LIB("marty") + SKIRT + TAIL(500)), "the skirt on Marty", 4, MARTY);
   skirtChecks(o, "Marty", { waist: 777, hip: 965, hipHeight: 244 });

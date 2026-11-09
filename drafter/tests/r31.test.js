@@ -131,12 +131,14 @@ function onBall(opt) {
 test("r31 / 3: cloth on the body follows a pull and stays where it is let go: the pull's spring is stiffer (2e5; it was 5e4 and held the cloth well short of the pointer), still at most 1 N; the body's friction is the fabric's, as before", () => {
   // (Round r33b / 1) the pull takes a handful of cloth now (dragReach), so the softer spring alone no longer holds it short: the
   // comparison is with the pull as it was before r31 altogether (one point, the soft spring, 1 N, no sliding while held)
-  const now = onBall({}), before = onBall({ dragK: 5e4, dragReach: 0, dragMax: 1e6, dragSlideReach: 0, dragLimitIters: 0 });
+  // (REC-SHORT: the place grabbed is pinned to the pointer and the held cloth slides a while after letting go, both on by default;
+  // the pull as it was before r31 has them off)
+  const now = onBall({}), before = onBall({ dragK: 5e4, dragReach: 0, dragMax: 1e6, dragSlideReach: 0, dragLimitIters: 0, dragPin: false, dragRelease: 0 });
   assert.ok(now.pulled > 55 && now.pulled > before.pulled + 10, "it follows the pointer's 60 mm: " + JSON.stringify({ now, before }));
   assert.ok(now.stayed > 0.8*now.pulled && now.stayed < now.pulled + 10, "and stays there once let go, neither back nor sliding off: " + JSON.stringify(now));
   assert.strictEqual(now.inside, 0, "nothing through the body"); assert.ok(now.speed < 20, "at rest: " + now.speed);
   // at rest it does not creep away by itself
-  const still = onBall({ dragMax: 0 });
+  const still = onBall({ dragMax: 0, dragPin: false });      // (REC-SHORT: no pull at all is no force and no pin)
   assert.ok(Math.abs(still.stayed) < 3, "no pull, no slide: " + JSON.stringify(still));
 });
 

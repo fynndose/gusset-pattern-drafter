@@ -751,13 +751,20 @@ function offsetVar(pts, ds) {
                the hem allowance, so the hem matches the seam when folded up
      slant     Slant: a straight cut from Distance a back from where A' and B' meet, along A', to Distance b along B' (Round r25:
                the reference's Distance A / B, 10 / 10 when picked); a corner with neither (older files) straight from a1 to b0
-     round     Round: an arc about P from a1 to b0 (the reference's Round has no rows since Round r25); a length r kept from
-               an older file still rounds the corner where A' and B' meet off, starting r back along each
-     env       Envelope: the corner cut off straight, square to the corner's middle, Distance d from P (4 mm); nearer P than
-               the allowances' own width the cut starts before the corner, on the cut lines (as the check videos' frame shows)
-     pocket    Pocket: the corner of the allowance beyond din of the incoming seam line and dout of the outgoing one is taken
-               away. Style 1 a square step; Style 2 (Round r25) the step on the incoming cut line, then a 45° cut out to the
-               outgoing cut line; Style 3 is listed and not built (its shape was not seen)
+     round     Round (REC-SHORT, the sixth check session at 02:52, on 60° and 120°): an arc tangent to both cut lines, touching
+               each one allowance width back from where they meet (ROUND_TAN; the reference's Round has no rows); on a square
+               corner that is the arc about P from a1 to b0 it was before. A length r kept from an older file still rounds the
+               corner where A' and B' meet off, starting r back along each
+     env       Envelope (REC-SHORT, session 6 frames 014, 015): each cut line stops Distance d (4 mm) back along its own seam
+               line from the corner, and the cut bends in to the point d out from P on the corner's middle: a shallow V,
+               nearly straight on a square corner (as session 3 read it)
+     pocket    Pocket: Style 1 the corner of the allowance beyond din of the incoming seam line and dout of the outgoing one taken
+               away as a step (its two rows, A' and B'). Styles 2 and 3 have no rows (REC-SHORT, session 6 at 193 and 196 s, on
+               60° at 10 mm; on other corners guess recshort/2): Style 2 a zigzag from A's cut line square off P, across B's
+               seam line, out to A's cut line mirrored in B's seam line and in to B's cut line; Style 3 from where A's cut line
+               crosses B's seam line, mirrored in towards the corner to POCKET3_STEP of B's allowance out, a level step to A's
+               seam line carried on, and along it to B's cut line. Both are built from Line 1 (on "out": from Line 2, as on a
+               mirror image)
      dartcap   Dart Cap (Round r34): offered only at a dart's mouth; the cap across the dart's opening as the dart pressed toward
                line on lies (dartCapCore(), below); cornerPts() alone (at any other corner) draws it as Extension
    Files before version 18 had other names; cornerOf() reads them (the history of an old file holds them too):
@@ -769,6 +776,8 @@ const CORNERS = [["ext", "Extension"], ["perp", "Perpendicular"], ["turn", "Turn
   ["round", "Round"], ["env", "Envelope"], ["dartcap", "Dart Cap"], ["pocket", "Pocket"]];
 const CORNER_NB = new Set();                            // listed, not built (Dart Cap built in Round r34)
 const ENV_D = 4, PERP_D = 10, POCKET_D = 5, SLANT_D = 10;
+const ROUND_TAN = 1;                                    // Round's arc touches each cut line this many allowances back from where they meet (session 6: 10 mm at 10 mm, on 60° and 120°)
+const POCKET3_STEP = 0.6;                               // Pocket Style 3's level step lies this share of the allowance out from the seam line (session 6: 6 mm at 10 mm)
 const DARTCAP_ONLY = "Only at a dart's mouth (a point where a dart's leg meets the outline)";
 const PERP_SPIKE = 6;                                   // a short Perpendicular's cut goes this many allowances from the corner at most, as the mitre (guess r26/2)
 const POCKET_MAX = 90.5;                                // Pocket is offered on a corner up to this many degrees (guess r26/3: the reference offers it at 60 and 90, greys it at 120)
@@ -785,7 +794,7 @@ function cornerMirror(c) {
   if (!n) return null;
   const m = { ...n };
   if (m.on) m.on = m.on === "in" ? "out" : "in";
-  if (m.t === "pocket") { m.din = n.dout; m.dout = n.din; }
+  if (m.t === "pocket") { m.din = n.dout; m.dout = n.din; if (n.st === 2 || n.st === 3) { if (n.on === "out") delete m.on; else m.on = "out"; } }
   if (m.t === "slant") { m.a = n.b; m.b = n.a; }             // (Round r26) Distance A is along Line 1, the incoming line
   return m;
 }
@@ -835,33 +844,36 @@ function cornerPts(P, uA, uB, dA, dB, wind, corner) {
     if (bl < 1e-9) return mitre();
     const bo = mul(add(nA, nB), 1/bl), along = (q) => (q.x - P.x)*bo.x + (q.y - P.y)*bo.y;
     if (M && along(M) <= d) return mitre();
-    const ka = uA.x*bo.x + uA.y*bo.y, kb = -(uB.x*bo.x + uB.y*bo.y);
-    if (!(ka > 1e-9 && kb > 1e-9)) return mitre();
-    const sa = (d - along(a1))/ka, sb = (d - along(b0))/kb;
-    return [add(a1, mul(uA, sa)), sub(b0, mul(uB, sb))];
+    return [sub(a1, mul(uA, d)), add(P, mul(bo, d)), add(b0, mul(uB, d))];
   }
   if (type === "pocket") {
     const din = num0(corner.din) === null ? POCKET_D : corner.din, dout = num0(corner.dout) === null ? POCKET_D : corner.dout;
     // (Round r26, the fourth check session Number 3) Style 1's distances run along the two lines carried on past the corner, not square to them
     // (on a square corner the two are one): the step's inner corner is dout along the incoming line and din back along the outgoing
     // one, its two sides parallel to the lines. Style 2 was not recorded and stays as it was
-    if (corner.st !== 2) {
+    if (corner.st !== 2 && corner.st !== 3) {
       const sn = Math.abs(uA.x*uB.y - uA.y*uB.x);
       if (!(din >= 0 && dout >= 0 && din*sn < dA && dout*sn < dB)) return mitre();
       const J = sub(add(P, mul(uA, dout)), mul(uB, din)), ja = X(J, uB, a1, uA), jb = X(J, uA, b0, uB);
       return ja && jb ? [ja, J, jb] : mitre();
     }
-    if (!(din >= 0 && dout >= 0 && din < dA && dout < dB)) return mitre();
-    const I = X(add(P, mul(nA, din)), uA, add(P, mul(nB, dout)), uB), pa = X(a1, uA, add(P, mul(nB, dout)), uB), pb = X(b0, uB, add(P, mul(nA, din)), uA);
-    if (!I || !pa || !pb) return mitre();
-    // Style 2: the step down from the incoming cut line to I, then a 45° cut (half way between square to the outgoing line and
-    // along it) out to the outgoing cut line
-    const dl = vlen(add(nB, uB)), q = dl > 1e-9 ? X(I, mul(add(nB, uB), 1/dl), b0, uB) : null;
-    return q ? [pa, I, q] : [pa, I, pb];
+    if (corner.on === "out") { const q = pocketStyle(corner.st, P, mul(uB, -1), mul(uA, -1), dB, dA, nB, nA); return q ? q.reverse() : mitre(); }
+    return pocketStyle(corner.st, P, uA, uB, dA, dB, nA, nB) || mitre();
   }
   if (type === "right") return [a1, add(a1, mul(uA, dB)), sub(b0, mul(uB, dA)), b0];
   if (type === "round") {
     const out = [];
+    if (!(corner.r > 0) && M && dA > 0 && dB > 0) {      // (REC-SHORT) the arc tangent to both cut lines, ROUND_TAN allowances back from M
+      const L = ROUND_TAN*(dA + dB)/2, f0 = sub(M, mul(uA, L)), f1 = add(M, mul(uB, L)), C = X(f0, nA, f1, nB);
+      if (C) {
+        const r = dist(C, f0), a = Math.atan2(f0.y - C.y, f0.x - C.x);
+        let da = Math.atan2(f1.y - C.y, f1.x - C.x) - a;
+        while (da > Math.PI) da -= 2*Math.PI; while (da < -Math.PI) da += 2*Math.PI;
+        const N = Math.max(8, Math.ceil(Math.abs(da)/0.12));
+        for (let k = 0; k <= N; k++) out.push(V(C.x + Math.cos(a + da*k/N)*r, C.y + Math.sin(a + da*k/N)*r));
+        return out;
+      }
+    }
     if (corner.r > 0 && M) {                       // round by length: a curve through the corner where A' and B' meet
       const L = Math.min(corner.r, dist(a1, M), dist(b0, M)), f0 = sub(M, mul(uA, L)), f1 = add(M, mul(uB, L));
       for (let k = 0; k <= 8; k++) { const t = k/8, u = 1-t; out.push(V(u*u*f0.x + 2*u*t*M.x + t*t*f1.x, u*u*f0.y + 2*u*t*M.y + t*t*f1.y)); }
@@ -886,6 +898,19 @@ function cornerPts(P, uA, uB, dA, dB, wind, corner) {
   return mitre();
 }
 const num0 = (x) => (typeof x === "number" && Number.isFinite(x) ? x : null);
+// (REC-SHORT) Pocket Styles 2 and 3 at corner P, built from the incoming line A (uA, dA, nA) toward B: the cut line's points, or null
+function pocketStyle(st, P, uA, uB, dA, dB, nA, nB) {
+  if (!(dA > 0 && dB > 0)) return null;
+  const X = (p1, d1, p2, d2) => lineX(p1, add(p1, d1), p2, add(p2, d2));
+  const k = uA.x*uB.x + uA.y*uB.y, r = V(uA.x - 2*k*uB.x, uA.y - 2*k*uB.y);       // A's direction mirrored in B's normal
+  const a1 = add(P, mul(nA, dA)), b0 = add(P, mul(nB, dB)), once = (pts) => pts.filter((q, j) => !j || dist(q, pts[j - 1]) > 1e-9);
+  if (st === 2) {
+    const q = X(a1, r, P, uB), m = reflectAcross(a1, P, add(P, uB)), q2 = m && X(m, r, b0, uB);
+    return q && q2 ? once([a1, q, m, q2]) : null;            // (on a square corner it folds away to the plain corner: guess recshort/2)
+  }
+  const s = add(P, mul(nB, POCKET3_STEP*dB)), q1 = X(a1, uA, P, uB), q2 = q1 && X(q1, r, s, uB), q3 = X(P, uA, s, uB), q4 = X(P, uA, b0, uB);
+  return q1 && q2 && q3 && q4 ? once([q1, q2, q3, q4]) : null;
+}
 /* (Round r34 / 2, guess r34/1-3) DART CAP: the allowance across a dart's opening shaped as it is when the dart is sewn and pressed,
    so that the folded dart's allowance lies along the cut line. Offered only at a dart's mouth (a point where a dart's leg meets the
    outline); the corner may be stored at either mouth point (or the dart's point), and covers the whole dart: its two legs get no
@@ -1004,7 +1029,7 @@ function setCorner(seg, type, o) {
     if (type === "perp" && o.rev === true) c.rev = true;
     if (type === "turn" && num0(o.e) !== null && o.e !== 0) c.e = o.e;
     if (type === "round" && o.r > 0) c.r = o.r;
-    if (type === "pocket") { c.st = o.st === 2 ? 2 : 1; for (const k of ["din", "dout"]) if (num0(o[k]) !== null && o[k] >= 0) c[k] = o[k]; }
+    if (type === "pocket") { c.st = o.st === 2 || o.st === 3 ? o.st : 1; for (const k of ["din", "dout"]) if (num0(o[k]) !== null && o[k] >= 0) c[k] = o[k]; if (c.st !== 1 && o.on === "out") c.on = "out"; }
   }
   seg.corner = c;
 }
@@ -2277,7 +2302,7 @@ function setPrefs(o) { S.prefs = normPrefs({ ...S.prefs, ...o }); savePrefs(); a
    The status bar shows the state: SAVED (nothing unsaved), AUTOSAVED (unsaved work, kept
    for recovery). A failure (storage full, blocked, private mode) turns it red, toasts
    once, and asks before the tab closes. See THE DOCUMENT AND ITS FILE. */
-const AUTOSAVE_KEY = "pdraft:doc", FILE_VERSION = 33;      // 33 (Round H1d): the History Groups (hgroups), each history node's lane (l) and a step that took one group back (j) (an older build would drop them, so it refuses the file). 32 (Round H1): the history as a tree (history.json v4: every node, its parent, Save States, places in the panel) and histcloth.bin (the cloth of Save States and branch points). 31 (Round H1a): the garment measurements (garMeas), the defaults the file was written with (defaults), the render settings always, the avatar record's collision detail (cell) and its pose file's turns (baseQ). 30 (Round r34): an internal line's link to the outline (olink) and a pattern's group (group) (an older build would drop them, so it refuses the file). 29 (Round r33b): Seamless Blocking (an internal line's block, a pattern's blocks: each section's place and fabric) and the background image's angle (an older build would drop them, so it refuses the file). 28 (Round r30): a seam's mirror on a symmetric pair (mir; an older build would drop it, so it refuses the file). 27 (Round r29): a document's render settings (render, only once changed; an older build would drop them, so it refuses the file)
+const AUTOSAVE_KEY = "pdraft:doc", FILE_VERSION = 34;      // 34 (Round REC-SHORT): a seam allowance corner's Pocket Style 3 (st 3) and, for Styles 2 and 3, the line it is built from (on) (an older build would make it Style 1, so it refuses the file). 33 (Round H1d): the History Groups (hgroups), each history node's lane (l) and a step that took one group back (j) (an older build would drop them, so it refuses the file). 32 (Round H1): the history as a tree (history.json v4: every node, its parent, Save States, places in the panel) and histcloth.bin (the cloth of Save States and branch points). 31 (Round H1a): the garment measurements (garMeas), the defaults the file was written with (defaults), the render settings always, the avatar record's collision detail (cell) and its pose file's turns (baseQ). 30 (Round r34): an internal line's link to the outline (olink) and a pattern's group (group) (an older build would drop them, so it refuses the file). 29 (Round r33b): Seamless Blocking (an internal line's block, a pattern's blocks: each section's place and fabric) and the background image's angle (an older build would drop them, so it refuses the file). 28 (Round r30): a seam's mirror on a symmetric pair (mir; an older build would drop it, so it refuses the file). 27 (Round r29): a document's render settings (render, only once changed; an older build would drop them, so it refuses the file)
 // 26 (Round r26): Simulation Shrinkage 1 to 1000, a glue's Strength up to 100, a pattern's foldStay (an older build would clamp or drop them, so it refuses the file); 25 (Round r25): a pattern's Grain Orientation (grainWay), a Slant corner's Distance A / B (a, b), a Pocket corner's Style 3, Solidify's Strength (solid3s), a notch's Point (Center) direction (dir: "point"), (r25 follow-up, before any release of 25) a glue switched off (off) (an older build would drop them, so it refuses the file); 24 (Round r20): an annotation's own angle, colour and line (angle, color, link: an older build would drop them, so it refuses the file); 23 (Round r19 follow-up): the document's lights for the render (lights) and each fabric's own roll in Print Layout (layout.rolls; an older build would drop them, so it refuses the file); 22 (Round r18): the document's avatar edits (avedit: the joints turned by hand, …; an older build would drop them, so it refuses the file); 21 (Round r17b): the background image (backdrop), the display settings kept with the file (display); 20 (Round build-1): a pattern's own Particle Distance (res3), Simulation Shrinkage (shrink3), Solidify (solid3), a glue's strength and thick (an older build would drop them, so it refuses the file); 19 (Round perf-2): the history saved as changes, a list's items each on its own (history v3)
 //      // 18 (Round r15): the seam allowance corner types are the reference's eight (perp, turn, slant, env, pocket, … with their own values; an older build would not know them, so it refuses the file; older files' corners are renamed as they open: cornerMigrate()); 17 (Round r14): an internal line's fold angle (foldAngle, foldStrength, foldVar), more in later batches of the round (an older build would drop them, so it refuses the file); 16 (Round r13): a notch may also have its own len and flip (an older build would drop them, so it refuses the file); 15 (Round r12): a notch may be { t, type, angle } (files of 14 have plain numbers, which still are); 14 (Round r11): piping, binding, gluing (files of 13 open with none); 13 (Round r9): a fabric's Max Stretch, tacks, a pattern's Fill, buttons; files of 12 open with defaults
 // where the autosave is kept: the browser's localStorage, or in the desktop app
@@ -8437,7 +8462,7 @@ function drawPleatSel() {
   }
   ctx.restore(); ctx.setLineDash([]);
 }
-/* ---- Seamless Blocking (Round r33b / 2, as the reference's manual describes the tool, the look only for now) ----
+/* ---- Seamless Blocking (Round r33b / 2, as the reference's manual describes the tool; simulated per section since REC-SHORT) ----
    A seamless block line is an open internal line marked block: true that runs from the pattern's outline (or another block line)
    to the outline (or another block line) through any points inside: it divides the pattern into sections without cutting it.
    The tool: a click on the outline starts a line, clicks inside the pattern add points (Shift: steps of 45°), a click on the
@@ -8445,8 +8470,9 @@ function drawPleatSel() {
    A click inside a pattern with no line begun selects the section there; the Property Editor gives it a fabric of the library.
    A section's fabric is p.blocks = [{ at: { x, y }, fabric }]: a place inside the section (it moves with the pattern, mapPiece())
    and the library fabric's id, the full reference, so that a later version can simulate each section with its own fabric without
-   another change of the file (version 29). Today a section's fabric is its look only (its colour in 2D and on the cloth in 3D);
-   the simulation uses the pattern's own fabric, and the Property Editor says so. Kept only when there is one; a section whose
+   another change of the file (version 29). A section's fabric is its look (its colour in 2D and on the cloth in 3D) and, since
+   REC-SHORT (the sixth check session), its simulation too (sectionZones()); the rest of the pattern simulates with the
+   pattern's own fabric, and the Property Editor says so. Kept only when there is one; a section whose
    place lies in no section any more (its lines changed) shows the pattern's own fabric until it is given one again. */
 const blockLinesOf = (p) => (p.internals || []).filter(it => it.block && !it.closed && it.pts.length >= 2);
 // the place a line's points reach on a polygon's boundary: { i: edge, t, q, d }
@@ -8499,6 +8525,22 @@ function blockSections(p) {
   return polys;
 }
 const sectionAt = (p, q) => blockSections(p).findIndex(P => inside(P, q));
+/* (REC-SHORT, the sixth check session 12:57: "it does then get the values in there") a section's fabric simulates: each triangle of
+   the pattern's cloth whose middle lies in a section given a fabric takes that fabric's numbers (phys: a library fabric to the
+   solver's, with the pattern's own 3D state). The cloth is not meshed along the block lines, so a section's edge follows the
+   triangles (guess recshort/5). { t: [index into fabs or -1, a triangle each], fabs } or null when no section has a fabric */
+function sectionZones(p, mesh, phys) {
+  if (!(p.blocks && p.blocks.length) || !blockLinesOf(p).length || !mesh || !mesh.tri) return null;
+  const polys = blockSections(p), fabs = [], idx = polys.map((P, k) => { const f = sectionFabric(p, k); if (!f) return -1; fabs.push(phys(f)); return fabs.length - 1; });
+  if (!fabs.length) return null;
+  const xy = mesh.xy, T = mesh.tri, t = new Array(T.length/3).fill(-1);
+  for (let j = 0; j < T.length; j += 3) {
+    const a = T[j], b = T[j+1], c = T[j+2], q = { x: (xy[2*a] + xy[2*b] + xy[2*c])/3, y: (xy[2*a+1] + xy[2*b+1] + xy[2*c+1])/3 };
+    const k = polys.findIndex(P => inside(P, q));
+    if (k >= 0) t[j/3] = idx[k];
+  }
+  return { t, fabs };
+}
 // the library fabric a section is given (null: the pattern's own)
 function sectionFabric(p, k) {
   const P = blockSections(p)[k];
@@ -8597,7 +8639,7 @@ function blockPanel() {
     h += '<div class="row"><label for="blk-f">Section fabric</label><select id="blk-f"><option value="">The pattern\'s own (' + esc(own ? own.name || "Fabric" : "none") + ')</option>' +
       fs.map(x => '<option value="' + x.id + '"' + (f && f.id === x.id ? ' selected' : '') + '>' + esc(x.name || ("Fabric " + x.id)) + '</option>').join("") + '</select></div>';
   } else if (n) h += '<div class="note">Click inside a section to give it a fabric.</div>';
-  return h + '<div class="note"><b>The simulation uses the pattern\'s own fabric</b>' + (own ? ' (' + esc(own.name || "Fabric") + ')' : '') + ': a section\'s fabric changes how it looks only, for now.</div>';
+  return h + '<div class="note">A section simulates with its own fabric; the rest of the pattern with the pattern\'s own' + (own ? ' (' + esc(own.name || "Fabric") + ')' : '') + '.</div>';
 }
 function wireBlockPanel() {
   const s = document.getElementById("blk-f"), sel = S.blockSel && byId(S.blockSel.pid);
@@ -13404,6 +13446,13 @@ function sewReadout(extra) {
 }
 function drawSewDraft() {
   const x = drawSewParts(), r = sewReadout(x || 0), d = S.draft && S.draft.sew;
+  // (REC-SHORT) the seam as it would be made: its connectors, dotted, before the click
+  const pv = sewPreview();
+  if (pv) {
+    ctx.save(); ctx.strokeStyle = SEW_PREVIEW_COL; ctx.lineWidth = 1.5; ctx.setLineDash(SEW_PREVIEW_DASH);
+    for (const [u, v] of sewPreviewLinks(pv)) { const su = toS({ x: u.at[0], y: u.at[1] }), sv = toS({ x: v.at[0], y: v.at[1] }); ctx.beginPath(); ctx.moveTo(su.x, su.y); ctx.lineTo(sv.x, sv.y); ctx.stroke(); }
+    ctx.restore();
+  }
   // the length of each stretch picked so far, on it, with a cross where it is sewn from the middle
   ctx.font = "10px ui-monospace, monospace"; ctx.textAlign = "center";
   if (d) for (const part of [...d.a, ...d.b]) drawPartLen(part, true);
@@ -13412,6 +13461,29 @@ function drawSewDraft() {
   if (r.text) { ctx.font = "10px ui-monospace, monospace"; ctx.fillStyle = Math.abs(r.la - r.lb) > 1 && r.lb > 0 ? "#b01010" : "#1c3fa8"; ctx.fillText(r.text, S.mouse.sx + 22, S.mouse.sy + 34); }
   ctx.textAlign = "center";
 }
+/* (REC-SHORT, the maintainer's "include that", session 5 06:28-06:46, frames 026, 027) A seam being made is previewed before the
+   click that makes it: the seam as it would be (the stretches picked, the stretch under the pointer added to the side being
+   picked), its connectors dotted from each side's start to the other's and end to end, in 2D and in 3D; the running lengths at
+   the pointer are sewReadout()'s. null while one side is still empty. */
+function sewPreview() {
+  const d = S.draft && S.draft.sew;
+  if (!d || !SEW_TOOLS.includes(S.tool)) return null;
+  const hov = sewShown().items.find(x => x.part && !x.picked && !x.dash), a = d.a.slice(), b = d.b.slice();
+  if (hov) (d.side === "b" ? b : a).push(hov.part);
+  return a.length && b.length ? { a, b } : null;
+}
+// its connectors as pairs of places on the patterns: [[{ pid, at: [x, y] }, …]], start to start and end to end
+function sewPreviewLinks(sm) {
+  const ends = (parts) => {
+    const f = parts[0], l = parts[parts.length - 1], X = seamSide(f, S.pieces), Y = seamSide(l, S.pieces);
+    if (!X || !Y || !X.p.on || !Y.p.on) return null;
+    const s = partEnds(X, f)[0], e = partEnds(Y, l)[1];
+    return [{ pid: X.p.id, at: [s.x, s.y] }, { pid: Y.p.id, at: [e.x, e.y] }];
+  };
+  const A = sm && ends(sm.a), B = sm && ends(sm.b);
+  return A && B ? [[A[0], B[0]], [A[1], B[1]]] : [];
+}
+const SEW_PREVIEW_COL = "#1e6fd0", SEW_PREVIEW_DASH = [3, 4];
 // the picked stretches, the guide dots and the stretch under the pointer; returns that stretch's length (0 if none)
 let SEW_LAYER = 0;                 // seams already on the stretch under the pointer
 /* What a sewing tool shows now, for the 2D window (drawSewParts()) and the 3D window (ov3Tool(), Round r10 / 2) alike:
@@ -14380,13 +14452,14 @@ function foldArrow(it, v, sel) {
 const fmtDeg = (a) => (Math.round(a*10)/10) + "°";
 /* (Round r14 / 5) A SEAM'S SEWING LINE TYPE AND FOLD (the Property Editor's Sewing Line Type with a seam selected, W15:
    Turned Off, Fold Strength 5, Fold Angle 180; WW p.27: the angle greyed while Turned). Fold Angle is as a fold line's
-   (180 flat). Turned: the cloth turned over at the seam, back against back (TURNED_ANGLE), as a hem's fold-up or a pin tuck
-   is sewn (A10 p.26, WW p.27). Kept on the seam only when not the default: turned, foldAngle, foldStrength. The solver folds
-   across the seam once its stitches have closed (SIM3D seamBends()). */
-const TURNED_ANGLE = 0;
+   (180 flat). Turned (REC-SHORT, the sixth check session 05:34-08:24, frames 037, 038): the two patterns stay flat and open
+   at the seam, which shows as a turned seam's bead; Fold Strength and Fold Angle are greyed while it is on and do nothing, so
+   the solver gets no fold (until REC-SHORT it folded the cloth back against back, angle 0, from the manual's words; a file
+   that relied on that now lies flat there: guess recshort/4). Kept on the seam only when not the default: turned, foldAngle,
+   foldStrength. The solver folds across the seam once its stitches have closed (SIM3D seamBends()). */
 const seamFoldOf = (sm) => ({ turned: !!sm.turned, angle: Number.isFinite(sm.foldAngle) ? sm.foldAngle : 180, strength: Number.isFinite(sm.foldStrength) ? sm.foldStrength : FOLD_STRENGTH });
 // what the solver gets: { a: the angle, k: its stiffness } or null for a flat seam
-function seamFold(sm) { const f = seamFoldOf(sm), a = f.turned ? TURNED_ANGLE : f.angle; return a === 180 ? null : { a, k: FOLD_K*f.strength }; }
+function seamFold(sm) { const f = seamFoldOf(sm); return f.turned || f.angle === 180 ? null : { a: f.angle, k: FOLD_K*f.strength }; }
 function setSeamFold(sms, o) {
   const L = (Array.isArray(sms) ? sms : [sms]).filter(Boolean);
   if (!L.length) return;
@@ -16140,7 +16213,7 @@ function histPack(max, bin, apart) {
 }
 // the file versions whose saved history this build can replay: a step holds whole patterns, and 12 to 15 changed nothing in them
 // that can't be read with its defaults
-const HIST_FV = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33];
+const HIST_FV = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34];
 // a state of a file's history in parts, as the session keeps them; prev: the parts of the state it is to share its unchanged parts with
 function histPartsOf(s, prev) {
   histLast = prev || null;
@@ -17154,10 +17227,12 @@ function cornerPropsHTML(p, i, dis) {
     h += row("Distance B (" + u + ")", num("cx-sb", n2(b)), "Along Line 2's cut line, back from where the two cut lines meet");
   }
   if (t === "pocket") {
-    const a = l1 === "out" ? c.dout : c.din, b = l1 === "out" ? c.din : c.dout, nb3 = S.ui && S.ui.unbuilt;
-    h += row("Corner Type", '<select class="w" id="cx-st"' + dis + '><option value="1"' + (c.st === 2 ? '' : ' selected') + '>Style 1</option><option value="2"' + (c.st === 2 ? ' selected' : '') + '>Style 2</option>' + (nb3 ? '<option value="3" disabled>Style 3 (not built yet)</option>' : '') + '</select>', "Style 1: a square step cut out of the corner. Style 2: a step, then a 45° cut");
-    h += row("Distance A (" + u + ")", num("cx-a", n2(num0(a) !== null ? a : POCKET_D)), "From Line 1");
-    h += row("Distance B (" + u + ")", num("cx-b", n2(num0(b) !== null ? b : POCKET_D)), "From Line 2");
+    const a = l1 === "out" ? c.dout : c.din, b = l1 === "out" ? c.din : c.dout;
+    h += row("Corner Type", '<select class="w" id="cx-st"' + dis + '><option value="1"' + (c.st === 2 || c.st === 3 ? '' : ' selected') + '>Style 1</option><option value="2"' + (c.st === 2 ? ' selected' : '') + '>Style 2</option>' + '<option value="3"' + (c.st === 3 ? ' selected' : '') + '>Style 3</option>' + '</select>', "Style 1: a step cut out of the corner, its two distances below. Style 2: a zigzag across the corner. Style 3: a cut in, a level step and down along Line 1 carried on. Styles 2 and 3 have no distances");
+    if (c.st !== 2 && c.st !== 3) {                       // (REC-SHORT) only Style 1 has rows (session 6, 193 and 196 s)
+      h += row("Distance A (" + u + ")", num("cx-a", n2(num0(a) !== null ? a : POCKET_D)), "From Line 1");
+      h += row("Distance B (" + u + ")", num("cx-b", n2(num0(b) !== null ? b : POCKET_D)), "From Line 2");
+    }
   }
   return h;
 }
@@ -17193,7 +17268,7 @@ function wireCornerProps(p, i) {
   if (g("cx-sb")) g("cx-sb").onchange = (e) => cornerSet(p, i, { ...slantNow(), b: mm(e) });
   if (g("cx-rev")) g("cx-rev").onchange = (e) => cornerSet(p, i, { rev: !!e.target.checked });
   if (g("cx-e")) g("cx-e").onchange = (e) => cornerSet(p, i, { e: mm(e) });
-  if (g("cx-st")) g("cx-st").onchange = (e) => cornerSet(p, i, { st: +e.target.value === 2 ? 2 : 1 });
+  if (g("cx-st")) g("cx-st").onchange = (e) => cornerSet(p, i, { st: [2, 3].includes(+e.target.value) ? +e.target.value : 1 });
   if (g("cx-a")) g("cx-a").onchange = (e) => cornerSet(p, i, l1 === "out" ? { dout: mm(e) } : { din: mm(e) });
   if (g("cx-b")) g("cx-b").onchange = (e) => cornerSet(p, i, l1 === "out" ? { din: mm(e) } : { dout: mm(e) });
 }
@@ -19303,7 +19378,7 @@ function ui() {
   const sf = ssm ? { turned: same("turned") ? sfs[0].turned : null, strength: same("strength") ? sfs[0].strength : "\u2014", angle: same("angle") ? sfs[0].angle : "\u2014" } : null;
   const sfOff = sf && sf.turned === true ? ' disabled' : '';
   const seamSec = ssm ? sec("Sewing Line Type <span style=\"color:var(--dimmer)\">" + (ssms.length > 1 ? ssms.length + " seams" : "S" + ssm.id) + "</span>",
-    '<div class="row"><label for="sf-t" title="Turned: the cloth turned over at the seam, back against back, as a hem\'s fold-up or a pin tuck is sewn. Off: the seam folds by its Fold Angle">Turned</label><input type="checkbox" id="sf-t"' + (sf.turned === true ? ' checked' : '') + '></div>' +
+    '<div class="row"><label for="sf-t" title="Turned: a turned seam; the two patterns stay flat and open at it, and Fold Strength and Fold Angle do nothing. Off: the seam folds by its Fold Angle">Turned</label><input type="checkbox" id="sf-t"' + (sf.turned === true ? ' checked' : '') + '></div>' +
     '<div class="row"><label title="How firmly the seam holds its angle in the simulation">Fold Strength</label><input type="range" id="sf-kr" min="0" max="100" step="1" value="' + (typeof sf.strength === "number" ? sf.strength : 50) + '"' + sfOff + '><input type="text" inputmode="decimal" data-num="1" class="s" id="sf-k" min="0" max="100" step="1" value="' + sf.strength + '"' + sfOff + '></div>' +
     '<div class="row"><label title="180 lies flat; below folds back toward back, above front toward front (as an internal line\'s Fold Angle)">Fold Angle (°)</label><input type="range" id="sf-ar" min="0" max="360" step="1" value="' + (typeof sf.angle === "number" ? sf.angle : 180) + '"' + sfOff + '><input type="text" inputmode="decimal" data-num="1" class="s" id="sf-a" min="0" max="360" step="1" value="' + sf.angle + '"' + sfOff + '></div>') : '';
   const fabrics = libOf().fabric, fab = fabricOf(p), gr = grainOf(p);
@@ -20130,7 +20205,7 @@ const HIST_GLYPH = "M12 5l7 7-7 7-7-7z", HIST_START = "M6 21V4M6 5h11l-3 4 3 4H6
    a tool shows that tool's icon; the others are told by their name. The glyphs differ by shape, never by colour alone. The
    first kind whose words match the step's name is its kind; "Edit" (the diamond) is the rest. */
 const HIST_KINDS = [
-  ["3D", "3D window", /3D|Simulat|Drape|Pin\b|Pins|Arrange|Avatar|Pose/i, "M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5"],
+  ["3D", "3D window", /3D|Simulat|Drape|Pin\b|Pins|Pull\b|Arrange|Avatar|Pose/i, "M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5"],
   ["sewing", "Sewing", /Sew|Seam|Zipper|Stitch/i, "M3 17L21 7M5 13l2 4M11 10l2 4M17 7l2 4"],
   ["delete", "Delete", /^(Delete|Remove|Clear|Cut)\b/i, "M6 6l12 12M18 6L6 18"],
   ["copy", "Copy, paste, clone", /Paste|Clone|Copy|Symmetric|Mirror|Duplicate|Unfold|Trace/i, "M8 8h11v11H8zM5 16V5h11"],
@@ -24048,14 +24123,16 @@ function snapshot() {
   try { url = cv.toDataURL("image/png"); } catch (e) { return toast("The picture could not be made"); }
   dlURL("pattern-window.png", url, (f) => toast("Snapshot saved as " + f));
 }
-function shortcutsDialog() {
-  hideMenu(); closeFlyouts(); hideDlg();
-  // the key table, a line per command under its heading (a command with two keys shows both), then what the mouse adds
+/* (Round POLISH-1 / A4) the list the Keyboard Shortcuts dialog shows, and the README's (scripts/readme-keys.js writes it from
+   shortcutsMarkdown(), test POLISH-1 / A4 fails while they differ): the key table, a line per command under its heading (a command
+   with two keys shows both), then what the mouse adds. -> [{ sec, list: [[keys, what]] }]. all: the desktop app's own keys too,
+   marked, whatever this page is (the README speaks for both) */
+function shortcutRows(all) {
   const by = new Map();
   for (const r of keyTable()) {
-    if (r.alias || (r.desk && !DESK)) continue;
+    if (r.alias || (r.desk && !DESK && !all)) continue;
     const key = r.sec + "|" + r.id;
-    if (!by.has(key)) by.set(key, { sec: r.sec, n: r.n, ks: [] });
+    if (!by.has(key)) by.set(key, { sec: r.sec, n: r.n + (all && r.desk ? " (desktop app only)" : ""), ks: [] });
     by.get(key).ks.push(r.as || keyShow(r.k));
   }
   const vc = viewCtl(), btn = (k) => VIEW_BUTTONS.find(b => b[0] === k)[1];
@@ -24066,10 +24143,28 @@ function shortcutsDialog() {
     ["Alt + drag", "Pan the 2D window or the 3D window (for a trackpad; on Transform Pattern's center mark it moves the pivot)"],
     ...(MAC ? [["Control + click, two-finger click", "The same as a right-click"]] : []), ["Shift", "Constrain: 45\u00b0, 15\u00b0 steps, straight, proportional"],
     ["Ctrl + drag a point", "Keep it on a line through where it was"], ["Ctrl + marquee", "Transform Pattern: select every pattern the box touches"], ["Ctrl while dragging a rectangle or ellipse", "Draw it from the center (let go: from the corner again)"], ["Right-click during a drag", "Type the amount"]];
-  const rows = [], html = [];
+  const out = [];
   for (const sec of KEY_SECTIONS) {
     const list = [...by.values()].filter(x => x.sec === sec).map(x => [x.ks.join(" / "), x.n]).concat(sec === "While working" ? MOUSE.map(([k, n]) => [MAC ? k.replace(/^Ctrl\b/, "Cmd").replace(/^Alt\b/, "Option") : k, n]) : []);
-    if (!list.length) continue;
+    if (list.length) out.push({ sec, list });
+  }
+  return out;
+}
+// the README's section (between its keys markers): a table a heading, from shortcutRows(true) as a fresh start has it
+function shortcutsMarkdown() {
+  const cell = (t) => String(t).replace(/\|/g, "\\|");
+  const out = ["## Keyboard shortcuts", "", "Help ▸ Keyboard Shortcuts… lists the same keys in the program. On a Mac, Cmd stands for Ctrl (but for Ctrl+H, Ctrl+Q and Ctrl+W) and Option for Alt.", ""];
+  for (const { sec, list } of shortcutRows(true)) {
+    out.push("### " + sec, "", "| Key | What it does |", "|---|---|");
+    for (const [k, n] of list) out.push("| " + cell(k) + " | " + cell(n) + " |");
+    out.push("");
+  }
+  return out.join("\n");
+}
+function shortcutsDialog() {
+  hideMenu(); closeFlyouts(); hideDlg();
+  const rows = [], html = [];
+  for (const { sec, list } of shortcutRows(false)) {
     html.push('<tr><td colspan="2" style="color:#e4e4e4;padding:7px 0 2px;font-weight:600">' + sec + '</td></tr>');
     for (const [k, n] of list) html.push('<tr><td style="font-family:var(--mono);color:#e4e4e4;padding:1px 14px 1px 0;white-space:nowrap;vertical-align:top">' + k + '</td><td style="color:var(--dim)">' + n + '</td></tr>');
     rows.push(...list);
@@ -28409,7 +28504,7 @@ const clothAt = (it, a) => [0, 1, 2].map(c => a.w[0]*it.X[3*a.i[0]+c] + a.w[1]*i
 function ov3Key() {
   const d = S.draft;
   return JSON.stringify([S.undo.length, S.redo.length, S.seams.length, S.selSeam, S.sel, S.selSeg, S.selPt, S.selKind, S.selInt, S.selStitch, S.selBtn, S.tool, S.over3d, S.sewCheck.on, S.ui.show3d,
-    [...G3.items.values()].map(it => it.uid), G3.ov || [], S.over3d ? "" : G3.hovKey, d ? JSON.stringify(d, (k, v) => (k === "host" || k === "p" || k === "sh" ? (v && v.id) : v)) : "", G3.ovExtra || ""]);
+    [...G3.items.values()].map(it => it.uid), G3.ov || [], S.over3d ? "" : G3.hovKey, d ? JSON.stringify(d, (k, v) => (k === "host" || k === "p" || k === "sh" ? (v && v.id) : v)) : "", G3.ovExtra || "", d && d.sew ? JSON.stringify(sewPreviewLinks(sewPreview())) : ""]);
 }
 function ov3Draw() {
   const g = view3d.group("ov3");
@@ -28421,6 +28516,15 @@ function ov3Draw() {
   G3.ovCache = { key, objs };
   if (key === "hidden") return;
   for (const o of ov3Items()) {
+    if (o.link) {                                                  // (REC-SHORT) a straight line between places on two patterns' cloth
+      const its = o.link.map(l => G3.items.get(l.pid));
+      if (its.some(x => !x)) continue;
+      const obj = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineDashedMaterial({ color: new THREE.Color(o.col), dashSize: o.dash[0], gapSize: o.dash[1], depthTest: false }));
+      obj.renderOrder = 10; obj.frustumCulled = false; g.add(obj);
+      const rec = { obj, its, an: o.link.map((l, k) => clothAnchor(its[k], l.at[0], l.at[1])), dash: true };
+      ov3Place(rec); objs.push(rec);
+      continue;
+    }
     const it = G3.items.get(o.pid);
     if (!it) continue;
     const col = new THREE.Color(o.col), xr = o.xray !== false;
@@ -28437,7 +28541,7 @@ function ov3Draw() {
 }
 // an overlay's points where its cloth is now
 function ov3Place(rec) {
-  const P = rec.an.map(a => clothAt(rec.it, a)), o = rec.obj;
+  const P = rec.an.map((a, k) => clothAt(rec.its ? rec.its[k] : rec.it, a)), o = rec.obj;
   if (rec.tube) {
     const V3 = P.map(q => new THREE.Vector3(q[0], q[1], q[2])), r = 2.2*view3d.wpp(V3[Math.floor(V3.length/2)]);
     const path = new THREE.CurvePath(); for (let k = 1; k < V3.length; k++) if (V3[k].distanceTo(V3[k-1]) > 1e-6) path.add(new THREE.LineCurve3(V3[k-1], V3[k]));
@@ -28468,6 +28572,7 @@ function dotItem(q, col, px) { const p = shapeOwner(q.sh), at = segPt(q.sh, q.i,
 // what the tool in hand shows under the pointer (inside with2D(): S.mouse is the virtual place)
 function ov3Tool() {
   const T = S.tool, out = [];
+  if (SEW_TOOLS.includes(T)) for (const ln of sewPreviewLinks(sewPreview())) out.push({ link: ln, col: SEW_PREVIEW_COL, dash: [6, 6] });      // (REC-SHORT) the seam to be, before the click
   if (SEW_TOOLS.includes(T)) for (const x of sewShown().items) {
     if (x.picked) continue;                                        // (shown all the time: ov3Seams())
     const it = x.part ? partItem(x.part, x.col, "thin", x.dash ? [6, 4] : null) : dotItem(x.dot, x.col, 2*(x.r || 4));
@@ -30001,17 +30106,18 @@ function simSeams(order) {
   return out;
 }
 // what the solver is built from, as text: when it changes while the simulation runs, the solver is built again
-const simSig = () => JSON.stringify([S.seams, S.tacks, S.pipings, S.bindings, S.glues, (S.buttons || []).map(b => [b.id, b.piece, b.x, b.y, b.fasten, b.lib]), ((S.lib || {}).button || []).map(t => [t.id, t.weight]), S.cloth, S.pieces.map(p => [p.id, p.on, p.fabric, p.layer, p.pins, (p.internals || []).filter(foldSet).map(it => [it.id, foldOf(it)]), elasticSig(p), p.freeze3, p.strong3, p.off3, p.solid3, p.solid3s, p.shrink3, p.arch3, p.flip3]), (S.lib || {}).fabric, S.av ? [S.av.name, S.av.scale, S.av.pose, S.av.baseQ ? 1 : 0, S.avSet.cell, S.av.jsig || "", S.av.ssig || "", S.av.bsig || ""] : 0, [...G3.items.values()].map(it => it.uid)]);
+const simSig = () => JSON.stringify([S.seams, S.tacks, S.pipings, S.bindings, S.glues, (S.buttons || []).map(b => [b.id, b.piece, b.x, b.y, b.fasten, b.lib]), ((S.lib || {}).button || []).map(t => [t.id, t.weight]), S.cloth, S.pieces.map(p => [p.id, p.on, p.fabric, p.layer, p.pins, (p.internals || []).filter(foldSet).map(it => [it.id, foldOf(it)]), elasticSig(p), p.freeze3, p.strong3, p.off3, p.solid3, p.solid3s, p.shrink3, p.arch3, p.flip3, p.blocks ? [p.blocks, blockLinesOf(p).map(l => [l.pts, l.segs])] : 0]), (S.lib || {}).fabric, S.av ? [S.av.name, S.av.scale, S.av.pose, S.av.baseQ ? 1 : 0, S.avSet.cell, S.av.jsig || "", S.av.ssig || "", S.av.bsig || ""] : 0, [...G3.items.values()].map(it => it.uid)]);
 function simBuild() {
   SIM.order = S.pieces.filter(p => p.on && G3.items.has(p.id)).map(p => p.id);
   SIM.seams = simSeams(SIM.order);
   const pieces = SIM.order.map(id => { const it = G3.items.get(id), p = byId(id), fl = foldsOf(p, it.mesh.res), el = elasticsOf(p, it.mesh), fb = fabricPhys(fabricOf(p));
     // (Round r14 / 6) a strengthened pattern is stiff; a deactivated one is passed through (and held, below); (Round build-1) a
     // solidified one rests in the shape it has and is stiffer still; Simulation Shrinkage scales its rest along and across its grain
-    const fab = p.solid3 ? { ...fb, bend: fb.bend*solidBend(p), stretch: Math.max(fb.stretch, STRONG_STRETCH) } : p.strong3 ? { ...fb, bend: fb.bend*STRONG_BEND, stretch: Math.max(fb.stretch, STRONG_STRETCH) } : fb;
+    const state = (fb) => p.solid3 ? { ...fb, bend: fb.bend*solidBend(p), stretch: Math.max(fb.stretch, STRONG_STRETCH) } : p.strong3 ? { ...fb, bend: fb.bend*STRONG_BEND, stretch: Math.max(fb.stretch, STRONG_STRETCH) } : fb;
+    const fab = state(fb), zones = sectionZones(p, it.mesh, (g) => state(fabricPhys(g)));
     const sh3 = p.shrink3 && !p.solid3 ? (() => { const g = grainOf(p); return { g: [g.b.x - g.a.x, g.b.y - g.a.y], warp: (p.shrink3.warp || 100)/100, weft: (p.shrink3.weft || 100)/100 }; })() : null;
     return { xy: it.mesh.xy, tri: it.mesh.tri, X: it.X, fab, layer: p.layer || 0, fill: p.fill || 0, ...(fl.length ? { folds: fl } : {}), ...(el.length ? { elastics: el } : {}), ...(p.off3 || p.arch3 ? { ghost: true } : {}),
-      ...(p.solid3 ? { shape3: true } : {}), ...(sh3 ? { shrink: sh3 } : {}) }; });
+      ...(p.solid3 ? { shape3: true } : {}), ...(sh3 ? { shrink: sh3 } : {}), ...(zones ? { zones } : {}) }; });
   const pins = [];
   // (Round r14 / 6) a frozen or deactivated pattern: every point held
   SIM.order.forEach((id, pi) => { const it = G3.items.get(id), p = byId(id); for (const v of p.freeze3 || p.off3 || p.arch3 ? Array.from({ length: it.mesh.xy.length >> 1 }, (_, k) => k) : piecePins(p, it)) pins.push({ p: pi, v }); });
@@ -30170,7 +30276,10 @@ function simGrab(e, r) {
   let v = den ? (d11*d20 - d01*d21)/den : 1/3, u = den ? (d00*d21 - d01*d20)/den : 1/3;
   v = Math.max(0, Math.min(1, v)); u = Math.max(0, Math.min(1 - v, u));
   const off = SIM.sim.off[k], d = { i: vs.map(q => off + q), w: [1 - u - v, v, u] };
-  SIM.grab = { d, from: h.point.clone() };
+  // (Round POLISH-1 / A1, F24: each pull its own undo step) the cloth as it is at the press is kept, and the document with it; the step
+  // "Pull" is pushed when the pull is let go, if the pointer moved, naming that cloth, so undo puts the garment back as it hung before it
+  if (!G3.drapeNow || !G3.pool.has(G3.drapeNow)) drapeCapture();
+  SIM.grab = { d, from: h.point.clone(), st: histState(), moved: false };
   // (Round r14 / 8) Symmetric Pinch: on a pattern with a symmetric partner, its mirrored place is pulled as well. (Round r15 / 8,
   // the check videos S17: the reference leaves the linked pattern alone, so it is off unless S.cloth.symPinch says so)
   if (S.cloth.symPinch === true && (S.tool3 === "quick_pinching" || S.tool3 === "select_move")) {
@@ -30217,11 +30326,13 @@ function simDragTo(d, to, also) {
 }
 function simDrag(e, r) {
   const g = SIM.grab, q = g && r && dragPlane(r, g.from);
+  if (q) g.moved = true;
   if (q) simDragTo(g.d, [q.x, q.y, q.z], g.mirror ? [{ ...g.mirror.d, to: symPinchTo(g, q) }] : null);
 }
 function simRelease() {
   const g = SIM.grab; SIM.grab = null;
   if (g) simDragTo(null);
+  if (g && g.moved && g.st) { pushFlush(); pushState(g.st, "Pull"); if (typeof renderTimeline === "function") renderTimeline(); }
 }
 /* ---- sewing shown on the cloth ----
    Show Threads: each seam's threads, short lines between the places that are sewn together (they close up as the seam
@@ -32607,7 +32718,7 @@ function detachPins3() {
    (the one it shares the longest seam with): turned to face as that one's cloth faces, its middle on that cloth's middle, then
    moved SUPERIMPOSE_GAP mm off it, outwards (Over: away from the avatar's axis, or the scene's middle), inwards (Under), or beside
    it (Side: as far as the two are wide, on the side it already was). One step; the cloth moves as it hangs (guess r20/36). */
-const SUPERIMPOSE_GAP = 8;
+const SUPERIMPOSE_GAP = 3;          // (REC-SHORT) 3 mm, the maintainer from his own use of the reference (session 4 video 3 17:13: "3 mm, I know that from things"); it was 8 (guess r20/36)
 function clothFrame3(it) {
   const X = it.X, T = it.mesh.tri, c = [0, 0, 0], n = [0, 0, 0], m = X.length/3;
   for (let i = 0; i < X.length; i += 3) { c[0] += X[i]/m; c[1] += X[i+1]/m; c[2] += X[i+2]/m; }

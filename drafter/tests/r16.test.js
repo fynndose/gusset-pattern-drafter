@@ -236,7 +236,8 @@ test("r16 / B5 the corner pictures as the reference's list draws them: Perpendic
   near(ty0, P[1], 0.05, "Turnback turns at the level line's seam line"); assert.ok(tx1 < tx0 && ty1 > ty0, "and goes back down to the left");
   const env = parse("env");
   assert.ok(Math.abs(env.seam[0][0] - env.seam[1][0]) < 1e-9 && Math.abs(env.seam[1][1] - env.seam[2][1]) < 1e-9, "Envelope on a square corner: an upright line and a level one");
-  assert.ok(env.cut.length === 4, "its cut line cut off straight across the corner: " + JSON.stringify(env.cut));
+  // (REC-SHORT, the sixth check session: Envelope's cut bends in to the corner's middle, a shallow V: one point more than the straight cut)
+  assert.ok(env.cut.length === 5, "its cut line cut off across the corner, bent in at its middle: " + JSON.stringify(env.cut));
   const pocket = parse("pocket");
   assert.match(pocket.svg, / Z"/); assert.strictEqual(pocket.seam.length, 5, "a five-sided pocket"); assert.strictEqual(pocket.dots.length, 2, "its two upper corners marked");
   assert.ok(Math.max(...pocket.seam.map(q => q[1])) === pocket.seam[3][1] && pocket.seam[3][0] === 16, "pointing down");
