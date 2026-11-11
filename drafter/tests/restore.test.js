@@ -52,10 +52,10 @@ const CLASS = {
     selBtn: "session", selPunch: "session", selPucker: "session", selNotch: "session", selHandle: "session", selMore: "session", gradeSel: "session", blockSel: "session",
     drag: "session", draft: "session", mouse: "session", hover: "session", shift: "session", space: "session", marquee: "session", pivot: "session", place: "session",
     walk: "session", replace: "session", rotAxis: "session", pickPoly: "session", traceSel: "session", traceShapes: "session", traceMode: "session", traceOp: "session",
-    traceFold: "session", pleatPick: "session", pleatSet: "session", blockDraft: "session", sticker: "session", fastenFrom: "session", zipTarget: "session", noteLink: "session",
+    traceFold: "session", pleatPick: "session", subPick: "session" /* (Round FIX-3b / B: Set Sublayer's first click) */, ripFrom: "session", selRip: "session" /* (Round FIX-4 / A: a rip begun, the rip selected) */, pleatSet: "session", blockDraft: "session", sticker: "session", fastenFrom: "session", zipTarget: "session", noteLink: "session",
     dartCap: "session", only3: "session", added: "session", clip: "session", gradeClip: "session", btnClip: "session", tps: "session", snapG: "session", snapMark: "session",
     laySel: "session", layDrag: "session", layHover: "session", layManual: "session", layTape: "session", avPick: "session", btnPick: "session", spread: "session",
-    lockCurve: "session", angKeep: "session", sewBad: "session", busyMin: "session", calcExpr: "session", graphicAt: "session", bgMode: "session", avOutEdit: "session", autoAt: "session",
+    lockCurve: "session", angKeep: "session", sewBad: "session", busyMin: "session", calcExpr: "session", graphicAt: "session", bgMode: "session", autoAt: "session",
     dirty: "session", drapeWant: "session", docAvAsk: "session", docAvTried: "session", av: "session", avErr: "session", avPresets: "session", known3: "session", bakeWas: "session",
     curvesIn: "session",
     // the last values a dialog of this session opened with (each dialog's own memory, not the document)
@@ -70,10 +70,10 @@ const CLASS = {
   G3: { items: "derived", pool: "derived", poolLazy: "derived" /* (Round H1c / A: a file's Save States' cloth, read when wanted) */, redrape: "session" /* (Round H1: a step whose cloth was not kept is shown; the 3D window asks for a Re-drape) */, poolId: "derived", drapeNow: "derived", restBody: "derived", fresh: "derived", dirty: "derived", look: "session", sel: "session", giz: "session",
     gizHot: "session", gizObj: "session", joint: "session", jointHot: "session", selPin: "session", selTack: "session", selMeas: "session", selVol: "session", isolate: "view",
     probe: "session", probeObj: "session", mapLeg: "view", strain: "derived", strainLeg: "view", strainTop: "view", ov: "derived", ovCache: "derived", ovExtra: "derived",
-    hovKey: "session", hotLine: "session", hotPt: "session", garFrom: "session", tackFrom: "session", suitPick: "session", suitLine: "session", ikSlot: "session", ikOpen: "view",
+    hovKey: "session", hotLine: "session", hotPt: "session", garFrom: "session", tackFrom: "session", tackLive: "session", meshSel: "session" /* (Round FIX-4 / B: Select Mesh) */, suitPick: "session", suitLine: "session", ikSlot: "session", ikOpen: "view",
     arrBV: "session", arrPt: "session", blendSel: "session", blendSelOnly: "view", blendFavOnly: "view", sizeHot: "session", stayPid: "session", moved: "session", uid: "derived",
     unsewn: "derived", unsewnKey: "derived", zipKey: "derived", zips: "derived", dot: "derived", dotHot: "session", dotMat: "derived", dotPair: "session", dotSel: "session",
-    btnScreen: "derived", tackScreen: "derived", thread: "derived", trimEdge: "derived", trimMats: "derived", tackMats: "derived", glueMats: "derived", lineMat: "derived",
+    btnScreen: "derived", tackScreen: "derived", thread: "derived", trimEdge: "derived", trimMats: "derived", tackMats: "derived", tackLiveMats: "derived", meshSelMat: "derived", glueMats: "derived", lineMat: "derived",
     measMat: "derived", measMats: "derived", pinMat: "derived", unsewnMat: "derived", ring: "derived", ringDark: "derived", ringLight: "derived", light: "derived",
     q3: "derived", q3Env: "derived", q3Hemi: "derived", shadow3: "derived", schPanel: "view", schSig: "derived", schT: "derived" },
 };
@@ -156,8 +156,10 @@ const SCENE = DUMP + `
     // sewn: A to B with a zipper, a topstitch on A
     app.push("Zipper"); S.seams.push({ id: 900, zip: { name: "Zipper 1", type: S.lib.zipper && S.lib.zipper[0] ? S.lib.zipper[0].id : 0 }, a: [{ piece: A.id, shape: 0, sids: [A.segs[A.segs.length - 1].id], t0: 0, t1: 1, rev: false }], b: [{ piece: B.id, shape: 0, sids: [B.segs[1].id], t0: 0, t1: 1, rev: true }] }); app.commit();
     app.push("Topstitch"); app.addStitch({ piece: A.id, shape: 0, sids: [A.segs[0].id], t0: 0, t1: 1 }); app.commit();
+    /* (Round FIX-3 / F) a tack from A to B with its Property Editor's rows: a name, its thread, switched off */
+    app.push("Tack"); S.tacks.push({ id: 77, a: { piece: A.id, x: A.pts[0].x + 20, y: A.pts[0].y + 20 }, b: { piece: B.id, x: B.pts[0].x + 20, y: B.pts[0].y + 20 }, av: null, name: "Shoulder tack", len: 25, off: true }); app.commit();
     // a fabric of our own, given to C
-    app.push("Fabric"); app.libAdd("fabric"); const fab = S.lib.fabric[S.lib.fabric.length - 1]; Object.assign(fab, { name: "Wool", physical: "Custom", weight: 210, maxStretch: 15, color: "#335577" }); C.fabric = fab.id; app.commit();
+    app.push("Fabric"); app.libAdd("fabric"); const fab = S.lib.fabric[S.lib.fabric.length - 1]; Object.assign(fab, { name: "Wool", physical: "Custom", weight: 210, maxStretch: 15, color: "#335577", dir: { stretchWeft: 60, shearL: 140, bendBiasR: 250, damping: 80 }, friction: 0.62 }); /* (Round FIX-3 / D: the Detail rows and a friction typed) */ C.fabric = fab.id; app.commit();
     // pleats on B (two clicks on the outline, the side, the box)
     S.view = { s: 0.25, x: -700, y: 100 };            // (the three panels on the test page's 1000 px canvas)
     app.setTool("pleats");

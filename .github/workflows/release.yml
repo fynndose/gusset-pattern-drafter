@@ -178,7 +178,7 @@ jobs:
       # (Round POLISH-1: the fold line's wavy crease is fixed, so the Apple chip's one allowed failure, r14 / 2, is gone: any failure stops the build)
       - name: Unit tests (not the slow drapes)
         shell: bash
-        run: node drafter/tests/run.js --fast
+        run: node drafter/tests/run.js --nobar
 
       # the release check stays in the private repository (it names what must not be published); the public one has no such file
       - name: Release check (the source)
@@ -310,7 +310,7 @@ jobs:
       - name: Unit tests on an Apple chip (not the slow drapes)
         if: steps.has.outputs.yes == 'true'
         shell: bash
-        run: node drafter/tests/run.js --fast
+        run: node drafter/tests/run.js --nobar
       - uses: actions/download-artifact@v8
         if: steps.has.outputs.yes == 'true'
         with:

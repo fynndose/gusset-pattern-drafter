@@ -129,8 +129,10 @@ test("ui1 / D1 (Round UI-1b / A): the floor shows only the plain grid: no AxesHe
 
 test("ui1 / D2: the position readout: each label right before its slot, slots of 8 characters; the History button: bigger, its own icon, framed in the accent while the panel is open", () => {
   const html = fs.readFileSync(path.join(__dirname, "..", "pattern-drafter.html"), "utf8");
-  assert.ok(/#s-pos \.pv \{[^}]*width: 8ch;[^}]*text-align: right;[^}]*tabular-nums/.test(html), "8-character slots, right-aligned, digits of one width");
-  assert.ok(/#s-pos \.pl \{[^}]*margin: 0 3px 0 10px;/.test(html), "the label 3 px before its number");
+  // (Round FIX-2 / C11, the maintainer's feedback: the number straight after its label, no wide gap) left-aligned, the slot sized by
+  // posShow() from the decimals (fix2.test.js checks the sizes)
+  assert.ok(/#s-pos \.pv \{[^}]*text-align: left;[^}]*tabular-nums/.test(html), "left-aligned slots, digits of one width");
+  assert.ok(/#s-pos \.pl \{[^}]*margin: 0 0[.]5ch 0 1[.]5ch;/.test(html), "the label half a character before its number");
   assert.ok(/<button id="s-hist"[^>]*><svg class="hist-ic" viewBox="0 0 24 24"[^>]*><g transform="[^"]*">(<path [^>]*\/>){3}<path [^>]*\/><circle [^>]*fill="currentColor"[^>]*\/><\/g><\/svg><span>History<\/span><\/button>/.test(html), "(Round UI-1c / D) the seam ripper's tip: the stub, the curved blade, the pointed prong, the short prong and its ball; then the word");
   assert.ok(!/<rect /.test(/<svg class="hist-ic"[\s\S]*?<\/svg>/.exec(html)[0]), "no handle");
   assert.ok(/#s-hist \.hist-ic \{ width: 20px; height: 20px;/.test(html), "20 px");
@@ -223,7 +225,7 @@ test("ui1c / B (Round UI-1d / 0): the triad sits on the corner from which all th
       out.dash = (out.dash || 0) + (dashes.every((d, i) => d === hid[i]) ? 0 : 1); out.letters = Math.min(out.letters == null ? 3 : out.letters, texts.length);
       const dev = lines.length === want.length ? Math.max(0, ...lines.map((l, k) => Math.max(Math.hypot(l[0][0] - want[k][0][0], l[0][1] - want[k][0][1]), Math.hypot(l[1][0] - want[k][1][0], l[1][1] - want[k][1][1])))) : 99;
       out.views.push(dev);
-      for (const [t, x, y] of texts) if (x > HX - 6 && x < HX + 18 + 6 && y > HY - 7 && y < HY + 18 + 7) out.onHome.push([t, +az.toFixed(2), +el.toFixed(2)]);
+      for (const [t, x, y] of texts) if (x > HX - 6 && x < HX + 26 + 6 && y > HY - 7 && y < HY + 26 + 7) out.onHome.push([t, +az.toFixed(2), +el.toFixed(2)]);
     }
     const start = L(-0.6, 0.5), sl = []; let c0 = null;
     T({ save() {}, restore() {}, arc() {}, setLineDash() {}, beginPath() {}, stroke() {}, strokeText() {}, fillText(t) { sl.push(t); }, moveTo() {}, lineTo() {} }, start);
@@ -252,11 +254,12 @@ test("ui1d / 0: the step arrows sit right by the cube's edges, small; they and t
   assert.ok(/g\.globalAlpha = VCUBE\.alpha;\s*for \(const a of VCUBE\.alpha > 0\.01 \? vcubeArrows/.test(d) && /if \(hot && VCUBE\.alpha > 0\.01\)/.test(d), "the arrows and the name fade together");
 });
 
-test("ui1c / C: Home is the house alone (no button background or frame), small and half see-through grey near the cube's top left corner, whole and orange under the pointer, its lines thicker; it says Home (start view)", () => {
+test("ui1c / C (Round FIX-2 / C4): Home is the house alone (no button background or frame), shown only while the pointer is near the cube, near the cube's top left corner, whole and orange under the pointer, its lines thicker; it says Home (start view)", () => {
   const html = fs.readFileSync(path.join(__dirname, "..", "pattern-drafter.html"), "utf8"), js = fs.readFileSync(path.join(__dirname, "..", "pattern-drafter.js"), "utf8");
   const rule = (sel) => { const m = new RegExp(sel.replace(/[#:,]/g, (c) => "\\" + c) + " \\{([^}]*)\\}").exec(html); return m ? m[1] : ""; };
   const base = rule("#cam3d #vhome");
-  assert.ok(/background: none;/.test(base) && /border: none;/.test(base) && /opacity: \.55;/.test(base) && /width: 18px;/.test(base), base);
+  // (Round FIX-2 / C4, the maintainer's feedback: only while the pointer is near the cube, bigger) hidden until --vnear (the arrows' fade), 26 px
+  assert.ok(/background: none;/.test(base) && /border: none;/.test(base) && /opacity: calc[(]var[(]--vnear, 0[)] [*] [.]8[)];/.test(base) && /width: 26px;/.test(base), base);
   const left = +/left: ([0-9]+)px/.exec(base)[1], top = +/top: ([0-9]+)px/.exec(base)[1];
   assert.ok(left <= 30 && top <= 30, "at the top left, by the cube's top left corner (Round UI-1d / 0: in the canvas's corner, where no letter of the triad reaches): " + left + ", " + top);
   assert.ok(/opacity: 1; color: var\(--accent\);/.test(rule("#cam3d #vhome:hover, #cam3d #vhome:focus-visible")), "whole and orange under the pointer");
@@ -451,107 +454,8 @@ test("ui1d / B3 (Round UI-1e / D): clicks and drags on the background image do n
   assert.strictEqual(r.noLockRow, true);
 });
 
-/* Round beta.6 / 0: the avatar's outline in 2D, restored (UI-1e / D's commit dropped UI-1e / C's test by mistake) and changed: the waist
-   on the 2D origin's horizontal line for any avatar (it was the floor 1100 mm below the origin), plus the document's own vertical offset,
-   dragged in Edit Avatar Outline, one step, in the file with the avatar edits. */
-const MARTY = path.join(__dirname, "..", "assets", "avatar", "presets", "marty.glb"), hasMarty = fs.existsSync(MARTY);
-const JESSICA = path.join(__dirname, "..", "assets", "avatar", "presets", "jessica.glb"), hasJessica = fs.existsSync(JESSICA);
-const OUTLINE = `
-  const look = () => {
-    app.ev("draw")(); app.runTimers(); app.ev("draw")();
-    const o = app.ev("avOutNow")(), m = app.ev("avatarMeasures")(S.av), b = app.ev("avatarBox")(S.av);
-    // the mask's row at the origin's line (y 0): filled across the trunk's middle
-    const row = Math.floor(o.base/o.res), mid = Math.floor(-o.u0/o.res);
-    return { height: o.height, avh: S.av.height, base: +o.base.toFixed(1), waistUp: m ? +(m.waistY - b.y0).toFixed(1) : null, waist: o.waist, box: o.box, midFilled: !!o.mask[row*o.w + mid] };
-  };
-`;
-test("beta6 / 0a: the avatar's outline in 2D: as tall as the avatar to 1 mm, as wide as the body at hip height; the waist on the 2D origin's horizontal line for Marty, after an Avatar Size change and a new height; back and side; never printed; the choice in the file's display settings" + (hasMarty ? "" : " (Marty is not here: skipped)"), () => {
-  if (!hasMarty) return;
-  const r = boot({ blank: true, three: true, script: OUTLINE + `
-    return (async () => {
-      const out = {};
-      app.ev("setLayout")("both");
-      app.ev("avatarLoaded")(app.read("../assets/avatar/presets/marty.glb"), "marty.glb", null, true); await app.wait(() => S.av, "Marty");
-      app.ev("setAvOut")("front");
-      out.marty = look();
-      const o = app.ev("avOutNow")();
-      // the width at hip height: the outline's row there against a cut through the body's triangles at the same height (exact)
-      const T = app.ev("avatarTris")(S.av), b = app.ev("avatarBox")(S.av), yh = b.y0 + 0.5*(b.y1 - b.y0), cx = (b.x0 + b.x1)/2;
-      let lo = Infinity, hi = -Infinity;
-      for (let i = 0; i < T.length; i += 9) for (const [p, q] of [[0, 3], [3, 6], [6, 0]]) { const y0 = T[i+p+1], y1 = T[i+q+1]; if ((y0 - yh)*(y1 - yh) > 0 || y0 === y1) continue; const t = (yh - y0)/(y1 - y0), x = T[i+p] + (T[i+q] - T[i+p])*t - cx; if (x < lo) lo = x; if (x > hi) hi = x; }
-      const row = Math.floor((yh - b.y0)/o.res); let a = -1, z = -1; for (let x = 0; x < o.w; x++) if (o.mask[row*o.w + x]) { if (a < 0) a = x; z = x; }
-      out.width = [+(hi - lo).toFixed(1), (z - a + 1)*o.res, +(o.u0 + a*o.res).toFixed(1), +lo.toFixed(1)];
-      // an Avatar Size change (a waist typed, one step) and a new height: the waist stays on the origin
-      app.ev("sizeTyped")("waist", 900); out.sized = look(); out.sizedStep = S.un[S.un.length - 1].n;
-      app.ev("setAvatar")({ height: 1700 }); out.tall = look();
-      out.back = app.ev("avOutBuild")("back", false).box; out.side = app.ev("avOutBuild")("side", false).box;
-      app.push("Rectangle"); S.pieces.push(app.mkPiece("Front", app.mkShape([{ x: -150, y: -300 }, { x: 150, y: -300 }, { x: 150, y: 0 }, { x: -150, y: 0 }], true))); app.commit();
-      const svg = app.ev("printInner")(S.pieces, S.print);
-      out.print = typeof svg === "string" ? [svg.includes("6e6e74"), svg.length > 100] : ["no svg", typeof svg];
-      let got = null; app.setDownload((n, b2) => { got = b2; }); app.saveDoc(false); app.setDownload(null);
-      const d = app.fileDoc(got).display; out.file = [d && d.avOut, d && d.avOutObj];
-      app.ev("setAvOut")("off"); out.off = app.ev("avOutNow")();
-      return out;
-    })();` }, 180000);
-  const near = (v, t, n) => Math.abs(v.base - v.waistUp) <= 1 && v.waist === true && v.box.y0 < 0 && v.box.y1 > 0 && v.midFilled, why = (v) => JSON.stringify(v);
-  assert.ok(Math.abs(r.marty.height - r.marty.avh) <= 1, "as tall as the avatar to 1 mm: " + why(r.marty));
-  assert.ok(near(r.marty), "Marty's waist on the origin's line (the floor at his waist height below it), the body across it: " + why(r.marty));
-  assert.ok(Math.abs(r.width[0] - r.width[1]) <= 2 && Math.abs(r.width[2] - r.width[3]) <= 2, "as wide as the body at hip height (cells of 1 mm): " + r.width);
-  assert.strictEqual(r.sizedStep, "Avatar Size");
-  assert.ok(near(r.sized), "after Avatar Size, the new waist on the origin: " + why(r.sized));
-  assert.ok(Math.abs(r.tall.height - 1700) <= 1 && near(r.tall) && r.tall.base < r.sized.base, "a new height: followed, the waist still on the origin, lower above the floor: " + why([r.tall, r.sized.base]));
-  assert.ok(r.back.x1 - r.back.x0 > 300 && r.side.x1 - r.side.x0 < r.back.x1 - r.back.x0, "back as wide as the front, the side narrower: " + JSON.stringify([r.back, r.side]));
-  assert.deepStrictEqual(r.print, [false, true], "the printed drawing has no outline");
-  assert.deepStrictEqual(r.file, ["front", null], "the outline in the display settings; Include Objects only when ticked");
-  assert.strictEqual(r.off, null);
-});
-
-test("beta6 / 0b: Jessica's waist on the origin's line too; Edit Avatar Outline: a drag on it moves it up or down (one step, undo and redo), the box Vertical Offset… with a preview, Reset, Esc ends; a click off it ends; the offset in the file with the avatar edits and back on opening" + (hasJessica ? "" : " (Jessica is not here: skipped)"), () => {
-  if (!hasJessica) return;
-  const r = boot({ blank: true, three: true, script: OUTLINE + `
-    return (async () => {
-      const out = {};
-      app.ev("setLayout")("both");
-      app.ev("avatarLoaded")(app.read("../assets/avatar/presets/jessica.glb"), "jessica.glb", null, true); await app.wait(() => S.av, "Jessica");
-      out.rowBefore = app.ev("avOutRows")().map(x => x.n).filter(Boolean);
-      app.ev("avOutRows")().find(x => x.n === "Edit Avatar Outline").f();      // turns the outline on (Front) and edits it
-      out.jess = look(); out.mode = [!!S.avOutEdit, S.ui.avOut];
-      const at = (x, y) => app.toS({ x, y }), n0 = S.undo.length;
-      const p = at(0, -300), q = at(0, -180);
-      app.drag(p.x, p.y, q.x, q.y); app.fire("pointerup", q);
-      out.drag = [app.ev("avOutDy")(), S.undo.length - n0, S.un[S.un.length - 1].n, Math.round(app.ev("avOutBox")().y1 - out.jess.box.y1), !!S.avOutEdit];
-      app.undo(); out.undo = app.ev("avOutDy")(); app.redo(); out.redo = app.ev("avOutDy")();
-      // the right-click on it: its rows; Vertical Offset… typed, previewed, OK one step
-      app.menu.children.length = 0; app.ev("cvMenu")({ clientX: q.x, clientY: q.y, preventDefault() {} });
-      out.rows = app.menu.children.map(c => c.innerHTML.replace(/<[^>]+>/g, "").trim()).filter(Boolean);
-      const n1 = S.undo.length;
-      app.answer = (t, fl, o) => { o.preview({ dy: -50 }); out.preview = [app.ev("avOutDy")(), S.undo.length - n1, t]; return { dy: -50 }; };
-      app.ev("avOutOffsetDialog")({ x: 100, y: 100 }); app.answer = null;
-      out.ok = [app.ev("avOutDy")(), S.undo.length - n1, S.un[S.un.length - 1].n];
-      // saved: in the file's avatar edits; opened again: back
-      let got = null; app.setDownload((n, b2) => { got = b2; }); app.saveDoc(false); app.setDownload(null);
-      out.file = (app.fileDoc(got).avedit || {}).outline;
-      app.ev("avOutReset")(); out.reset = [app.ev("avOutDy")(), S.un[S.un.length - 1].n];
-      app.key("Escape"); out.esc = S.avOutEdit;
-      app.ev("avOutEditStart")(); const off = at(3000, 3000); app.click(off.x, off.y); out.offClick = S.avOutEdit;
-      app.ev("openFile")("o.pdraft", got, null, true); await app.wait(() => S.av, "Jessica again");
-      out.reopened = app.ev("avOutDy")();
-      return out;
-    })();` }, 180000);
-  const v = r.jess;
-  assert.ok(Math.abs(v.base - v.waistUp) <= 1 && v.waist === true && v.box.y0 < 0 && v.box.y1 > 0 && v.midFilled, "Jessica's waist on the origin's line: " + JSON.stringify(v));
-  assert.ok(r.rowBefore.includes("Edit Avatar Outline"), "the row: " + r.rowBefore);
-  assert.deepStrictEqual(r.mode, [true, "front"]);
-  assert.deepStrictEqual(r.drag, [120, 1, "Move Avatar Outline", 120, true], "the drag: 120 mm down, one step, editing goes on");
-  assert.deepStrictEqual([r.undo, r.redo], [0, 120]);
-  assert.deepStrictEqual(r.rows, ["Vertical Offset…", "Reset Vertical Offset", "Finish Editing"]);
-  assert.deepStrictEqual(r.preview, [-50, 0, "Avatar Outline Vertical Offset"], "previewed, no step yet");
-  assert.deepStrictEqual(r.ok, [-50, 1, "Avatar Outline Offset"]);
-  assert.deepStrictEqual(r.file, { dy: -50 }, "in the file with the avatar edits");
-  assert.deepStrictEqual(r.reset, [0, "Reset Avatar Outline Offset"]);
-  assert.strictEqual(r.esc, null, "Esc ends editing");
-  assert.strictEqual(r.offClick, null, "a click off it ends editing");
-  assert.strictEqual(r.reopened, -50, "opened again, the offset is back");
-});
+/* Round beta.6 / 0's two tests of the avatar's outline in 2D (the waist on the origin, Edit Avatar Outline and its offset) were replaced
+   in Round FIX-3 / A, which changed the rule on purpose (the maintainer's brief: the 2D window's horizontal axis is the 3D floor, the outline
+   stands on it, on by default, no offset): fix3.test.js, "FIX-3 / A". */
 
 module.exports = T;

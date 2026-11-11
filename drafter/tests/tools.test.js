@@ -17,11 +17,11 @@ function boot(opt) {
   if (r.status !== 0) throw new Error("boot process failed: " + r.stderr);
   return JSON.parse(r.stdout);
 }
-const BUILT_3D = ["simulate", "select_move", "pin_box", "fold_arrangement", "tape_basic", "circ_basic", /* arr_points: no longer a toolbar tool since Round r33 / 5 (a display switch of the Avatar list) */ "reset_2d_arrangement", "reset_3d_arrangement", "redrape" /* (Round r33b / 4) */, "hi_res", "low_res", "custom_res", "tack", "tack_avatar", "edit_tack", "button", "buttonhole", "fasten_button",
+const BUILT_3D = ["seamline_rip", "edit_rip" /* (Round FIX-4 / A) */, "select_mesh_box", "select_mesh_lasso", "select_mesh_brush" /* (Round FIX-4 / B) */, "simulate", "select_move", "pin_box", "fold_arrangement", "tape_basic", "circ_basic", /* arr_points: no longer a toolbar tool since Round r33 / 5 (a display switch of the Avatar list) */ "reset_2d_arrangement", "reset_3d_arrangement", "redrape" /* (Round r33b / 4) */, "hi_res", "low_res", "custom_res", "tack", "tack_avatar", "edit_tack", "button", "buttonhole", "fasten_button",
   "edit_sewing_3d", "segment_sewing_3d", "mn_segment_sewing_3d", "free_sewing_3d", "mn_free_sewing_3d",
   "edit_topstitch_3d", "segment_topstitch_3d", "free_topstitch_3d", "notch_3d", "pen_garment", "edit_pen_garment", "base_pen", "edit_style_line", "select_button", "graphic_3d", "transform_graphic_3d", "edit_texture_3d",
   "quick_pinching", "pin_lasso", "tape_surface", "circ_surface", "height_measure", "edit_measure_avatar", "linear_garment", "circ_garment", "volume_measure", "edit_volume_measure" /* (Round r20 continued (4)) */, "fill_3d", "piping", "edit_piping", "binding", "select_binding", "gluing", "zipper",
-  "edit_zipper", "sticker", "edit_gluing", "glue_fill"];      // (Round build-1 / 4: Edit Zipper, Sticker, Edit Gluing, on the 3D toolbar and working in both windows, as Zipper; Glue Fill the same way since Round r20 continued (4))      // (Zipper: Round r12 / 1, on the 3D toolbar and a tool of both windows; Fill (3D): Round r11 / 2, Piping and Edit Piping: 3, Binding and Select Binding: 4, Gluing: 5; the tacks: Round r9 / 5; buttons: 9; the sewing tools: Round r10 / 2; the other shared tools: 3)
+  "edit_zipper", "sticker", "edit_gluing", "glue_fill", "glue_brush" /* (Round BETA8-1 / D, 3.C5: built) */, "steam" /* (Round BETA8-1 / E, 3.A18: built) */];      // (Round build-1 / 4: Edit Zipper, Sticker, Edit Gluing, on the 3D toolbar and working in both windows, as Zipper; Glue Fill the same way since Round r20 continued (4))      // (Zipper: Round r12 / 1, on the 3D toolbar and a tool of both windows; Fill (3D): Round r11 / 2, Piping and Edit Piping: 3, Binding and Select Binding: 4, Gluing: 5; the tacks: Round r9 / 5; buttons: 9; the sewing tools: Round r10 / 2; the other shared tools: 3)
 const glyph = (t) => t.icon.split("+")[0], badge = (t) => t.icon.split("+")[1];
 
 test("the registry is well formed: unique ids, a group and window for every tool, a status, a tip, an icon that exists", () => {
@@ -100,7 +100,7 @@ test("in the booted app: toolbars from the registry, keys, icons, and placeholde
     // an unbuilt tool: its key, a click on it and setTool all leave the tool as it is
     const gi = (id) => app.GROUPS.findIndex(g => g.some(t => t.id === id));
     app.setTool("edit_pattern");
-    app.pick(gi("set_sublayer"), app.TOOLS.set_sublayer);      /* (Round r33b / 2: Seamless Blocking is built; Set Sublayer is the example now) */ out.afterUnbuilt = [S.tool, toasts[toasts.length-1]];
+    app.pick(gi("auto_fitting"), app.TOOLS.auto_fitting);      /* (Round r33b / 2: Seamless Blocking is built; Round FIX-3b / B: Set Sublayer too, Auto Fitting is the example now) */ out.afterUnbuilt = [S.tool, toasts[toasts.length-1]];
     app.setTool("select_move"); out.after3d = S.tool;
     app.pick(gi("simulate"), app.TOOLS.simulate); out.simNote = toasts[toasts.length-1];
     // a tool that is a right-click command here says where it is
@@ -129,9 +129,9 @@ test("in the booted app: toolbars from the registry, keys, icons, and placeholde
   assert.deepStrictEqual(o.keyOf, ["transform_pattern", "edit_sewing", "free_sewing", "edit_topstitch", "select_move", "pin_box", "seamline_topstitch"]);
   assert.deepStrictEqual(o.conflicts, [], "(Round r10 / 4: Quick Pinching is built, its Ctrl+Q a row of the key table)");
   assert.deepStrictEqual(o.noHint, [], "every tool that can be picked has its how-to line");
-  assert.strictEqual(o.selectable.length, 56 /* (Pleats Fold and Pleats Sewing since Round r20, removed in Round r25; the four Puckering tools and Pattern Symbol since r20 / 7; the four grading tools since Round r33 / 4; Seamless Blocking since Round r33b / 2) */ + BUILT_3D.length - 1 /* (the one switch, Simulate, is not counted; Show Arrangement Points, the other, left the toolbar in Round r33 / 5) */, "the 2D tools (one fewer since the Dart tool went, Round F / 7, and one more for the double-pointed Dart, r12; Internal Spiral, Pleats, Button, Buttonhole and Fasten Button since Round r9; Spiral since r10; Fill since r11; Zipper counted with the 3D tools since r12; Base Rectangle, Base Ellipse and Edit Point of Measure since r13; Seamline Topstitch since r14), and the 3D tools and commands that work (the two switches are not counted)");
+  assert.strictEqual(o.selectable.length, 1 /* (Round FIX-3b / B: Set Sublayer, the 2D menu) */ + 1 /* (Round FIX-3 / H: Base Dart, 2D ▸ Create) */ + 56 + 3 /* (Round FIX-2 / C1: the 2D toolbar's Glue Fill, Sticker and Edit Gluing) */ /* (Pleats Fold and Pleats Sewing since Round r20, removed in Round r25; the four Puckering tools and Pattern Symbol since r20 / 7; the four grading tools since Round r33 / 4; Seamless Blocking since Round r33b / 2) */ + BUILT_3D.length - 1 /* (the one switch, Simulate, is not counted; Show Arrangement Points, the other, left the toolbar in Round r33 / 5) */, "the 2D tools (one fewer since the Dart tool went, Round F / 7, and one more for the double-pointed Dart, r12; Internal Spiral, Pleats, Button, Buttonhole and Fasten Button since Round r9; Spiral since r10; Fill since r11; Zipper counted with the 3D tools since r12; Base Rectangle, Base Ellipse and Edit Point of Measure since r13; Seamline Topstitch since r14), and the 3D tools and commands that work (the two switches are not counted)");
   assert.deepStrictEqual(o.icon, [true, true, false]);
-  assert.strictEqual(o.afterUnbuilt[0], "edit_pattern"); assert.ok(/Set Sublayer is not built yet/.test(o.afterUnbuilt[1]));      // (Spiral was the example until Round r10 / 5 built it, Seamless Blocking until Round r33b / 2)
+  assert.strictEqual(o.afterUnbuilt[0], "edit_pattern"); assert.ok(/Auto Fitting is not built yet/.test(o.afterUnbuilt[1]))      /* (Round FIX-3b / B: Set Sublayer built) */;      // (Spiral was the example until Round r10 / 5 built it, Seamless Blocking until Round r33b / 2)
   assert.strictEqual(o.after3d, "edit_pattern"); assert.ok(/3D window is not up/.test(o.simNote), "Simulate is a switch now; with no 3D window it says so: " + o.simNote);
   assert.strictEqual(o.via[0], "edit_pattern"); assert.ok(/right-click command/.test(o.via[1]) && /Fullness [(]Line[)]/.test(o.via[1]));      // (Pleats was the example until it became a tool, Round r9 / 8)
   assert.deepStrictEqual(o.toggle, ["edit_pattern", true]); assert.strictEqual(o.toggleNotATool, "edit_pattern");
@@ -148,10 +148,13 @@ test("in the booted app: toolbars from the registry, keys, icons, and placeholde
 // (Round r23 / 1: every start looks the same) a saved layout no longer comes back: every start shows both windows; the
 // show-unbuilt choice is a preference and does
 test("a saved show-unbuilt choice comes back, a saved layout does not (every start shows both windows); junk falls back to the defaults", () => {
-  const ui = (saved) => boot({ uiSaved: saved, script: "return S.ui;" });
+  // (Round FIX-4b / A) a fresh profile as the program has it (freshUnbuilt): Show Tools That Are Not Built Yet starts off since the beta.8
+  // gate (G1), so the preference that comes back is "on"
+  const ui = (saved) => boot({ uiSaved: saved, freshUnbuilt: true, script: "return S.ui;" });
   const fresh = ui(undefined).result;
-  let r = ui(JSON.stringify({ layout: "3d", unbuilt: false, split: 0.3, panelW: 400, strain3: true, timeline: true, render: "mono" }));
-  assert.deepStrictEqual(r.errors, []); assert.deepStrictEqual(r.result, { ...fresh, unbuilt: false }, "only the preference comes back");
+  assert.strictEqual(fresh.unbuilt, false, "off in a fresh profile");
+  let r = ui(JSON.stringify({ layout: "3d", unbuilt: true, split: 0.3, panelW: 400, strain3: true, timeline: true, render: "mono" }));
+  assert.deepStrictEqual(r.errors, []); assert.deepStrictEqual(r.result, { ...fresh, unbuilt: true }, "only the preference comes back");
   assert.strictEqual(fresh.layout, "both"); assert.strictEqual(fresh.dock3, "left"); assert.strictEqual(fresh.dock2, "right");
   r = ui("{not json");
   assert.deepStrictEqual(r.errors, []); assert.deepStrictEqual(r.result, fresh);

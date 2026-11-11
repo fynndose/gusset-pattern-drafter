@@ -12,6 +12,7 @@
 // its files by path and every call made to it come back as `desk`; a script reaches it as app.desk and sets
 // app.desk.dialog to the path the next Open / Save As dialog "picks" (null = cancelled).
 // liveServer = boot the page as VS Code Live Server serves it (its reload script injected before the first </body>).
+// freshUnbuilt = Show Tools That Are Not Built Yet as a fresh profile has it (off); without it the harness starts with it on (Round FIX-4b).
 // oldSizeRun = S.grading is the size run of before r33 when the script starts (harness.js oldSizeRun()).
 // script = a function body run after boot with (S, app, toasts); its return value is printed as `result` (a promise is waited for).
 // streams = give the page the platform's CompressionStream / DecompressionStream, as a browser has them: a saved file is then
@@ -32,6 +33,10 @@ if (opt.seed !== undefined) store.set("pdraft:doc", opt.seed);
 if (opt.prefs !== undefined) store.set("pdraft:prefs", opt.prefs);       // saved preferences (units, snapping, colours)
 if (opt.view !== undefined) store.set("pdraft:view", opt.view);          // saved view settings from an earlier session
 if (opt.uiSaved !== undefined) store.set("pdraft:ui", opt.uiSaved);
+// (Round FIX-4b / A) Show Tools That Are Not Built Yet starts off since the beta.8 gate (G1); the tests written before it were written
+// with it on, so the harness starts with it on, as a stored choice, unless the script says otherwise (freshUnbuilt: true boots the
+// program's own default, as a fresh profile has it)
+else if (!opt.freshUnbuilt && !(opt.storage && "pdraft:ui" in opt.storage)) store.set("pdraft:ui", JSON.stringify({ unbuilt: true }));
 for (const k of Object.keys(opt.storage || {})) store.set(k, opt.storage[k]);      // any other saved keys, as text       // a saved window layout / show-unbuilt choice
 
 function el(id) {
@@ -76,6 +81,8 @@ const desktop = desk && {
   pdf: (sug, html) => { desk.calls.push(["pdf", sug, /<svg /.test(html)]); const p = desk.dialog; if (!p) return now(null); desk.files.set(p, "%PDF of " + html.length); return now({ path: p, name: base(p) }); },
   bugReport: (sug, text, doc) => { desk.calls.push(["bugReport", sug, !!doc]); const p = desk.dialog; if (!p) return now(null); desk.files.set(p, text); const c = doc ? p.replace(/[.]txt$/, "") + " (document).pdraft" : null; if (c) desk.files.set(c, doc); return now({ path: p, name: base(p), copy: c && base(c) }); },
   copyText: (text) => { desk.calls.push(["copyText"]); desk.clip = text; return now(true); },
+  // (Round BETA8-1 / K) the library's Show in Explorer: true for a file the stand-in holds
+  showFile: (p) => { desk.calls.push(["showFile", p]); return now(desk.files.has(p)); },
   openFeedback: () => { desk.calls.push(["openFeedback"]); return now("mailto:x"); },
   // what the shell says of itself; only with desktop: { info: … }, so the welcome box (which needs it) shows only in the tests that ask for it
   // (Round r24) the update check, only with desktop: { updates: { check: <what check() answers> } }: the download reports 42 %

@@ -20,8 +20,8 @@ function boot(opt) {
   return o;
 }
 // the tools Batch 0 put out of this stage's scope (category C of the report)
-const LATER = ["select_mesh_brush", "select_mesh_box", "select_mesh_lasso", "fold_garment", "auto_arrangement", /* "redrape": built in Round r33b / 4 */ "auto_sewing", "press", "pen_avatar", "edit_pen_avatar",
-  "flatten", "scale_style_line", "add_style_line", "seamline_rip", "seam_taping", "lacing", "avatar_tape_linear",
+const LATER = [/* (Round FIX-4 / B: the three Select Mesh tools built) */ "fold_garment", "auto_arrangement", /* "redrape": built in Round r33b / 4 */ "auto_sewing", "press", "pen_avatar", "edit_pen_avatar",
+  "flatten", "scale_style_line", "add_style_line", /* "seamline_rip": built in Round FIX-4 / A */ "seam_taping", "lacing", "avatar_tape_linear",
   "avatar_tape_circ", "edit_avatar_tape", "attach_to_measure"];      // (Round r11 built Piping, Edit Piping, Binding, Select Binding and Gluing)
 
 /* ---------- 0 ---------- */

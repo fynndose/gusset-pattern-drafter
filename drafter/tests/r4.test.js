@@ -1129,7 +1129,8 @@ function simApp(globals) {
   const G = load(["V", "mkShape", "mkPiece", "normCloth", "normLib", "garmentSync", "G3", "SIM", "simStart", "simStop", "simFrame", "simBuild", "simPin", "simRead", "simWorker", "simMessage"],
     { S, THREE, SIM3D: C, view3d, document: { createElement: fakeCanvas }, Image: undefined, ui: () => {}, draw: () => {}, toast: (m) => toasts.push(m), refreshRail: () => {}, note3d: () => {}, setLayout: () => {}, renderTimeline: () => {}, ...globals });      // (a run is a step of the timeline since Round F: this page has none to draw)
   S.cloth = G.normCloth({ substeps: 6, res: 30 }); S.lib = G.normLib(null);
-  for (const x of [0, 400]) S.pieces.push(G.mkPiece("r" + x, G.mkShape([G.V(x, 0), G.V(x + 200, 0), G.V(x + 200, 240), G.V(x, 240)], true)));
+  // (Round FIX-3 / A: the 2D axis is the floor, so they are drawn 1 m above it to hang in the air)
+  for (const x of [0, 400]) S.pieces.push(G.mkPiece("r" + x, G.mkShape([G.V(x, -1240), G.V(x + 200, -1240), G.V(x + 200, -1000), G.V(x, -1000)], true)));
   G.garmentSync();
   return { S, G, toasts, view3d, X: () => S.pieces.map(p => Array.from(G.G3.items.get(p.id).X)) };
 }

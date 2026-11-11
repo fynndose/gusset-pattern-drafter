@@ -43,6 +43,8 @@ const DOC = `
   // select A by a click on its middle: the gizmo goes there
   const mid = scr([0, 1100, 300]); click(mid.x, mid.y);
   const geom = () => app.ev("gizGeom")(), hit = (x, y) => { const h = app.ev("gizHit")(ev(x, y)); return h ? h.id : null; };
+  // (Round FIX-3 / G: the square that moves in the plane of the screen sits in the corner between the X and Y arrows; the middle is the tack)
+  const sqAt = () => v3.project(app.ev("gizSqAt")(geom()));
   // a place on a handle, on the screen: k of the way along an arrow
   const onArrow = (k, f) => { const g = geom(), ax = app.ev("GIZ_AX").find(a => a.k === k); return v3.project(app.ev("gizTip")(g, ax, f || 0.7)); };
   // (undo puts other objects in the document: a pattern is looked up by its id every time)
@@ -73,11 +75,11 @@ test("the gizmo appears on a clicked pattern where it was clicked, always the sa
     // hovered: the handle under the pointer is drawn thick, the square larger
     const a = onArrow("x"); T3.hover(ev(a.x, a.y)); app.ev("gizFrame")();
     out.hover = [G3.gizHot, o.parts["move:x"].thick.visible, o.parts["move:y"].thick.visible];
-    T3.hover(ev(g.o2.x, g.o2.y)); app.ev("gizFrame")(); out.hoverSq = [G3.gizHot, +o.parts.free.g.scale.x.toFixed(2), o.parts["move:x"].thick.visible];
+    { const s0 = sqAt(); T3.hover(ev(s0.x, s0.y)); } app.ev("gizFrame")(); out.hoverSq = [G3.gizHot, +o.parts.free.g.scale.x.toFixed(2), o.parts["move:x"].thick.visible];
     T3.hover(ev(5, 5)); app.ev("gizFrame")(); out.hoverOff = [G3.gizHot, +o.parts.free.g.scale.x.toFixed(2)];
     // what picks what
     const ax = onArrow("x"), ay = onArrow("y"), az = onArrow("z");
-    out.pick = [hit(g.o2.x, g.o2.y), hit(ax.x, ax.y), hit(ay.x, ay.y), hit(az.x, az.y), hit(ax.x + 3, ax.y + 3), hit(g.o2.x + 200, g.o2.y + 200)];
+    out.pick = [hit(sqAt().x, sqAt().y), hit(ax.x, ax.y), hit(ay.x, ay.y), hit(az.x, az.y), hit(ax.x + 3, ax.y + 3), hit(g.o2.x + 200, g.o2.y + 200), hit(g.o2.x, g.o2.y)];
     // not there without a selection, for a pattern that is not selected, or while the simulation runs
     S.sel = [B.id]; out.other = [!!geom(), (app.ev("gizFrame")(), o.grp.visible)]; S.sel = [A.id]; out.back = !!geom();
     S.cloth = app.normCloth({ ...S.cloth, worker: false }); app.ev("simStart")(); out.sim = [!!geom(), hit(ax.x, ax.y)]; app.ev("simStop")(); out.after = !!geom();
@@ -92,7 +94,7 @@ test("the gizmo appears on a clicked pattern where it was clicked, always the sa
   assert.deepStrictEqual(o.giz, [true, true, true], "on the clicked pattern, at the point of its cloth nearest to the click");
   near(o.near, 82.5, 0.6, "an arrow is half of 165 px long (Medium, the default since Round F: half as big again as before)"); near(o.far, 82.5, 0.6, "the same from three times as far");
   near(o.small, 55, 0.6, "Small: 110 px across"); near(o.large, 110, 0.6, "Large: 220 px across");
-  assert.deepStrictEqual(o.handles, ["free", "move:x", "move:y", "move:z", "turn:x", "turn:y", "turn:z"]);
+  assert.deepStrictEqual(o.handles, ["free", "move:x", "move:y", "move:z", "turn:x", "turn:y", "turn:z", "tack"]);      // (Round FIX-3 / G: the tack, last)
   assert.deepStrictEqual(o.drawn, [true, true, true]);
   assert.deepStrictEqual(o.axes.map(a => a.slice(0, 3)), [["X", "BoxGeometry", true], ["Y", "ConeGeometry", true], ["Z", "SphereGeometry", true]], "a letter and a shape of its own each");
   assert.deepStrictEqual(o.axes.map(a => a[3]), ["#d55e00", "#009e73", "#0072b2"], "vermilion, bluish green and blue: a set that stays apart for colour-blind eyes");
@@ -100,7 +102,7 @@ test("the gizmo appears on a clicked pattern where it was clicked, always the sa
   assert.deepStrictEqual(o.axes.map(a => a[5]), ["1,0,0", "0,1,0", "0,0,1"], "the letter beyond the arrow's end");
   assert.deepStrictEqual(o.hover, ["move:x", true, false], "the hovered arrow is drawn thick, the others are not");
   assert.deepStrictEqual(o.hoverSq, ["free", 0.3, false]); assert.deepStrictEqual(o.hoverOff, ["", 0.22]);
-  assert.deepStrictEqual(o.pick, ["free", "move:x", "move:y", "move:z", "move:x", null]);
+  assert.deepStrictEqual(o.pick, ["free", "move:x", "move:y", "move:z", "move:x", null, "tack"]);      // (Round FIX-3 / G: the square in its corner, the tack at the middle)
   assert.deepStrictEqual(o.other, [false, false]); assert.strictEqual(o.back, true);
   assert.deepStrictEqual(o.sim, [false, null], "while the simulation runs there is no gizmo: a drag pulls the cloth"); assert.strictEqual(o.after, true);
   assert.deepStrictEqual(o.otherTool, ["pin_box", false], "the gizmo is Select/Move's own"); assert.strictEqual(o.toolBack, true);
@@ -136,7 +138,7 @@ test("an arrow moves the pattern along its axis only, however the pointer wander
     out.z = [pos(A)[2] - z0 > 10, pos(A)[0] === x1, pos(A)[1] === y1];
     // the square: freely, in the plane of the screen
     g = geom(); const q0 = pos(A);
-    press(g.o2.x, g.o2.y); drag(g.o2.x + 60, g.o2.y - 80); out.freeNote = read()[0]; let_go(0, 0);
+    { const s0 = sqAt(); press(s0.x, s0.y); drag(s0.x + 60, s0.y - 80); } out.freeNote = read()[0]; let_go(0, 0);      // (Round FIX-3 / G: the square in its corner)
     const by = pos(A).map((v, i) => v - q0[i]), view = v3.camera().getWorldDirection(new THREE.Vector3());
     out.free = [Math.hypot(by[0], by[1], by[2]), 100*v3.wpp(new THREE.Vector3(q0[0], q0[1], q0[2])), by[0]*view.x + by[1]*view.y + by[2]*view.z];
     out.steps = steps();
@@ -184,9 +186,9 @@ test("a right-click while an arrow or the square is dragged opens a small box fo
     drag(a.x + 80, a.y); out.goesOn = pos(A)[0] > at40; let_go(0, 0); out.escSteps = steps().length;
     // the square: the typed distance goes the way it was dragged; with nothing dragged yet there is no way to go
     answer = { v: 100 }; g = geom(); let q0 = pos(A);
-    press(g.o2.x, g.o2.y); drag(g.o2.x + 30, g.o2.y); drag(g.o2.x + 30, g.o2.y, { button: 2, buttons: 3 });
+    { const s0 = sqAt(); press(s0.x, s0.y); drag(s0.x + 30, s0.y); drag(s0.x + 30, s0.y, { button: 2, buttons: 3 }); }      // (Round FIX-3 / G: the square in its corner)
     const by = pos(A).map((v, i) => v - q0[i]); out.free = [Math.hypot(by[0], by[1], by[2]), by[0] > 0, !T3.d];
-    g = geom(); q0 = pos(A); press(g.o2.x, g.o2.y); drag(g.o2.x, g.o2.y, { button: 2, buttons: 3 });
+    g = geom(); q0 = pos(A); { const s0 = sqAt(); press(s0.x, s0.y); drag(s0.x, s0.y, { button: 2, buttons: 3 }); }
     out.noWay = [toasts[toasts.length-1], !!T3.d, pos(A).join() === q0.join()]; let_go(0, 0);
     out.asked = asked;
     // Esc with no box open: everything back where it was, no step

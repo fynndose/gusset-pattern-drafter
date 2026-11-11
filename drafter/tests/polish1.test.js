@@ -146,7 +146,7 @@ test("POLISH-1 / A4: the README's key list is the app's own (its keys markers ho
   const fs = require("fs");
   const o = boot({ blank: true, script: `
     const rows = app.ev("shortcutsDialog")(); app.ev("hideDlg")();
-    return { md: app.ev("shortcutsMarkdown")(), dialog: rows, list: app.ev("shortcutRows")(false).flatMap(s => s.list), keys: app.ev("keyTable")().filter(r => !r.alias).map(r => ({ n: r.n, desk: !!r.desk })) };` }).result;
+    return { md: app.ev("shortcutsMarkdown")(), dialog: rows, list: app.ev("shortcutRows")(false).flatMap(s => s.list), keys: app.ev("keyTable")().filter(r => !r.alias && !r.nb).map(r => ({ n: r.n, desk: !!r.desk })) };` }).result;      // (Round FIX-4b / A, beta.8 gate G2: the keys of what is not built are not in the README, which is a fresh start's, the switch off)
   const text = fs.readFileSync(path.join(__dirname, "..", "..", "README.md"), "utf8").replace(/\r\n/g, "\n");
   const a = text.indexOf("<!-- keys:start -->\n"), b = text.indexOf("\n<!-- keys:end -->");
   assert.ok(a >= 0 && b > a, "the README has its keys markers");

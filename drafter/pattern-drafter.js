@@ -41,8 +41,8 @@
    Units mm, y down.
    ================================================================ */
 const S = {
-  pieces: [], seams: [], stitches: [], hgroups: [], hlane: {}, hjump: {}, lineLinks: [], selMore: [], images: [], guides: [], measures: [], tacks: [], buttons: [], pipings: [], bindings: [], glues: [], backdrop: null, avedit: { joints: {} }, lights: [], bgMode: null, avOutEdit: null, selTrim: null, grading: null, gradeClip: null, print: null, walk: null, selSeam: null, selPart: null, sewCheck: { on: false, useLen: true, len: 2, useRatio: false, ratio: 2 }, sewBad: null, ui: { layout: "2d", unbuilt: true, render: "front", show3d: {} }, lib: null, ob: null, mode: "sim", layout: null, lview: { s: 0.5, x: 40, y: 90 },
-  show: { sewing: true, topstitch: true, puckering: true, baseline: true, sa: true, grading: false, reference: true, symmetric: true, links: true, pins: true, name: true, annotations: true, length: true, angle: false, grainline: true, measurements: true, ruler: true, guides: true, lockAll: false, lockInt: false, lockBase: true, lockGuide: false }, nextSegId: 1, nextShapeId: 1, sel: [], selPt: -1, selSeg: -1, selInt: -1, selKind: "outline",
+  pieces: [], seams: [], stitches: [], hgroups: [], hlane: {}, hjump: {}, lineLinks: [], selMore: [], images: [], guides: [], measures: [], tacks: [], buttons: [], pipings: [], bindings: [], glues: [], backdrop: null, avedit: { joints: {} }, lights: [], bgMode: null, selTrim: null, grading: null, gradeClip: null, print: null, walk: null, selSeam: null, selPart: null, sewCheck: { on: false, useLen: true, len: 2, useRatio: false, ratio: 2 }, sewBad: null, ui: { layout: "2d", unbuilt: false, render: "front", show3d: {} }, lib: null, ob: null, mode: "sim", layout: null, lview: { s: 0.5, x: 40, y: 90 },
+  show: { sewing: true, topstitch: true, puckering: true, baseline: true, sa: true, grading: false, reference: true, symmetric: true, links: true, pins: true, name: false, annotations: true, length: true, angle: false, grainline: false, measurements: true, ruler: true, guides: true, lockAll: false, lockInt: false, lockBase: true, lockGuide: false }, nextSegId: 1, nextShapeId: 1, sel: [], selPt: -1, selSeg: -1, selInt: -1, selKind: "outline",
   tool: "edit_pattern", unit: "mm", dec: 1, snapG: 0, saValue: 10, prefs: null,
   notch: { type: "I", len: 6, color: "#00a37a", width: 2, dup: true },
   view: { s: 1, x: 0, y: 0 },
@@ -1263,6 +1263,12 @@ function normProps(q) {
   // Fill (Round r9 / 7): 0 to 100, kept only when there is some (a pattern without it is as before)
   const fl = Math.max(0, Math.min(100, num(q.fill, 0)));
   if (fl > 0) q.fill = fl; else delete q.fill;
+  // (Round FIX-3b / C, W20's Simulation Properties ▸ Pressure) a push along the cloth's front, Pa (-PRESS_MAX to PRESS_MAX), kept only when not 0
+  const pr3 = Math.max(-PRESS_MAX, Math.min(PRESS_MAX, num(q.press3, 0)));
+  if (pr3) q.press3 = Math.round(pr3*100)/100; else delete q.press3;
+  // (Round BETA8-1 / E) Steam's spots, kept only when there are some
+  const stm = normSteam(q.steam);
+  if (stm) q.steam = stm; else delete q.steam;
   const k = (q.shrink && typeof q.shrink === "object") ? q.shrink : {};
   q.shrink = { w: pct(k.w), h: pct(k.h) };
   // (Round build-1) the Property Editor's Simulation Properties: Particle Distance (mm, its own; none = the document's) and
@@ -1959,7 +1965,7 @@ let pressAt = null;
    takes back a press's step, waiting or taken. */
 let pushLater = null;
 function pushDrag(name) { if (!pressAt) return push(name); pushLater = { name, hint: histHint }; }
-function pushFlush() { const p = pushLater; if (!p) return; pushLater = null; const h = histHint; histHint = p.hint; push(p.name); histHint = h; }
+function pushFlush() { if (typeof NEST_RUN !== "undefined" && NEST_RUN && NEST_RUN.on) nestStop(); const p = pushLater; if (!p) return; pushLater = null; const h = histHint; histHint = p.hint; push(p.name); histHint = h; }
 /* (Round r21 / 2) A step taken back because the command it was pushed for did nothing (it could not be done, or was cancelled): its
    name goes with it, and the redo list push() emptied comes back (a command that failed took the redo list away; some took the step
    off S.undo by hand and left its name). */
@@ -1996,7 +2002,7 @@ function histGo(j) {
   S.sel = S.sel.filter(id => byId(id)); S.selPt = S.selSeg = S.selInt = -1; S.selCp = null; S.tps = null;
   commit();
 }
-function commit() { if (histAskFuture && !pressAt && !pushLater && typeof setTimeout === "function") setTimeout(() => { if (histAskFuture && !pressAt && !S.drag) histFutureAsk(); }, 0); handlesOut(); seamMirrors(); freeze3(); if (typeof renderTimeline === "function") renderTimeline(); if (S.mode === "layout") drawLayout(); sync(); if (syncHalf.lost) { syncHalf.lost = false; toast("That change can't be mirrored from this half: make it on the other half of the symmetric unfold", 5000); } syncLinks(); olinkSync(); groupsTidy(); hgTidy(); if (hgAsk && !pressAt && !pushLater && typeof setTimeout === "function") setTimeout(() => { if (hgAsk && !pressAt && !S.drag && !modalNow) hgFutureAsk(); }, 0); S.seams = resolveRefs(S.pieces, S.seams); S.stitches = validStitches(S.stitches, S.pieces); S.puckers = validStitches(S.puckers || [], S.pieces); S.measures = validMeasures(S.measures, S.pieces); S.tacks = validTacks(S.tacks, S.pieces); S.buttons = validButtons(S.buttons, S.pieces); S.pipings = validPipings(S.pipings, S.seams); S.bindings = validBindings(S.bindings, S.pieces); S.glues = validGlues(S.glues, S.pieces, S.seams); for (const p of S.pieces) pruneGrade(p); ui(); drawSoon(); store(); if (typeof avEditSync === "function") avEditSync(); if (typeof garmentChanged === "function") garmentChanged(); }
+function commit() { if (histAskFuture && !pressAt && !pushLater && typeof setTimeout === "function") setTimeout(() => { if (histAskFuture && !pressAt && !S.drag) histFutureAsk(); }, 0); handlesOut(); seamMirrors(); freeze3(); if (typeof renderTimeline === "function") renderTimeline(); if (S.mode === "layout") drawLayout(); sync(); if (syncHalf.lost) { syncHalf.lost = false; toast("That change can't be mirrored from this half: make it on the other half of the symmetric unfold", 5000); } syncLinks(); olinkSync(); groupsTidy(); hgTidy(); if (hgAsk && !pressAt && !pushLater && typeof setTimeout === "function") setTimeout(() => { if (hgAsk && !pressAt && !S.drag && !modalNow) hgFutureAsk(); }, 0); S.seams = resolveRefs(S.pieces, S.seams); S.stitches = validStitches(S.stitches, S.pieces); S.puckers = validStitches(S.puckers || [], S.pieces); S.measures = validMeasures(S.measures, S.pieces); S.tacks = validTacks(S.tacks, S.pieces); S.buttons = validButtons(S.buttons, S.pieces); S.pipings = validPipings(S.pipings, S.seams); S.bindings = validBindings(S.bindings, S.pieces); S.glues = validGlues(S.glues, S.pieces, S.seams); grainsInside(); for (const p of S.pieces) pruneGrade(p); ui(); drawSoon(); store(); if (typeof avEditSync === "function") avEditSync(); if (typeof garmentChanged === "function") garmentChanged(); }
 function undo() {
   pushFlush();
   if (!S.undo.length) return;
@@ -2031,8 +2037,9 @@ const VIEW = [["sewing", "Sewing", "sewing"], ["sewLen", "2D Sewing Lengths", "s
   ["name", "Pattern Name", "info"], ["annotations", "Annotations", "info"], ["length", "Line Length", "info"], ["angle", "Angle", "info"],
   ["grainline", "Grainline", "info"], ["measurements", "2D Measurements", "info"], ["ruler", "Ruler", "info"], ["guides", "Guideline", "info"],
   ["lockAll", "Lock All Pattern Outlines", "lock"], ["lockInt", "Lock All Internal Lines", "lock"], ["lockBase", "Lock All Baselines", "lock"], ["lockGuide", "Lock All Guidelines", "lock"]];
+// (Round FIX-2 / C8, the maintainer's decision) pattern names and grain lines hidden at start: switchable; a file opened with its own display settings keeps them
 const VIEW_DEFAULT = { sewing: false, sewLen: false, topstitch: true, puckering: true, baseline: true, sa: true, grading: false, reference: true, symmetric: true, links: true, pins: true,
-  name: true, annotations: true, length: true, angle: false, grainline: true, measurements: true, ruler: true, guides: true, lockAll: false, lockInt: false, lockBase: true, lockGuide: false };
+  name: false, annotations: true, length: true, angle: false, grainline: false, measurements: true, ruler: true, guides: true, lockAll: false, lockInt: false, lockBase: true, lockGuide: false };
 // the 2D window's lists, named as the Display menu names them (Round D / D1): Sewing, 2D Pattern, 2D Information, 2D Pattern Rendering Style
 const VIEW_GROUPS = [["sewing", "Sewing"], ["garment", "2D Pattern"], ["info", "2D Information"], ["render", "2D Pattern Rendering Style"], ["lock", "Pattern Lock"]];
 /* (Round r17b / 2) Translucent Surface: the fabric's front colour see-through (RENDER_SEE), so patterns lying over each other show
@@ -2257,7 +2264,7 @@ function viewHelp() {
 const COLORS = [["outline", "Pattern outline", "#262626"], ["fill", "Pattern fill", "#ffffff"], ["internal", "Internal line", "#d43c3c"],
   ["baseline", "Baseline", "#7173f8"], ["punch", "Punch mark", "#00a37a"], ["hover", "Hover", "#2eaaf1"], ["selection", "Selection", "#ecfd3f"],
   ["saLine", "Seam allowance line", "#8a63d2"], ["curve", "Curve point", "#ea5151"], ["move", "Move and guide lines", "#8a3fd1"]];
-const PREFS_DEFAULT = { unit: "mm", decimals: 1, grid: 0, smart: true, snapPts: true, colors: Object.fromEntries(COLORS.map(c => [c[0], c[2]])), histKeep: 50, view: normViewCtl(null), gizmo: "m", gizSpace: "world", gizPicked: false, wheelRev: false, gridShow: true, openDisplay: false, keepBranchCloth: false, keepFuture: false, showHints: false, histNew: "ask", objKind: "single", labelHalo: true, updateCheck: true, gradeStep: 10, simQuality: "normal" };      // (Round r33: the grading tools' Arrow Key Movement, Simulation Quality)
+const PREFS_DEFAULT = { keys: {}, unit: "mm", decimals: 1, grid: 0, smart: true, snapPts: true, colors: Object.fromEntries(COLORS.map(c => [c[0], c[2]])), histKeep: 50, view: normViewCtl(null), gizmo: "m", gizSpace: "world", gizPicked: false, wheelRev: false, gridShow: true, openDisplay: false, keepBranchCloth: false, keepFuture: false, showHints: false, histNew: "ask", objKind: "single", labelHalo: true, updateCheck: true, gradeStep: 10, simQuality: "normal" };      // (Round r33: the grading tools' Arrow Key Movement, Simulation Quality)
 // (Round r15 / 8, the check videos S16) the gizmo's axes: the screen's (ticked first in the reference, the maintainer's choice), the
 // pattern's own (they turn with it) or the 3D window's
 const GIZ_SPACES = [["screen", "Screen Coordinate"], ["local", "Local Coordinate"], ["world", "World Coordinate"]];
@@ -2279,13 +2286,26 @@ function normPrefs(o) {
     updateCheck: o.updateCheck !== false,                     // (Round r24) the desktop app asks whether a newer version is out at the start, unless switched off
     labelHalo: o.labelHalo !== false,
     gradeStep: Number.isFinite(+o.gradeStep) && +o.gradeStep > 0 && +o.gradeStep <= 1000 ? +o.gradeStep : 10,      // (Round r33 / 4) the grading tools' Arrow Key Movement, mm
-    simQuality: o.simQuality === "high" ? "high" : "normal" };      // (Round r33 / 7) Simulation Quality: Normal, or High Accuracy      // (Round r19 follow-up, the maintainer's H07: the halo behind the small numbers, on unless switched off)      // (Round r17b / 2) a file's display settings put back on opening                      // (Round r17b / 1) Grid Properties: the 2D grid shown
+    simQuality: o.simQuality === "high" ? "high" : "normal",
+    keys: normKeyPrefs(o.keys) };      // (Round BETA8-1 / C3, roadmap 1.T29 2.C35) the keys changed on User Settings' Shortcuts page      // (Round r33 / 7) Simulation Quality: Normal, or High Accuracy      // (Round r19 follow-up, the maintainer's H07: the halo behind the small numbers, on unless switched off)      // (Round r17b / 2) a file's display settings put back on opening                      // (Round r17b / 1) Grid Properties: the 2D grid shown
 }
+/* (Round BETA8-1 / C3, roadmap 1.T29 2.C35: "the shortcuts … maybe editable later") A key changed by hand: { "<row id>|<its own key>": the key
+   given (as the table writes it, Ctrl for the Mac's Cmd), or "" for none }, a preference (per machine). The table's rows take it
+   (keyTable()), so the key handler, the menus, the Keyboard Shortcuts box all follow; the README lists a fresh start's. */
+function normKeyPrefs(o) {
+  const out = {};
+  if (o && typeof o === "object") for (const [k, v] of Object.entries(o)) if (/^[^|]+[|].+$/.test(k) && typeof v === "string" && v.length <= 40) out[k] = v;
+  return out;
+}
+const keyPrefId = (r) => r.id + "|" + (r.k0 || r.k);
+// a row whose key can be changed: one of its own (not a fixed key: Enter, Esc, the arrows, Delete; not a second key of a row; not one kept)
+const keyEditable = (r) => !r.l && !r.alias && !r.nb && !/^kept:/.test(r.id) && !/^Arrow/.test(r.k0 || r.k);
 function loadPrefs() { try { return normPrefs(JSON.parse(localStorage.getItem(PREFS_KEY) || "{}")); } catch (e) { return normPrefs(null); } }
 function savePrefs() { try { localStorage.setItem(PREFS_KEY, JSON.stringify(S.prefs)); } catch (e) {} }
 // put the preferences to work: the unit, the grid, the colours, the two status-bar buttons
 function applyPrefs() {
   const P = S.prefs = normPrefs(S.prefs), c = P.colors;
+  KEYS = null;                                              // (Round BETA8-1 / C3) the key table again, with the keys changed by hand
   S.unit = P.unit; S.dec = P.decimals; S.snapG = P.grid;
   C_HOVER = c.hover; C_SEL = c.selection; C_CURVE = c.curve; C_INT = c.internal; C_BASE = c.baseline;
   C_OUT = c.outline; C_FILL = c.fill; C_SALINE = c.saLine; C_MOVE = c.move; C_PUNCH = c.punch;
@@ -2302,7 +2322,7 @@ function setPrefs(o) { S.prefs = normPrefs({ ...S.prefs, ...o }); savePrefs(); a
    The status bar shows the state: SAVED (nothing unsaved), AUTOSAVED (unsaved work, kept
    for recovery). A failure (storage full, blocked, private mode) turns it red, toasts
    once, and asks before the tab closes. See THE DOCUMENT AND ITS FILE. */
-const AUTOSAVE_KEY = "pdraft:doc", FILE_VERSION = 34;      // 34 (Round REC-SHORT): a seam allowance corner's Pocket Style 3 (st 3) and, for Styles 2 and 3, the line it is built from (on) (an older build would make it Style 1, so it refuses the file). 33 (Round H1d): the History Groups (hgroups), each history node's lane (l) and a step that took one group back (j) (an older build would drop them, so it refuses the file). 32 (Round H1): the history as a tree (history.json v4: every node, its parent, Save States, places in the panel) and histcloth.bin (the cloth of Save States and branch points). 31 (Round H1a): the garment measurements (garMeas), the defaults the file was written with (defaults), the render settings always, the avatar record's collision detail (cell) and its pose file's turns (baseQ). 30 (Round r34): an internal line's link to the outline (olink) and a pattern's group (group) (an older build would drop them, so it refuses the file). 29 (Round r33b): Seamless Blocking (an internal line's block, a pattern's blocks: each section's place and fabric) and the background image's angle (an older build would drop them, so it refuses the file). 28 (Round r30): a seam's mirror on a symmetric pair (mir; an older build would drop it, so it refuses the file). 27 (Round r29): a document's render settings (render, only once changed; an older build would drop them, so it refuses the file)
+const AUTOSAVE_KEY = "pdraft:doc", FILE_VERSION = 36;      // 36 (Round FIX-3 / D, F): a tack's name, off and thread length (len, mm), each only when set; a fabric's Detail rows (dir: { stretchWeft, stretchWarp, shearR, shearL, bendWeft, bendWarp, bendBiasR, bendBiasL, damping } in %, each only when not 100), a fabric's Friction typed (its own friction); an older build would drop them; 35 (Round FIX-2): a fabric's Back and Side faces (faces: { back: { mapping, type }, side: { mapping, type, color } }, only once set; an older build would drop them, so it refuses the file). 34 (Round REC-SHORT): a seam allowance corner's Pocket Style 3 (st 3) and, for Styles 2 and 3, the line it is built from (on) (an older build would make it Style 1, so it refuses the file). 33 (Round H1d): the History Groups (hgroups), each history node's lane (l) and a step that took one group back (j) (an older build would drop them, so it refuses the file). 32 (Round H1): the history as a tree (history.json v4: every node, its parent, Save States, places in the panel) and histcloth.bin (the cloth of Save States and branch points). 31 (Round H1a): the garment measurements (garMeas), the defaults the file was written with (defaults), the render settings always, the avatar record's collision detail (cell) and its pose file's turns (baseQ). 30 (Round r34): an internal line's link to the outline (olink) and a pattern's group (group) (an older build would drop them, so it refuses the file). 29 (Round r33b): Seamless Blocking (an internal line's block, a pattern's blocks: each section's place and fabric) and the background image's angle (an older build would drop them, so it refuses the file). 28 (Round r30): a seam's mirror on a symmetric pair (mir; an older build would drop it, so it refuses the file). 27 (Round r29): a document's render settings (render, only once changed; an older build would drop them, so it refuses the file)
 // 26 (Round r26): Simulation Shrinkage 1 to 1000, a glue's Strength up to 100, a pattern's foldStay (an older build would clamp or drop them, so it refuses the file); 25 (Round r25): a pattern's Grain Orientation (grainWay), a Slant corner's Distance A / B (a, b), a Pocket corner's Style 3, Solidify's Strength (solid3s), a notch's Point (Center) direction (dir: "point"), (r25 follow-up, before any release of 25) a glue switched off (off) (an older build would drop them, so it refuses the file); 24 (Round r20): an annotation's own angle, colour and line (angle, color, link: an older build would drop them, so it refuses the file); 23 (Round r19 follow-up): the document's lights for the render (lights) and each fabric's own roll in Print Layout (layout.rolls; an older build would drop them, so it refuses the file); 22 (Round r18): the document's avatar edits (avedit: the joints turned by hand, …; an older build would drop them, so it refuses the file); 21 (Round r17b): the background image (backdrop), the display settings kept with the file (display); 20 (Round build-1): a pattern's own Particle Distance (res3), Simulation Shrinkage (shrink3), Solidify (solid3), a glue's strength and thick (an older build would drop them, so it refuses the file); 19 (Round perf-2): the history saved as changes, a list's items each on its own (history v3)
 //      // 18 (Round r15): the seam allowance corner types are the reference's eight (perp, turn, slant, env, pocket, … with their own values; an older build would not know them, so it refuses the file; older files' corners are renamed as they open: cornerMigrate()); 17 (Round r14): an internal line's fold angle (foldAngle, foldStrength, foldVar), more in later batches of the round (an older build would drop them, so it refuses the file); 16 (Round r13): a notch may also have its own len and flip (an older build would drop them, so it refuses the file); 15 (Round r12): a notch may be { t, type, angle } (files of 14 have plain numbers, which still are); 14 (Round r11): piping, binding, gluing (files of 13 open with none); 13 (Round r9): a fabric's Max Stretch, tacks, a pattern's Fill, buttons; files of 12 open with defaults
 // where the autosave is kept: the browser's localStorage, or in the desktop app
@@ -2425,7 +2445,7 @@ function displayOut() {
   const show2d = {};
   for (const [k] of VIEW) if (!DISPLAY_SKIP.includes(k) && typeof (S.show || {})[k] === "boolean") show2d[k] = S.show[k];
   const u = S.ui || {}, out = { show2d, render: u.render || "front", mesh2: !!u.mesh2, render3: u.render3 || "front", show3d: { ...(u.show3d || {}) }, strain3: !!u.strain3, fit3: !!u.fit3 };
-  for (const k of DISPLAY_3D) if (u[k] !== undefined && !(k === "avOut" && u[k] === "off") && !(k === "avOutObj" && !u[k])) out[k] = u[k];      // (Round UI-1e / C: the outline only when it is on, so an older file saves as it was)
+  for (const k of DISPLAY_3D) if (u[k] !== undefined && !(k === "avOut" && u[k] === "front") && !(k === "avOutObj" && !u[k])) out[k] = u[k];      // (Round UI-1e / C; Round FIX-3 / A: the outline only when it is not the default, Front, so a file whose outline was on saves as it was)
   return out;
 }
 // the 3D window's own display switches kept with the rest (added to by the 3D rendering styles, Round r17b / 3)
@@ -2709,6 +2729,7 @@ function loadDoc(d) {
   G3.look = null; states3In(d.states3, d.states3Bin || null);   // its 3D states (Round F / 10)
   sceneIn(d.scene);
   displayIn(d.display);                                      // (Round r17b / 2) only with the preference on
+  avOutFromFile(d.display);                                  // (Round FIX-3 / A) the avatar outline the file chose, else Front, always
   S.measures = validMeasures(Array.isArray(d.measures) ? d.measures.filter(x => x && Number.isInteger(x.id) && x.a && x.b) : [], S.pieces);
   S.tacks = validTacks(normTacks(d.tacks), S.pieces);
   S.buttons = validButtons(normButtons(d.buttons), S.pieces);
@@ -2947,6 +2968,9 @@ const HINT = {
   segment_puckering: "Click a segment: puckering along the whole of it (its look is the library's Puckering type). Select and change it with Edit Puckering.",
   free_puckering: "Click where the puckering starts and where it ends on one line; it can run over several segments. Esc starts over.",
   seamline_puckering: "Click a sewing line: puckering along both sides of the seam.",
+  seamline_rip: "Click a seam where the rip starts, then where it ends: the seam is left open there (Esc gives it up).",
+  edit_rip: "Click a rip to select it; drag an end along its seam; Delete or its right-click deletes it.",
+  set_sublayer: "Click the pattern that lies under, then the one it lies under (click the first again to undo it; Esc starts over).",
   edit_puckering: "Click a puckering to select it. Delete removes it; right-click to rename it, change its width or density, or delete it.",
   free_topstitch: "Click where the topstitch starts and where it ends on one line; it can run over several segments. Esc starts over.",
   seamline_topstitch: "Click a sewing line: a topstitch along both sides of the seam. Edit Topstitch, right-click it ▸ Properties… sets its Placement (Seam A, Seam B or Seam Both).",
@@ -2955,7 +2979,7 @@ const HINT = {
   seam_allowance: "Click a segment to apply the SA value. Shift-click removes it. Click a corner point for its corner type.",
   edit_annotations: "Click an annotation to select it, drag to move it, double-click to edit its text and size, Delete removes it. The pattern name can be dragged too.",
   annotations: "Click inside a pattern and type a note; it stays where you clicked. Click a note to edit it, the pattern name to rename the pattern.",
-  edit_texture: "Every pattern shows its grainline. Click a pattern to select it; drag the middle of its grainline to move it, an end to turn it (Shift: steps of 15 degrees). Right-click for an exact angle.",
+  edit_texture: "Every pattern shows its grainline, and its fabric's texture lies along it. Click a pattern to select it; drag the middle of its grainline to move it and the texture, an end to turn them (Shift: steps of 15 degrees). Right-click for an exact angle.",
   walk: "Click a point or edge of the pattern to walk, then a point or edge of the pattern to walk it along. Move along that edge to walk; click to notch both, right-click to notch one side, Enter ends, Esc cancels.",
   measure: "Click two points. Shift on the second measures along the outline. Right-click a label to delete it.",
   edit_sewing: "Click a sewing line to select it. Drag an end to lengthen or shorten it, drag its middle to slide it. At the pointer: the difference and both lengths of the seam under it. Ctrl+B reverses, Delete removes; right-click for more, and to deactivate a seam (it stays, drawn white and dotted, and the simulation leaves it out).",
@@ -3044,7 +3068,8 @@ function openFlyout(fly, slot) {
 }
 function pick(gi, t) {
   closeFlyouts();
-  if (t.toggle) { if (t.toggle === "sewCheck") setSewCheck(!S.sewCheck.on); else if (CMD3[t.id]) { CMD3[t.id](); refreshRail(); } return; }
+  if (t.toggle) { if (t.toggle === "sewCheck") setSewCheck(!S.sewCheck.on); else if (t.toggle === "sewing2") { setView("sewing", !S.show.sewing); refreshRail(); }      /* (Round FIX-3b / E) Show 2D Sewing: the Show Sewing switch */
+    else if (CMD3[t.id]) { CMD3[t.id](); refreshRail(); } return; }
   if (t.off) { toast(toolNote(t), 4200); return; }           // a placeholder: say so, change nothing
   GROUPS[gi].active = t.id;
   setTool(t.id);
@@ -3058,12 +3083,35 @@ function refreshRail() {
     const run = t.id === "simulate" && toggle3("simulate");
     img.src = (run ? ICON_ON.simulate : ICON[t.id]) || "";
     b.setAttribute && b.setAttribute("aria-pressed", run ? "true" : "false");
-    b.classList.toggle("on", t.toggle ? (t.toggle === "sewCheck" ? !!S.sewCheck.on : toggle3(t.toggle)) : t.win === "3D" ? S.tool3 === g.active : S.tool === g.active);
+    b.classList.toggle("on", t.toggle ? (t.toggle === "sewCheck" ? !!S.sewCheck.on : t.toggle === "sewing2" ? !!S.show.sewing : toggle3(t.toggle)) : t.win === "3D" ? S.tool3 === g.active : S.tool === (TOOL_ALIAS[g.active] || g.active));
     b.classList.toggle("off", !!t.off);
     b.title = run ? "Simulating: click or press Space to stop (a click in the 2D window stops it too)" : toolTitle(t);
   });
 }
+/* (Round FIX-2 / D) Property Editor rows a recording shows that are not built here: a greyed row each, "not built yet", only while
+   Settings ▸ Show Tools That Are Not Built Yet is on (the standing rule for rows) */
+const nbPE = (names) => S.ui && S.ui.unbuilt ? names.map(n => '<div class="row" style="opacity:.45" title="' + n + ': not built yet"><label>' + n + '</label><span style="font-size:11px">not built yet</span></div>').join("") : "";
+// the symmetric copy of a pattern, or the pattern it is the symmetric copy of (the same segment ids): null if none
+function symTwin(p) { if (p.link && p.link.kind === "symmetric") return byId(p.link.of) || null; return S.pieces.find(q => q.link && q.link.kind === "symmetric" && q.link.of === p.id) || null; }
+/* (Round FIX-2 / D) the length of an outline line on the cloth as it is now: along the cloth's edge points that lie on it, in order
+   (the mesh's chains), at their places in 3D. null while the pattern has no cloth (the 3D window not up). */
+function segLen3(p, sid) {
+  if (typeof G3 === "undefined" || !G3.items || !G3.items.get) return null;
+  const it = G3.items.get(p.id), ch = it && it.mesh && it.mesh.chains && it.mesh.chains.get(sid), X = it && it.X;
+  if (!ch || ch.length < 1 || !X) return null;
+  const pts = ch.slice().sort((a, b) => a.t - b.t), i = p.segs.findIndex(x => x.id === sid);
+  if (i < 0) return null;
+  // the line's far end is the next line's first point
+  const nx = it.mesh.chains.get(p.segs[(i + 1) % p.segs.length].id), end = nx && nx.length ? nx.slice().sort((a, b) => a.t - b.t)[0] : null;
+  const vs = pts.map(c => c.v).concat(end ? [end.v] : []);
+  let L = 0;
+  for (let k = 1; k < vs.length; k++) { const a = vs[k - 1]*3, b = vs[k]*3; L += Math.hypot(X[a] - X[b], X[a + 1] - X[b + 1], X[a + 2] - X[b + 2]); }
+  return L;
+}
+// (Round FIX-2 / C1) the 2D toolbar's twins of tools that live in both windows: picking one picks the tool itself
+const TOOL_ALIAS = { glue_fill_2d: "glue_fill", sticker_2d: "sticker", edit_gluing_2d: "edit_gluing" };
 function setTool(id) {
+  if (TOOL_ALIAS[id]) { setTool(TOOL_ALIAS[id]); GROUPS.forEach(g => { if (g.some(x => x.id === id)) g.active = id; }); refreshRail(); return; }
   const t = TOOLS[id];
   if (!t || t.off || t.toggle) return;
   // the 3D window's tools: a command runs, a tool goes in hand there; the 2D tool stays as it is
@@ -3072,7 +3120,9 @@ function setTool(id) {
   S.sticker = null; if (id !== "edit_zipper") S.zipTarget = null;      // (Round build-1) a sticker picked up, Edit Zipper's dot
   if (!GRADE_TOOLS.includes(id)) S.gradeSel = [];      // (Round r33 / 4) the grading tools' points stay selected among the four
   S.blockDraft = null; S.blockSel = null;      // (Round r33b / 2)
-  S.tool = id; S.draft = null; S.place = null; S.rotAxis = null; S.pickPoly = null; S.bgMode = null; S.avOutEdit = null; S.selMeas = []; S.marquee = null; S.walk = null; S.selPart = null; S.selNote = null; S.selCp = null; S.selCps = []; S.selHandle = null; S.tps = null; S.selPunch = null; S.selStitch = null; S.selPucker = null; S.selGfx = null; S.selNotch = null;
+  S.subPick = null;      // (Round FIX-3b / B) Set Sublayer's first click
+  S.ripFrom = null; if (id !== "edit_rip") S.selRip = null;      // (Round FIX-4 / A) a rip begun, the rip selected
+  S.tool = id; S.draft = null; S.place = null; S.rotAxis = null; S.pickPoly = null; S.bgMode = null; S.selMeas = []; S.marquee = null; S.walk = null; S.selPart = null; S.selNote = null; S.selCp = null; S.selCps = []; S.selHandle = null; S.tps = null; S.selPunch = null; S.selStitch = null; S.selPucker = null; S.selGfx = null; S.selNotch = null;
   if (id !== "transform_pattern") S.pivot = null;
   if (id === "edit_pom" && !S.show.measurements) setView("measurements", true);      // (Round r13 / 7) the measurements are what it edits
   if (id !== "trace" && S.selKind === "base") { S.selInt = S.selPt = S.selSeg = -1; S.selKind = "outline"; }
@@ -3363,6 +3413,41 @@ function internalSnap(w, host, ref) {
 // (Round r19 / H10, the housekeeping video 04:09: "very hard that I can draw on the edge … everything should be a little bit more
 // snapping") 12 px for points and middles, 10 for edges and the level / upright / lining-up lines; they were 8 and 6
 const SNAP_PX = 12, SNAP_LINE_PX = 10;
+/* (Round FIX-2 / D, S26 00:38–00:52: "it can snap to both ones … So we can add that one") A PATTERN BEING MOVED CATCHES THE OTHERS: its
+   corners, on its outline and on its cut line (the seam allowance's outer line), catch another pattern's corner within SNAP_PX
+   screen pixels, else its outline or cut line within SNAP_LINE_PX; the nearest catch wins (a corner over a line). Under Snap to
+   Pattern (S.prefs.snapPts); with Shift only along the axis it moves on. moveSnap(pieces, dv, axis) -> { dv, at } or null. */
+function moveSnap(ps, dv, axis) {
+  if (!S.prefs || !S.prefs.snapPts || !ps.length) return null;
+  const sc = S.view.s, rp = SNAP_PX/sc, rl = SNAP_LINE_PX/sc, ids = new Set(ps.map(p => p.id));
+  const mine = []; for (const p of ps) { mine.push(...p.pts.map(cp)); if (hasSA(p)) mine.push(...cutLine(p)); }
+  if (!mine.length) return null;
+  const moved = mine.map(q => add(q, dv)), pad = Math.max(rp, rl), xs = mine.map(q => q.x), ys = mine.map(q => q.y);
+  const bx = { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) };
+  const others = S.pieces.filter(p => p.on !== false && !ids.has(p.id) && pickHere(p) && shapeShown("outline", p));
+  let best = null;
+  const take = (from, to, d, kind) => { let ddv = sub(to, from); if (axis === "x") { if (Math.abs(ddv.y) > 1e-6) return; } else if (axis === "y") { if (Math.abs(ddv.x) > 1e-6) return; }
+    const score = d + (kind === "line" ? rp : 0); if (!best || score < best.score) best = { score, dv: add(dv, ddv), at: to }; };
+  for (const o of others) {
+    const ob0 = bboxOf([o]), wsa = hasSA(o) ? Math.max(...o.segs.map(g => g.sa || 0)) : 0, ob = { x0: ob0.x0 - wsa, y0: ob0.y0 - wsa, x1: ob0.x1 + wsa, y1: ob0.y1 + wsa };
+    if (ob.x1 < bx.x0 + dv.x - pad || ob.x0 > bx.x1 + dv.x + pad || ob.y1 < bx.y0 + dv.y - pad || ob.y0 > bx.y1 + dv.y + pad) continue;
+    const loops = [flatten(o, 16)]; if (hasSA(o)) loops.push(cutLine(o));
+    const corners = [...o.pts, ...(hasSA(o) ? cutLine(o) : [])];
+    for (const m of moved) {
+      for (const c of corners) { const dd = dist(m, c); if (dd < rp) take(m, c, dd, "pt"); }
+      for (const L of loops) for (let i = 0; i < L.length; i++) {
+        const a = L[i], b = L[(i + 1) % L.length], e = sub(b, a), l2 = e.x*e.x + e.y*e.y;
+        if (l2 < 1e-12) continue;
+        let t = Math.max(0, Math.min(1, ((m.x - a.x)*e.x + (m.y - a.y)*e.y)/l2));
+        let f = add(a, mul(e, t));
+        if (axis === "x" && Math.abs(e.y) > 1e-9) { const tt = (m.y - a.y)/e.y; if (tt < 0 || tt > 1) continue; f = add(a, mul(e, tt)); }
+        else if (axis === "y" && Math.abs(e.x) > 1e-9) { const tt = (m.x - a.x)/e.x; if (tt < 0 || tt > 1) continue; f = add(a, mul(e, tt)); }
+        const dd = dist(m, f); if (dd < rl) take(m, f, dd, "line");
+      }
+    }
+  }
+  return best ? { dv: best.dv, at: best.at } : null;
+}
 // (Round r19 / H09, the video 04:41: "I can even snap to this baseline here") a pattern's base lines catch while drawing inside it
 // too; they used to be left out there
 function snapShapes(host, list) {
@@ -3647,6 +3732,7 @@ function drawPiece(p) {
     if (style === "translucent") ctx.globalAlpha = was*RENDER_SEE;
     if (S.tool === "trace" && S.traceMode === "shape") ctx.globalAlpha *= 0.7;      // (Round r17b / 5, W70: a shade greyer in Shape mode)
     shPath(p); ctx.fillStyle = pieceFill(p, style); ctx.fill();
+    if (style === "front" || style === "translucent") drawFabTex(ctx, p, () => shPath(p), toS, S.view.s);      // (Round BETA8-1 / C) its fabric's texture
     // (Round r33b / 2) a section of a seamless block given a fabric of its own: filled with its colour
     if (style === "front" || style === "translucent" || style === "back") for (const sc of sectionLooks(p, style)) { ctx.beginPath(); sc.P.forEach((q, k) => { const a = toS(q); k ? ctx.lineTo(a.x, a.y) : ctx.moveTo(a.x, a.y); }); ctx.closePath(); ctx.fillStyle = sc.color; ctx.fill(); }
     if (style === "front" || style === "translucent") for (const g of p.graphics || []) drawGraphic(p, g);
@@ -3998,8 +4084,49 @@ function punchDialog(at, p, pm) {
 function grainOf(p) {
   if (p.grain) return p.grain;
   const b = bboxOf([p]), x = b.x0 + (b.x1 - b.x0)*0.32;
-  return { a: V(x, b.y0 + (b.y1 - b.y0)*0.2), b: V(x, b.y1 - (b.y1 - b.y0)*0.2) };
+  return grainFit(p, { a: V(x, b.y0 + (b.y1 - b.y0)*0.2), b: V(x, b.y1 - (b.y1 - b.y0)*0.2) });
 }
+/* (Round FIX-2 / C9, the maintainer's brief) A GRAIN LINE NEVER LEAVES ITS PATTERN. grainFit(p, g) is g when both its ends lie inside
+   the outline and it crosses no line of it; otherwise the same line (its direction kept) slid along itself into the stretch of
+   outline round its middle, GRAIN_MARGIN off the edges, and shortened only when that stretch is too short for it. A middle outside the
+   pattern is taken to the inside point furthest from the outline (a 9 × 9 search of the box). grainsInside() puts every pattern's
+   grain right: at every commit() (so drawing, moving, turning and a change of shape all keep it), while one is dragged, on opening. */
+const GRAIN_MARGIN = 5;
+function grainFit(p, g) {
+  if (!g || !g.a || !g.b || !p || !p.pts || p.pts.length < 3) return g;
+  const poly = flatten(p, 16), n = poly.length;
+  if (n < 3) return g;
+  const side = (a, b, q) => (b.x - a.x)*(q.y - a.y) - (b.y - a.y)*(q.x - a.x);
+  const meets = (a, b, c, d) => { const d1 = side(c, d, a), d2 = side(c, d, b), d3 = side(a, b, c), d4 = side(a, b, d); return ((d1 > 0) !== (d2 > 0)) && ((d3 > 0) !== (d4 > 0)) && Math.abs(d1) > 1e-9 && Math.abs(d2) > 1e-9; };
+  const distToSeg = (q, a, b) => { const ab = sub(b, a), l2 = ab.x*ab.x + ab.y*ab.y, t = l2 > 0 ? Math.max(0, Math.min(1, ((q.x - a.x)*ab.x + (q.y - a.y)*ab.y)/l2)) : 0; return Math.hypot(q.x - a.x - t*ab.x, q.y - a.y - t*ab.y); };
+  const cross = (a, b) => { for (let i = 0; i < n; i++) if (meets(a, b, poly[i], poly[(i + 1) % n])) return true; return false; };
+  if (inside(poly, g.a) && inside(poly, g.b) && !cross(g.a, g.b)) return g;
+  const L = dist(g.a, g.b), u = L > 1e-9 ? mul(sub(g.b, g.a), 1/L) : V(0, 1);
+  let mid = mul(add(g.a, g.b), 0.5);
+  const edgeDist = (q) => { let m = Infinity; for (let i = 0; i < n; i++) m = Math.min(m, distToSeg(q, poly[i], poly[(i + 1) % n])); return m; };
+  if (!inside(poly, mid)) {
+    let xs = poly.map(q => q.x), ys = poly.map(q => q.y), best = null, bd = -1;
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    for (let i = 1; i < 10; i++) for (let j = 1; j < 10; j++) { const q = V(x0 + (x1 - x0)*i/10, y0 + (y1 - y0)*j/10); if (!inside(poly, q)) continue; const d = edgeDist(q); if (d > bd) { bd = d; best = q; } }
+    if (!best) return g;
+    mid = best;
+  }
+  // where the line through mid along u meets the outline: the nearest crossing on each side
+  let t0 = -Infinity, t1 = Infinity;
+  for (let i = 0; i < n; i++) {
+    const c = poly[i], d = poly[(i + 1) % n], e = sub(d, c), den = u.x*e.y - u.y*e.x;
+    if (Math.abs(den) < 1e-12) continue;
+    const w = sub(c, mid), t = (w.x*e.y - w.y*e.x)/den, s = (w.x*u.y - w.y*u.x)/den;
+    if (s < -1e-9 || s > 1 + 1e-9) continue;
+    if (t < 0 && t > t0) t0 = t; if (t >= 0 && t < t1) t1 = t;
+  }
+  if (!isFinite(t0) || !isFinite(t1)) return g;
+  const span = t1 - t0, m = Math.min(GRAIN_MARGIN, span*0.1), room = span - 2*m;
+  if (room <= 1e-6) return g;
+  const len = Math.min(L, room), c = Math.max(t0 + m + len/2, Math.min(t1 - m - len/2, 0));
+  return { ...g, a: add(mid, mul(u, c - len/2)), b: add(mid, mul(u, c + len/2)) };
+}
+function grainsInside() { for (const p of S.pieces) if (p.grain) { const f = grainFit(p, p.grain); if (f !== p.grain) p.grain = f; } }
 // a grainline's angle in degrees: 0 = straight up and down, positive = leaning to the left at the top, above -90 up to 90
 function grainAngle(g) { let a = -Math.atan2(g.b.x - g.a.x, -(g.b.y - g.a.y))*180/Math.PI; if (a > 90 + 1e-9) a -= 180; if (a <= -90 + 1e-9) a += 180; return Math.abs(a) < 1e-12 ? 0 : a; }
 // a grainline with its ends in the order that points it up the screen (a level one: to the left), the direction grainAngle()
@@ -4053,6 +4180,38 @@ function drawMesh2(p) {
   ctx.stroke(); ctx.restore();
 }
 // what a pattern is filled with on the canvas, by rendering style
+/* (Round BETA8-1 / C, roadmap 2.C24, the beta.8 gate's one VISIBLE row) A FABRIC'S TEXTURE. A library fabric may have a picture of
+   its own, tex: { img (an id of S.images), w, h (one repeat's size, mm) }, kept only once chosen (file version 36, not yet released: no
+   new version). On a pattern it lies along the pattern's grainline: the picture's middle on the grainline's middle, its up along the
+   grainline (the warp), tiled every w × h with Texture Mapping Repeat, once with Unified (guess beta8-1/1). So Edit Texture, which moves
+   and turns the grainline, moves and turns the fabric's texture on that pattern, in the 2D window and on the cloth. */
+function normFabTex(t) {
+  if (!t || typeof t !== "object" || !Number.isInteger(t.img)) return null;
+  const w = +t.w, h = +t.h;
+  return w > 0 && h > 0 ? { img: t.img, w: Math.min(5000, w), h: Math.min(5000, h) } : null;
+}
+function texPlace(p) {
+  const f = fabricOf(p), t = f && f.tex, im = t && imgEl(t.img), g = im && grainOf(p);
+  if (!g || !g.a || !g.b) return null;
+  return { im, t, o: V((g.a.x + g.b.x)/2, (g.a.y + g.b.y)/2), ang: Math.atan2(g.b.y - g.a.y, g.b.x - g.a.x) - Math.PI/2, unified: f.mapping === "Unified" };
+}
+// the texture drawn on ctx, clipped to the pattern (path(): its outline in ctx's coordinates; at(w): a world point there; s: ctx units a mm)
+function drawFabTex(ctx, p, path, at, s) {
+  const q = texPlace(p);
+  if (!q || !ctx.createPattern) return false;
+  const b = bboxOf([p]), R = Math.hypot(b.x1 - b.x0, b.y1 - b.y0) + Math.max(q.t.w, q.t.h), c = at(q.o);
+  ctx.save(); path(); ctx.clip();
+  ctx.translate(c.x, c.y); ctx.scale(s, s); ctx.rotate(q.ang);
+  let pat = null;
+  if (!q.unified) try { pat = ctx.createPattern(q.im, "repeat"); if (pat && pat.setTransform && typeof DOMMatrix !== "undefined") pat.setTransform(new DOMMatrix().translate(-q.t.w/2, -q.t.h/2).scale(q.t.w/q.im.naturalWidth, q.t.h/q.im.naturalHeight)); else pat = null; } catch (e) { pat = null; }
+  if (pat) { ctx.fillStyle = pat; ctx.fillRect(-R, -R, 2*R, 2*R); }
+  else if (q.unified) ctx.drawImage(q.im, -q.t.w/2, -q.t.h/2, q.t.w, q.t.h);
+  else { const nx = Math.ceil(R/q.t.w), ny = Math.ceil(R/q.t.h); if ((2*nx + 1)*(2*ny + 1) <= 900) for (let i = -nx; i <= nx; i++) for (let j = -ny; j <= ny; j++) ctx.drawImage(q.im, (i - 0.5)*q.t.w, (j - 0.5)*q.t.h, q.t.w, q.t.h); }
+  ctx.restore();
+  return true;
+}
+// what a pattern's texture looks like now (for the cloth's picture: drawn again when it changes)
+const texSig = (p) => { const f = fabricOf(p), t = f && f.tex, g = t && grainOf(p); return t ? [t.img, t.w, t.h, f.mapping, g && g.a && [g.a.x, g.a.y, g.b.x, g.b.y], !!imgEl(t.img)] : null; };
 function pieceFill(p, style) {
   if (style === "translucent") style = "front";
   if (style === "random") return RANDOM_COLS[Math.max(0, S.pieces.indexOf(p)) % RANDOM_COLS.length];
@@ -4200,6 +4359,7 @@ function drawTransformBox() {
     ctx.restore();
     const c = V((b.x0+b.x1)/2, (b.y0+b.y1)/2);
     moveLine(toS(c), toS(add(c, d.dv)), fmt(vlen(d.dv)));
+    if (d.snap) { const q = toS(d.snap); ctx.save(); ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = 2; ctx.strokeRect(q.x - 5, q.y - 5, 10, 10); ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1; ctx.strokeRect(q.x - 5, q.y - 5, 10, 10); ctx.restore(); }
   }
 }
 /* The running sum of the selected lines (Round r17a / 2, the maintainer's own): with two lines or more selected (Edit Pattern,
@@ -4368,6 +4528,8 @@ function drawHover() {
       ctx.fillStyle = C_CURVE; ctx.beginPath(); ctx.arc(q.x, q.y, 3.5, 0, 7); ctx.fill();
       // caught at the middle: a diamond round the dot and the word, so the catch is seen by its shape and not its colour
       if (mc && mc.mid) { const g = midGuide(hv); if (g) { ctx.save(); ctx.strokeStyle = C_MOVE; ctx.lineWidth = 1; ctx.setLineDash([4, 3]); const a = toS(g[0]), b = toS(g[1]); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); ctx.restore(); } }
+      // (Round FIX-2 / D) caught level with another pattern's middle: a dashed line to that middle and a small square there
+      if (mc && mc.level) { const a = toS(mc.level[0]); ctx.save(); ctx.strokeStyle = C_MOVE; ctx.lineWidth = 1; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(q.x, q.y); ctx.stroke(); ctx.setLineDash([]); ctx.strokeStyle = "#1a1a1a"; ctx.strokeRect(a.x - 4, a.y - 4, 8, 8); ctx.restore(); }
       if (mc && mc.mid) { ctx.save(); ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(q.x, q.y - 9); ctx.lineTo(q.x + 9, q.y); ctx.lineTo(q.x, q.y + 9); ctx.lineTo(q.x - 9, q.y); ctx.closePath(); ctx.stroke(); ctx.restore(); tag("Middle", V(q.x, q.y + 30)); }
       for (const [t, len] of [[ht/2, la], [(1 + ht)/2, L - la]]) {
         const m = toS(segPt(hv.sh, hv.i, t)), tn = segTan(hv.sh, hv.i, t);
@@ -4753,7 +4915,7 @@ function drawAll() {
     if (S.show.links !== false) { drawLinks(); drawLineLinks(); }
     VIS = new Set();
     for (const p of stack()) if (p.on) { if (gd && p === gd.sh) drawAdded(gd); if (inView(p)) { VIS.add(p.id); drawPiece(p); } }
-    drawSeams(); drawZippers();
+    drawSeams(); drawZippers(); if (S.seams.some(sm => sm.rips) || S.ripFrom) rips2D();
     drawStitches(); drawPuckers(); drawSymbols2D(); drawTrims2D(); drawElastics2D();
     drawHover();
   } finally { if (gd) ghostSwap(gd); }
@@ -4791,7 +4953,6 @@ function drawAll() {
     ctx.setLineDash([]);
     if (S.tool === "transform_pattern" && !S.marquee.touch) tag(MARQUEE_TIP, V(b.x, b.y + 18));
   }
-  drawAvOutEdit();                                           // (Round beta.6 / 0) the avatar outline being edited
   drawBackdropEdit();                                        // (Round UI-1e / D) the background image being edited: its frame, handles and words over the patterns
   if (S.show.ruler) drawRulers();
 }
@@ -4841,7 +5002,6 @@ function cvDown(e) {
   if (S.replace) return replaceClick(sx, sy);                // Replaced by is picking (Round r12 / 5)
   if (S.noteLink) return noteLinkClick(sx, sy);             // (Round r20 / 4) an annotation's Link to is picking its line
   if (S.bgMode) return backdropDown(w, { x: e.clientX, y: e.clientY });     // (Round r17b / 1) the background image is moved or scaled
-  if (S.avOutEdit) return avOutDown(w);                     // (Round beta.6 / 0) the avatar outline is being edited
   if (S.rotAxis) return rotAxisClick(sx, sy);                // Rotate ▸ X-Axis / Y-Axis waits for the line (Round r13 / 5)
   if (S.pickPoly && S.tool === "transform_pattern") return pickPolyClick(sx, sy, w);      // (Round r19 / H01) a corner of the polygon selection
   // Rotate Dart is waiting for its new place: this click is it
@@ -4863,6 +5023,7 @@ function cvDown(e) {
   }
   if (T === "walk") return walkClick(sx, sy, e);
   if (T === "fill") return void fillClick(pieceAt(sx, sy), { x: e.clientX, y: e.clientY }, lockedAt(sx, sy));
+  if (T === "set_sublayer") return void sublayerClick(pieceAt(sx, sy));
   if (T === "measure") return measureClick(sx, sy, e);
   if (T === "edit_pom") return pomDown(sx, sy, w, e);
 
@@ -4897,11 +5058,11 @@ function cvDown(e) {
     S.drag = { k: "box" }; return;
   }
   if (T === "spiral") { spiralPatternNumeric({ x: e.clientX, y: e.clientY }, drawSnap(w, null, { hv: false })); return; }
-  if (T === "dart_double") {
+  if (T === "dart_double" || T === "base_dart_double") {
     const host = pieceAt(sx, sy);
     if (!host) return toast("Click inside a pattern: where the dart goes");
     if (isLocked(host)) return toast(host.name + " is locked");
-    dartDoubleNumeric({ x: e.clientX, y: e.clientY }, host, drawSnap(w, null, { host, hv: false }));
+    dartDoubleNumeric({ x: e.clientX, y: e.clientY }, host, drawSnap(w, null, { host, hv: false }), T === "base_dart_double");
     return;
   }
   if (T === "internal_spiral") {
@@ -4964,6 +5125,7 @@ function cvDown(e) {
   if (T === "graphic" || T === "transform_graphic") return gfxDown(sx, sy, w, e);
   if (T === "edit_sewing") return editSewDown(sx, sy, null, e);
   if (T === "edit_zipper") return editSewDown(sx, sy, (sm) => !!sm.zip);
+  if (T === "seamline_rip" || T === "edit_rip") return ripDown(sx, sy);
   if (T === "edit_gluing") return glueEditDown(sx, sy, w, e);
   if (T === "sticker") return stickerClick(sx, sy, w);
   if (T === "glue_fill") return glueFillClick(sx, sy, e.shiftKey);
@@ -5127,12 +5289,13 @@ function cvDown(e) {
 cv.addEventListener("pointermove", (e) => cvMove(e));
 // the pointer has left the 2D window: what is written beside it goes (the selected lines' sum)
 cv.addEventListener("pointerleave", () => { S.mouseOut = true; draw(); });
-/* (Round H1c / A) THE POSITION READOUT: X and Y each in a slot of its own, as wide as the widest value (a sign, six digits, a point and
-   three decimals: 11 characters of the bar's monospaced face, digits of one width), the number at its right edge, so no label moves
-   whatever the value: 0, -0.5 or -12345.6. */
+/* (Round H1c / A; Round FIX-2 / C11, the maintainer's feedback) THE POSITION READOUT: each number straight after its letter ("X -123.4"),
+   left-aligned in a slot as wide as the widest value needs at the chosen decimals (a sign, five digits, the point and the decimals;
+   digits of one width), so the Y label never moves whatever the value: 0, -0.5 or -12345.6. */
+const posSlot = () => { const d = Math.max(0, Math.min(3, +((S.prefs && S.prefs.decimals) ?? 1) || 0)); return (6 + (d ? d + 1 : 0)) + "ch"; };
 function posShow(w) {
   const x = document.getElementById("s-x"), y = document.getElementById("s-y");
-  if (x && y) { x.textContent = fmt(w.x); y.textContent = fmt(w.y); return; }
+  if (x && y) { const sw = posSlot(); if (x.style.width !== sw) x.style.width = y.style.width = sw; x.textContent = fmt(w.x); y.textContent = fmt(w.y); return; }
   const p = document.getElementById("s-pos"); if (p) p.textContent = "X " + fmt(w.x) + "  Y " + fmt(w.y);
 }
 function cvMove(e) {
@@ -5142,7 +5305,7 @@ function cvMove(e) {
   const d = S.drag;
   if (d && pushLater) pushFlush();
   if (!d) {
-    S.hover = ["edit_pattern","edit_curve_point","edit_curvature","add_point","smooth_curve","notch","seam_allowance","walk","measure","add_dart","trace","edit_annotations","annotations","edit_texture","transform_point","punch_mark","fullness","segment_topstitch","free_topstitch"].includes(S.tool) ? hit(sx, sy) : null;
+    S.hover = ["edit_pattern","edit_curve_point","edit_curvature","add_point","smooth_curve","notch","seam_allowance","walk","measure","add_dart","trace","edit_annotations","annotations","edit_texture","transform_point","punch_mark","fullness","segment_topstitch","free_topstitch","pleats"].includes(S.tool) ? hit(sx, sy) : null;      // (Round FIX-2 / C3: pleats too)
     if (CROSS_TOOLS.includes(S.tool) && !S.hover) S.hover = null;
     if (S.tool === "transform_pattern") { const hp = pieceAt(sx, sy); S.hover = hp ? { k: "body", p: hp } : null; }
     if (S.tool === "walk" && walkLive()) walkMove(w);
@@ -5151,7 +5314,6 @@ function cvMove(e) {
   }
   if (d.k === "pan") { S.view.x = d.vx + (sx-d.x); S.view.y = d.vy + (sy-d.y); drawSoon(); return; }
   if (d.k === "pomEnd") { d.at = cp(w); d.moved = true; drawSoon(); return; }
-  if (d.k === "avout") return avOutMove(d, w);              // (Round beta.6 / 0)
   if (d.k === "bg") { const b = backdrop(); if (b) { b.x = d.x + w.x - d.at.x; b.y = d.y + w.y - d.at.y; d.moved = true; } drawSoon(); return; }
   if (d.k === "bgc") { backdropScaleTo(d, w, e); drawSoon(); return; }      // (Round r33 / 6) a corner of the background image
   if (d.k === "bgr") { backdropTurnTo(d, w, e.shiftKey); drawSoon(); return; }      // (Round r33b / 3) its ring
@@ -5172,6 +5334,7 @@ function cvMove(e) {
     dr.hs[d.i] = q;
     drawSoon(); return;
   }
+  if (d.k === "ripEnd") return ripDragTo(d, sx, sy);      // (Round FIX-4 / A) Edit Rip: an end along its seam
   if (d.k === "marquee") { S.marquee.b = V(sx, sy); S.marquee.touch = !!(e.ctrlKey || e.metaKey); drawSoon(); return; }      // (touch: only the tip goes)
   if (d.k === "guide") {
     const g = S.guides.find(x => x.id === d.id);
@@ -5202,8 +5365,10 @@ function cvMove(e) {
   if (d.k === "smooth") { const sm = S.draft && S.draft.smooth, sp = sm && byId(sm.pid); if (sp) sm.k = smoothKAt(sp, sm.a, sm.b, sm.side, w); drawSoon(); return; }
   if (d.k === "move") {
     let dv = sub(w, d.start);
-    if (S.shift) dv = Math.abs(dv.x) > Math.abs(dv.y) ? V(dv.x, 0) : V(0, dv.y);      // Shift: straight across or straight up and down
-    d.dv = dv; drawSoon(); return;
+    const axis = S.shift ? (Math.abs(dv.x) > Math.abs(dv.y) ? "x" : "y") : null;
+    if (axis) dv = axis === "x" ? V(dv.x, 0) : V(0, dv.y);      // Shift: straight across or straight up and down
+    const sn = moveSnap(freeSel(), dv, axis);                     // (Round FIX-2 / D) the outlines and cut lines catch the others'
+    d.dv = sn ? sn.dv : dv; d.snap = sn ? sn.at : null; drawSoon(); return;
   }
   if (d.k === "scale") {
     const dx0 = d.h0.x-d.pv.x, dy0 = d.h0.y-d.pv.y, g = sub(w, d.off);
@@ -5294,6 +5459,7 @@ function cvMove(e) {
       const u = V(Math.cos(ang)*len/2, Math.sin(ang)*len/2);
       d.p.grain = d.h === "b" ? { a: sub(mid, u), b: add(mid, u) } : { a: add(mid, u), b: sub(mid, u) };
     }
+    d.p.grain = grainFit(d.p, d.p.grain);                    // (Round FIX-2 / C9) it stays inside the outline while dragged
     sync(); drawSoon(); return;
   }
   if (d.k === "bend") {
@@ -5313,6 +5479,7 @@ cv.addEventListener("pointerup", (e) => cvUp(e));
 function cvUp(e) {
   const d = S.drag;
   if (d && d.k === "pomEnd") { S.drag = null; return pomUp(d); }
+  if (d && d.k === "ripEnd") { S.drag = null; if (d.moved) { const sm = S.seams.find(x => x.id === d.seam); if (sm) sm.rips = normRips(sm.rips); pushFlush(); commit(); } return; }
   if (d && d.k === "bg" && !(S.bgMode && S.bgMode.k === "edit")) S.bgMode = null;      // (Round r17b / 1) a drag that did not move takes no step (below); (Round r33 / 6) editing goes on after a drag
   if (d && (d.k === "bg" || d.k === "bgc" || d.k === "bgr") && S.bgMode && S.bgMode.k === "edit") ui();
   // a guideline dropped back on a ruler is thrown away
@@ -5402,9 +5569,11 @@ function cvMenu(e) {
   if (S.rotAxis) { S.rotAxis = null; draw(); return toast("Rotate given up"); }
   // (Round UI-1e / D) editing the background image: a right-click on it opens its tools; anywhere else ends editing
   if (S.bgMode && S.bgMode.k === "edit") { if (bgUnder(w)) return backdropMenu(e); S.bgMode = null; ui(); draw(); return; }
-  if (S.avOutEdit) { if (avOutUnder(w)) return avOutMenu(e); avOutEditEnd(); return; }      // (Round beta.6 / 0)
   if (S.bgMode) { S.bgMode = null; draw(); return toast("Background image: given up"); }      // (Round r13 / 5) a right-click gives up Rotate ▸ X-Axis / Y-Axis
   if (T === "edit_curvature") return;                        // Edit Curvature has no right-click: no menu opens, nothing is typed
+  // (Round FIX-4 / A) Edit Rip on a rip: Delete Rip; Seamline Rip: a right-click gives up the rip begun
+  if (T === "edit_rip") { const h = ripAt(sx, sy); if (h) { S.selRip = { seam: h.sm.id, k: h.k }; draw(); return listMenu([{ n: "Delete Rip", k: keyOf("delete"), f: ripDelete }], at.x, at.y); } }
+  if (T === "seamline_rip" && S.ripFrom) { S.ripFrom = null; draw(); return toast("Rip given up"); }
   // mid-draw: type the exact length + angle
   if (S.draft && S.draft.pts && S.draft.pts.length && penNumeric(at)) { S.drag = null; return; }
   if (SEW_TOOLS.includes(T) && S.draft && S.draft.sew) { if (!sewLengthNumeric(at)) toast("Delete takes the last pick back, Esc all of them"); return; }
@@ -5797,7 +5966,52 @@ function normLibItem(kind, o, id) {
   if (kind === "fabric") out.maxStretch = o.maxStretch !== "" && +o.maxStretch > 0 ? Math.min(+o.maxStretch, 400) : (FABRIC_PHYS[out.physical] || FABRIC_PHYS.Custom).maxStretch;
   // (Round H1a / 2) its preset's stiffness and friction as an older file was written with them, only when they were filled in (defaultsFill())
   if (kind === "fabric") for (const k of ["stretch", "bend", "friction"]) if (o[k] !== null && o[k] !== "" && Number.isFinite(+o[k]) && +o[k] > 0) out[k] = +o[k];
+  // (Round FIX-2 / C10, file version 35) the Back and Side tabs' own Texture Mapping, Type and (Side) Color, kept only once set
+  if (kind === "fabric") { const fc = normFaces(o.faces); if (fc) out.faces = fc; }
+  // (Round FIX-3 / D, file version 36) the Detail rows, each a share of the preset in %, kept only when not 100
+  if (kind === "fabric") { const d = normFabDetail(o.dir); if (d) out.dir = d; }
+  // (Round BETA8-1 / C) its texture's picture and repeat size, kept only once chosen
+  if (kind === "fabric") { const t = normFabTex(o.tex); if (t) out.tex = t; }
   return out;
+}
+/* (Round FIX-3 / D, the maintainer's brief: every row the recordings show, session 5 frames 022-025: Stretch-Weft / -Warp, Shear (Right) /
+   (Left), Bending-Weft / -Warp / -Bias (Right) / (Left), Buckling Ratio and Stiffness, Internal Damping, Weight, Friction) The fabric's
+   Detail. Our own scale, not the reference's 0-99: each stiffness row is a share of the preset's own stretch or bend in %, 100 the preset
+   as it is (so a fabric never touched simulates as before, bit for bit); Internal Damping a share of the solver's damping, 100 its own
+   2.5 / s; Friction the coefficient itself (fabricPhys(), the fabric's own friction or its preset's). FAB_DETAIL: [key, label, the
+   solver's key]. Buckling Ratio and Stiffness are left out: this solver's bending is linear, there is nothing they would change (the
+   report lists them). Each kept only when not 100 (dir: { … }); the shares 1 % to 1000 %. */
+const FAB_DETAIL = [["stretchWeft", "Stretch-Weft", "weft"], ["stretchWarp", "Stretch-Warp", "warp"], ["shearR", "Shear (Right)", "shR"], ["shearL", "Shear (Left)", "shL"],
+  ["bendWeft", "Bending-Weft", "bWeft"], ["bendWarp", "Bending-Warp", "bWarp"], ["bendBiasR", "Bending-Bias (Right)", "bR"], ["bendBiasL", "Bending-Bias (Left)", "bL"], ["damping", "Internal Damping", "damp"]];
+function normFabDetail(o) {
+  if (!o || typeof o !== "object") return null;
+  const out = {};
+  for (const [k] of FAB_DETAIL) { const v = +o[k]; if (o[k] !== null && o[k] !== "" && Number.isFinite(v) && v > 0 && Math.abs(v - 100) > 1e-9) out[k] = Math.max(1, Math.min(1000, Math.round(v*10)/10)); }
+  return Object.keys(out).length ? out : null;
+}
+/* (Round FIX-2 / C10, the maintainer's brief; frame S28/at-07-45.0-pe: the fabric's Material has the tabs Front / Back / Side, each with
+   Texture Mapping, Type and Base Color) A fabric's faces: Front is the fabric's own mapping, type and color (and its other material
+   rows); Back its back { mapping, type } and the Back Color it always had (back); Side { mapping, type, color }. A face's value is
+   kept only when it was set (faces.back / faces.side); unset, Back and Side take Front's mapping and type, Side Front's color. */
+const FACE_MAPPINGS = ["Repeat", "Unified"], FACE_TYPES = ["Fabric_Matte", "Fabric_Shiny", "Fabric_Silk/Satin", "Fabric_Velvet", "Leather", "Metal", "Plastic"];
+function normFaces(o) {
+  if (!o || typeof o !== "object") return null;
+  const out = {};
+  for (const face of ["back", "side"]) {
+    const f = o[face]; if (!f || typeof f !== "object") continue;
+    const g = {};
+    if (FACE_MAPPINGS.includes(f.mapping)) g.mapping = f.mapping;
+    if (FACE_TYPES.includes(f.type)) g.type = f.type;
+    if (face === "side" && /^#[0-9a-fA-F]{6}$/.test(f.color)) g.color = f.color.toLowerCase();
+    if (Object.keys(g).length) out[face] = g;
+  }
+  return Object.keys(out).length ? out : null;
+}
+// a fabric's face as it shows: { mapping, type, color }
+function fabFace(f, face) {
+  const fc = (f && f.faces) || {}, own = fc[face] || {};
+  if (face === "front" || !f) return { mapping: (f || {}).mapping || "Repeat", type: (f || {}).type || "Fabric_Matte", color: (f || {}).color || "#ffffff" };
+  return { mapping: own.mapping || f.mapping, type: own.type || f.type, color: face === "back" ? f.back : own.color || f.color };
 }
 function normLib(o) {
   o = o && typeof o === "object" ? o : {};
@@ -5816,6 +6030,37 @@ function normLib(o) {
 const libOf = () => S.lib || (S.lib = normLib(null));
 // the fabric a pattern is cut from: the one it names, or the first
 function fabricOf(p) { const fs = libOf().fabric; return fs.find(f => f.id === p.fabric) || fs[0] || null; }
+/* (Round BETA8-1 / C3, roadmap 1.T2: "if you go on a button you have all the different buttons here … that's something nice to add", the tool
+   video at 01:35) THE BUTTON CATALOGUE: ready-made buttons, each a button type of the library once picked (the Object Browser's Button tab, Catalogue…).
+   Their sizes, weights and colours are typical ones, ours (guess beta8-1/4): ligne sizes (1 ligne = 0.635 mm) of shirts, blouses, trousers,
+   jackets and coats, a jeans button and a snap. Only the rows a button type has: shape, thread type, width, thickness, weight, material, colour. */
+const BUTTON_CATALOGUE = [
+  ["Shirt, 4 holes, 18 L (11.5 mm)", { shape: "Round", thread: "Cross", width: 11.5, thickness: 2, weight: 0.3, type: "Plastic", color: "#f4f1ea" }],
+  ["Shirt, 4 holes, parallel, 18 L", { shape: "Round", thread: "Parallel", width: 11.5, thickness: 2, weight: 0.3, type: "Plastic", color: "#f4f1ea" }],
+  ["Blouse, 14 L (9 mm)", { shape: "Round", thread: "Parallel", width: 9, thickness: 1.8, weight: 0.2, type: "Plastic", color: "#ffffff" }],
+  ["Polo, 16 L (10 mm)", { shape: "Round", thread: "Cross", width: 10, thickness: 2, weight: 0.25, type: "Plastic", color: "#ffffff" }],
+  ["Trousers, 24 L (15 mm)", { shape: "Round", thread: "Cross", width: 15, thickness: 2.5, weight: 0.6, type: "Plastic", color: "#2b2b2b" }],
+  ["Jacket, 32 L (20 mm)", { shape: "Round", thread: "Cross", width: 20, thickness: 3.5, weight: 1.6, type: "Plastic", color: "#3b2a1e" }],
+  ["Coat, 40 L (25 mm)", { shape: "Round", thread: "Cross", width: 25, thickness: 4, weight: 2.8, type: "Plastic", color: "#1e1e1e" }],
+  ["Coat, square, 36 L (23 mm)", { shape: "Square", thread: "Square", width: 23, thickness: 4, weight: 2.4, type: "Plastic", color: "#2a2a2a" }],
+  ["Cardigan, arrow stitch, 24 L", { shape: "Round", thread: "Arrow", width: 15, thickness: 3, weight: 0.8, type: "Plastic", color: "#6b5843" }],
+  ["Jeans button, 27 L (17 mm)", { shape: "Round", thread: "None", width: 17, thickness: 7, weight: 2.5, type: "Metal", color: "#9c8f74", metalness: 90, roughness: 35 }],
+  ["Snap, 15 mm", { shape: "Round", thread: "None", width: 15, thickness: 4, weight: 1.2, type: "Metal", color: "#b8b8b8", metalness: 95, roughness: 30 }],
+  ["Wood, 2 holes, 30 L (19 mm)", { shape: "Round", thread: "Parallel", width: 19, thickness: 4, weight: 1.1, type: "Fabric_Matte", color: "#9a6b3f" }],
+];
+// one of the catalogue as a button type of the library, selected in the Button tab: one step
+function catalogueAdd(k) {
+  const c = BUTTON_CATALOGUE[k];
+  if (!c) return null;
+  push("Add Button from Catalogue");
+  const L = libOf(), it = normLibItem("button", { name: c[0], ...c[1] }, L.nextId++);
+  L.button.push(it); obState().sel = it.id;
+  commit(); toast("Button type added: " + c[0]);
+  return it;
+}
+function catalogueMenu(x, y) {
+  listMenu([{ hd: "Button Catalogue" }, ...BUTTON_CATALOGUE.map(([n, c], k) => ({ n, f: () => catalogueAdd(k) }))], x, y);
+}
 function libAdd(kind, from) {
   const L = libOf(), id = L.nextId++;
   const numbered = { fabric: "FABRIC", trim: "Trim", zipper: "Zipper" }[kind];
@@ -5867,6 +6112,7 @@ function normImages(list) {
 // the pictures some pattern still uses (what goes into the file)
 function usedImages() {
   const used = new Set(S.pieces.flatMap(p => (p.graphics || []).map(g => g.img))); if (S.backdrop) used.add(S.backdrop.img);
+  for (const f of (S.lib && S.lib.fabric) || []) if (f.tex) used.add(f.tex.img);      // (Round BETA8-1 / C) a fabric's texture
   // (Round r21 / 1) and every picture a step of the history still shows: the file keeps the history, and an undo after opening it
   // brought back a graphic or background image whose picture was not saved. Only looked for while a picture is not in use now
   if ((S.images || []).some(im => !used.has(im.id))) for (const st of [...(S.undo || []), ...(S.redo || [])]) histImages(st, used);
@@ -5874,7 +6120,7 @@ function usedImages() {
 }
 function histImages(st, used) {
   const k = st && typeof st === "object" ? st.k : null, pc = k && k.pieces;
-  const texts = typeof st === "string" ? [st] : !k ? [] : [k.backdrop, ...(typeof pc === "string" ? [pc] : pc ? pc.t : [])];
+  const texts = typeof st === "string" ? [st] : !k ? [] : [k.backdrop, k.lib, ...(typeof pc === "string" ? [pc] : pc ? pc.t : [])];
   for (const t of texts) if (typeof t === "string" && t.includes('"img"')) for (const m of t.matchAll(/"img":(\d+)/g)) used.add(+m[1]);
 }
 // keep a picture; the same picture twice is kept once
@@ -7654,7 +7900,34 @@ function midHit(order, sx, sy) {
 }
 function midCatch(h, sx, sy) {
   const tm = tAtFrac(h.sh, h.i, 0.5), q = toS(segPt(h.sh, h.i, tm));
-  return Math.hypot(q.x - sx, q.y - sy) <= MID_CATCH ? { t: tm, mid: true } : { t: h.t, mid: false };
+  if (Math.hypot(q.x - sx, q.y - sy) <= MID_CATCH) return { t: tm, mid: true };
+  const lv = levelCatch(h, sx, sy);
+  return lv || { t: h.t, mid: false };
+}
+/* (Round FIX-2 / D, Multiple_tools_2 00:04–00:25 "this is the middle and this is the middle of the other one"; must-have #9) Off its own
+   line's middle, the place on the line that is level with the middle of another pattern's line (as high, or straight above or below),
+   within MID_CATCH screen pixels of the pointer: { t, mid: false, level: [the other middle, the place] } or null. */
+function levelCatch(h, sx, sy) {
+  if (!h || !h.sh || !h.p) return null;
+  const at = toW(sx, sy), lim = MID_CATCH/S.view.s, P = segPt(h.sh, h.i, h.t);
+  let best = null;
+  for (const o of S.pieces) {
+    if (o === h.p || o.on === false || !inView(o)) continue;
+    for (let j = 0; j < nSeg(o); j++) {
+      const m = segPt(o, j, tAtFrac(o, j, 0.5));
+      for (const ax of ["y", "x"]) {
+        if (Math.abs(P[ax] - m[ax]) > lim) continue;
+        // the place on the line at that height (or across): bisection on the line's samples near the pointer's place
+        let lo = Math.max(0, h.t - 0.25), hi = Math.min(1, h.t + 0.25), f = (t) => segPt(h.sh, h.i, t)[ax] - m[ax];
+        let flo = f(lo), fhi = f(hi);
+        if (flo * fhi > 0) { lo = 0; hi = 1; flo = f(0); fhi = f(1); if (flo * fhi > 0) continue; }
+        for (let k = 0; k < 40; k++) { const md = (lo + hi)/2, fm = f(md); if (flo * fm <= 0) { hi = md; fhi = fm; } else { lo = md; flo = fm; } }
+        const t = (lo + hi)/2, q = segPt(h.sh, h.i, t), d = dist(q, at);
+        if (d <= lim && (!best || d < best.d)) best = { d, t, level: [m, q] };
+      }
+    }
+  }
+  return best ? { t: best.t, mid: false, level: best.level } : null;
 }
 // the guide line the catch draws (as the recording shows it): from the middle of an outline's line straight into the pattern,
 // square to the line, as far as the pattern's centre line (through the middle of its box, along the line). null if none
@@ -7821,10 +8094,28 @@ function slashSpread(p, a, b, sa, sb, path, force) {
     for (const sd of seamSidesOn(p)) { const j = sd.sids.indexOf(before.id); if (j >= 0 && sd.sids[j+1] === after.id) sd.sids.splice(j+1, 0, x.id); }
   };
   join(gs, endsAtPs, startsAtPs); join(ge, endsAtPe, startsAtPe);
+  const movedKids = [], segs0 = p.segs;
   for (const it of [...p.internals, ...p.bases]) {
     if (!inside(poly, mul(it.pts.reduce((c, q) => add(c, q), V(0, 0)), 1/it.pts.length))) continue;
     it.pts = it.pts.map(T);
     for (const x of it.segs) mapSeg(x, T);
+    movedKids.push(String(it.id));
+  }
+  /* (Round FIX-3b / D, PK §4.5) the grading goes with the spread: the grade points of the side that turns are turned with it (each
+     size's offset turned as the side is), so every size spreads as the base does; each point the cut opens keeps its grading on
+     both its copies, the moved one turned. Curve points' grading on the turned lines and the moved internal lines' are turned too. */
+  if (p.grade && S.grading) {
+    const G = S.grading, g = p.grade, M = [cs, sn, -sn, cs];
+    const turn = (map) => { const out = {}; for (const k of Object.keys(map || {})) { const v = mapDelta(map, k); out[k] = { dx: M[0]*v.x + M[2]*v.y, dy: M[1]*v.x + M[3]*v.y }; } return out; };
+    // (a pivot, an end not opened, is on both sides and stays: its grading is left as it was)
+    const P0 = clone(g.pts || {}), moved = new Set(iM.slice(0, -1).map(k => String(segs0[k].id))), kids = new Set(movedKids), pivot = ss > 1e-9 ? null : String(segs0[iM[0]].id);
+    const goes = (k) => { const [sh, sid] = k.split(":"); return sh === "0" ? moved.has(sid) : kids.has(sh); };
+    g.pts = g.pts || {};
+    for (const k of Object.keys(P0)) if (goes(k) && k.split(":")[1] !== pivot) g.pts[k] = { d: turn(entryMap(G, p, P0[k])) };
+    for (const k of Object.keys(g.curves || {})) if (goes(k)) { const cg = g.curves[k]; g.curves[k] = Array.isArray(cg.cps) ? { cps: cg.cps.map(turn) } : { c1: turn(cg.c1), c2: turn(cg.c2) }; }
+    const ePs = P0["0:" + startsAtPs.id], ePe = P0["0:" + startsAtPe.id];
+    if (gs && ePs) g.pts["0:" + gs.id] = clone(ePs);                                   // Ps: the copy that stays keeps its grading
+    if (ge && ePe) g.pts["0:" + ge.id] = { d: turn(entryMap(G, p, ePe)) };             // Pe: the copy that moved, turned
   }
   if (p.anno && inside(poly, p.anno)) p.anno = T(p.anno);
   for (const nt of [...(p.notes || []), ...(p.punches || [])]) if (inside(poly, nt)) { const q = T(nt); nt.x = q.x; nt.y = q.y; }
@@ -8437,6 +8728,12 @@ function pleatPick(sx, sy) {
 // that would be laid there, dashed, with the words at the pointer (the side is told by the arrow's shape, not by a colour)
 function drawPleatSel() {
   const pk = S.tool === "pleats" && S.pleatPick;
+  // (Round FIX-2 / C3, the maintainer's feedback) where the next click lands on the outline, as Fullness shows it: a white-ringed dot
+  // on the point, the middle of a line or the place along it (pleatOutlinePt(), what the click itself takes)
+  if (S.tool === "pleats" && (!pk || pk.step === "b") && S.hover && S.mouse) {
+    const q = pleatOutlinePt(S.hover, S.mouse.sx, S.mouse.sy, pk ? pk.pid : null);
+    if (q && typeof q === "object") { const c = toS(q); ctx.save(); ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(c.x, c.y, 5, 0, 7); ctx.fill(); ctx.fillStyle = C_CURVE; ctx.beginPath(); ctx.arc(c.x, c.y, 3.5, 0, 7); ctx.fill(); ctx.restore(); }
+  }
   if (!pk) return;
   ctx.save(); ctx.strokeStyle = C_MOVE; ctx.fillStyle = C_MOVE;
   const seg = (a, b) => { const s = toS(a), e = toS(b); ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y); ctx.stroke(); };
@@ -8748,7 +9045,7 @@ function drawRulers() {
   }
   ctx.stroke();
   // where the cursor is
-  ctx.strokeStyle = "#ecfd3f"; ctx.beginPath();
+  ctx.strokeStyle = uiAccent("line"); ctx.lineWidth = 2; ctx.beginPath();      // (Round FIX-2 / C7) the pointer's marks in the accent, not yellow
   ctx.moveTo(S.mouse.sx + .5, 0); ctx.lineTo(S.mouse.sx + .5, RUL); ctx.moveTo(0, S.mouse.sy + .5); ctx.lineTo(RUL, S.mouse.sy + .5); ctx.stroke();
   ctx.fillStyle = "#2b2b2d"; ctx.fillRect(0, 0, RUL, RUL);
   ctx.textAlign = "center";
@@ -8799,10 +9096,10 @@ function drawGuides() {
   const R = (W + H)*2/S.view.s, live = S.drag && S.drag.k === "guide" ? S.drag.id : null;
   for (const g of S.guides) {
     const d = guideDir(g), a = toS(add(g.p, mul(d, -R))), b = toS(add(g.p, mul(d, R)));
-    ctx.strokeStyle = g.id === live ? "#ecfd3f" : "#00a3c4"; ctx.lineWidth = 1;
+    ctx.strokeStyle = g.id === live ? uiAccent("line") : "#00a3c4"; ctx.lineWidth = g.id === live ? 1.5 : 1;      // (Round FIX-2 / C7) the guideline being dragged: the accent, a little thicker (not colour alone)
     if (S.show.lockGuide) ctx.setLineDash([8, 5]);
     ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); ctx.setLineDash([]);
-    if (g.id === live) { const c = toS(g.p); ctx.fillStyle = "#ecfd3f"; ctx.beginPath(); ctx.arc(c.x, c.y, 3, 0, 7); ctx.fill(); }
+    if (g.id === live) { const c = toS(g.p); ctx.fillStyle = uiAccent("line"); ctx.beginPath(); ctx.arc(c.x, c.y, 3, 0, 7); ctx.fill(); }
   }
 }
 // called when something switches a view setting on by itself (a new guideline shows the guidelines)
@@ -9221,17 +9518,23 @@ function guideNumeric(at, g) {
 const PAPERS = [["a4", "A4", 210, 297], ["a3", "A3", 297, 420], ["b5", "B5", 176, 250], ["b4", "B4", 250, 353], ["letter", "Letter", 215.9, 279.4],
   ["legal", "Legal", 215.9, 355.6], ["tabloid", "Tabloid", 279.4, 431.8], ["roll24", "Roll 24 in", 609.6, 0], ["roll36", "Roll 36 in", 914.4, 0],
   ["roll44", "Roll 44 in", 1117.6, 0], ["rollc", "Roll (custom width)", 0, 0], ["full", "1:1 single sheet", 0, 0], ["custom", "Custom", 0, 0]];      // (rollc: r19 follow-up, H25: a roll as wide as customW)
+/* (Round BETA8-1 / C2, roadmap 1.H18 1.T10 3.C18, the housekeeping video 14:28: the Plotter box's Line Options and Add'l Information, all of them)
+   a third element "lay": only Print Layout's (Buffer Spacing, Nesting Information, Fabric Outline): not offered in the 2D print's box */
 const PRINT_LINES = [["outline", "Pattern outline"], ["sa", "Seam allowance"], ["internal", "Internal line"], ["baseline", "Baseline"],
-  ["reference", "Reference line"], ["notch", "Notch"], ["symmetric", "Symmetric line"], ["dart", "Dart"], ["topstitch", "Topstitch"]];
-const PRINT_INFO = [["graphic", "Graphic"], ["name", "Pattern name"], ["annotation", "Annotation"], ["grainline", "Grainline"], ["length", "Line length"], ["measurement", "2D measurement"], ["size", "Size name"]];
+  ["reference", "Reference line"], ["notch", "Notch"], ["symmetric", "Symmetric line"], ["dart", "Dart"], ["topstitch", "Topstitch"],
+  ["punch", "Punch mark"], ["gfxline", "Graphic line"], ["shrink", "Shrinkage line"], ["buffer", "Buffer spacing", "lay"]];
+const PRINT_INFO = [["graphic", "Graphic"], ["name", "Pattern name"], ["annotation", "Annotation"], ["grainline", "Grainline"], ["length", "Line length"], ["measurement", "2D measurement"], ["size", "Size name"],
+  ["buttons", "Buttons / buttonholes"], ["nesting", "Nesting information", "lay"], ["fabric", "Fabric outline", "lay"]];
 const PRINT_DASH = { solid: "", dotted: "0.5 1.5", dashed: "4 2.5" };
 const PRINT_KEY = "pdraft:print";
 function printDefault() {
   const L = (color, dash) => ({ show: true, color, dash });
   return { paper: "a4", orient: "portrait", mode: "actual", margin: 10, overlap: 10, customW: 500, customH: 700, shrink: true, selected: false, skipBlank: true,
     lines: { outline: L("#000000", "solid"), sa: L("#000000", "solid"), internal: L("#000000", "solid"), baseline: L("#0066cc", "dashed"), reference: L("#777777", "dashed"),
-      notch: L("#000000", "solid"), symmetric: L("#0066cc", "dashed"), dart: L("#000000", "solid"), topstitch: L("#444444", "dashed") },
-    info: { graphic: true, name: true, annotation: true, grainline: true, length: false, measurement: false, size: true }, plot: normPlot(null) };
+      notch: L("#000000", "solid"), symmetric: L("#0066cc", "dashed"), dart: L("#000000", "solid"), topstitch: L("#444444", "dashed"),
+      // (Round BETA8-1 / C2) punch marks were drawn as notches and still print as before; the three new kinds start off
+      punch: L("#000000", "solid"), gfxline: { ...L("#0066cc", "solid"), show: false }, shrink: { ...L("#777777", "dotted"), show: false }, buffer: { ...L("#0072b2", "dashed"), show: false } },
+    info: { graphic: true, name: true, annotation: true, grainline: true, length: false, measurement: false, size: true, buttons: false, nesting: false, fabric: false }, plot: normPlot(null) };
 }
 // print settings are kept per browser, like the view; anything missing or malformed takes its default
 function normPrint(o) {
@@ -9316,6 +9619,39 @@ function printPieces(st) {
 /* The drawing as SVG elements in drawing millimetres, one layer at a time with that
    layer's colour and line style. Every element carries data-layer, so a hidden layer
    is simply not there. */
+/* (Round BETA8-1 / C2) a pattern's outline before its shrinkage, where it goes out shrunk (printPieces(), Print Layout): the original
+   outline taken through the same map as the shrunk one that is printed (the shrunk outline's points fitted onto the printed one's) */
+function shrinkOutline(p) {
+  const src = byId(p.id), k = src && src.shrink;
+  if (!k || (k.w === 100 && k.h === 100)) return null;
+  const sp = shrunkPiece(src);
+  if (!sp.pts || sp.pts.length !== p.pts.length || sp.pts.length < 3) return null;
+  const m = fitAffine(sp.pts, p.pts);
+  return m ? flatten(src, 20).map(q => affAt(m, q)) : null;
+}
+// each graphic's frame on a pattern (each tile's): its four corners
+function gfxFrames(p) {
+  const out = [];
+  for (const g of p.graphics || []) for (const q of gfxTiles(p, g)) { const a = (g.angle || 0)*Math.PI/180, c = Math.cos(a), s = Math.sin(a), hw = g.w/2, hh = g.h/2;
+    out.push([[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].map(([x, y]) => V(q.x + x*c - y*s, q.y + x*s + y*c))); }
+  return out;
+}
+/* (Round BETA8-1 / C2) what Print Layout adds to a marker's print and plot: each pattern's buffer spacing (the dashed box the layout draws round it,
+   turned with it), the fabric's outline (the roll's width along the marker's length) and the nesting information (a line under the marker) */
+function layoutExtras(fk, st) {
+  const L = layoutOf(), lines = [], texts = [], sheet = layoutSheet(fk), stat = layoutStats(fk), Bf = L.buffer || {};
+  if (st.lines.buffer && st.lines.buffer.show && (Bf.l || Bf.r || Bf.t || Bf.b)) for (const x of layoutPieces(fk)) {
+    const pl = L.place[x.key] || {}, bf = turnBuffer(Bf, pl.rot, pl.flip), xs = x.poly.map(q => q.x), ys = x.poly.map(q => q.y);
+    const x0 = Math.min(...xs) - bf.l, y0 = Math.min(...ys) - bf.t, x1 = Math.max(...xs) + bf.r, y1 = Math.max(...ys) + bf.b;
+    lines.push({ k: "buffer", pts: [V(x0, y0), V(x1, y0), V(x1, y1), V(x0, y1)], closed: true });
+  }
+  if (st.info.fabric) lines.push({ k: "fabric", pts: [V(0, 0), V(sheet.width, 0), V(sheet.width, stat.length), V(0, stat.length)], closed: true });
+  if (st.info.nesting) {
+    const fab = (layoutFabrics().find(f => f.id === fk) || {}).name || "Fabric";
+    texts.push({ k: "nesting", at: V(0, stat.length + 8), t: fab + " · width " + fmt(sheet.width) + " " + S.unit + " · length " + fmt(stat.length) + " " + S.unit + " · " + stat.use.toFixed(1) + " % used · " + stat.count + (stat.count === 1 ? " pattern" : " patterns") });
+  }
+  return { lines, texts, more: texts.length ? 12 : 0 };
+}
 function printInner(pieces, st, unit) {
   const T = (q) => q.x.toFixed(3) + "," + q.y.toFixed(3), out = [];
   const dOf = (sh) => {
@@ -9335,6 +9671,9 @@ function printInner(pieces, st, unit) {
     if (st.info.graphic) (p.graphics || []).forEach((g) => gfxTiles(p, g).forEach((q, k) => out.push(gfxSVG(p, { ...g, x: q.x, y: q.y }, T, g.over && hasSA(p) ? "M " + cutLine(p).map(T).join(" L ") + " Z" : dOf(p), "gc" + p.id + "_" + g.id + (k ? "_" + k : "")))));
     if (hasSA(p) && (!S.show || S.show.sa)) line("sa", "M " + cutLine(p).map(T).join(" L ") + " Z", 0.2);      // one thin line, no fill; the view's switch hides it here too
     line("outline", dOf(p), 0.3);
+    // (Round BETA8-1 / C2) the outline as it was before its shrinkage, and each graphic's frame
+    { const sl = shrinkOutline(p); if (sl) line("shrink", "M " + sl.map(T).join(" L ") + " Z", 0.2); }
+    for (const fr of gfxFrames(p)) line("gfxline", "M " + fr.map(T).join(" L ") + " Z", 0.2);
     for (const it of p.internals) if (it.hole && it.closed) line("outline", dOf(it), 0.3); else line("internal", dOf(it), 0.25);      // a hole is cut (Round r12 / 3)
     for (const it of p.bases) line(it.ref ? "reference" : "baseline", dOf(it), 0.2);
     for (const x of patternSymbols(p)) line("internal", "M " + x.pts.map(T).join(" L "), 0.25);      // (Round r20 / 7) its pattern symbols
@@ -9523,7 +9862,8 @@ function shapeVerts(sh, optimise) {
 }
 /* Write patterns as a DXF pattern file.
    opt = { format: "aama" | "astm", metric, scale, rotate (degrees), toStraight, optimise,
-           baselines, grading, dupNotch, sample }   (sample = the base size's name)
+           baselines, grading, dupNotch, sample, noSA }   (sample = the base size's name; noSA (Round FIX-3 / H, S15 03:21-03:43):
+           without seam allowance, the seam line is the outline on layer 1 and there is no seam line of its own)
    G = the grading object, used with opt.grading to write every size of a graded
    pattern as a block of its own. */
 function dxfExport(pieces, opt, G) {
@@ -9543,7 +9883,7 @@ function dxfExport(pieces, opt, G) {
   g(0, "SECTION"); g(2, "HEADER"); g(9, "$ACADVER"); g(1, "AC1009"); g(9, "$INSUNITS"); g(70, opt.metric === false ? 1 : 4); g(0, "ENDSEC");
   g(0, "SECTION"); g(2, "BLOCKS");
   for (const b of blocks) {
-    const p = b.p, bb = bboxOf([p]), c = V((bb.x0 + bb.x1)/2, (bb.y0 + bb.y1)/2), sa = hasSA(p), wind = signedArea(flatten(p, 8)) > 0 ? 1 : -1;
+    const p = b.p, bb = bboxOf([p]), c = V((bb.x0 + bb.x1)/2, (bb.y0 + bb.y1)/2), sa = hasSA(p) && !opt.noSA, wind = signedArea(flatten(p, 8)) > 0 ? 1 : -1;
     // (Round r26) a pattern with a hole goes out as the reference's own file writes one: the block on layer
     // 1 with its flag, group 250 on every polyline, the outline's copies on layers 84 and 87, the seam line on 14 even with no allowance.
     // Layer 86 alone did not do it (the fourth check session, Number 7). Only then: nothing else in a file changes for a cutter
@@ -9556,7 +9896,7 @@ function dxfExport(pieces, opt, G) {
     for (const v of verts) if (v.turn || opt.toStraight) point(2, v.p); else point(3, v.p);
     for (let i = 0; i < nSeg(p); i++) for (const n of p.segs[i].notches) {
       const t = nT(n), q = segPt(p, i, t); point(4, q);                 // a place only: this export has no notch type or angle
-      if (opt.dupNotch && p.segs[i].sa) { const tn = segTan(p, i, t); point(4, V(q.x + wind*tn.y*p.segs[i].sa, q.y - wind*tn.x*p.segs[i].sa)); }
+      if (opt.dupNotch && sa && p.segs[i].sa) { const tn = segTan(p, i, t); point(4, V(q.x + wind*tn.y*p.segs[i].sa, q.y - wind*tn.x*p.segs[i].sa)); }
     }
     if (p.half && segIx(p, p.half.s) >= 0 && segIx(p, p.half.m) >= 0) lineE(6, p.pts[segIx(p, p.half.s)], p.pts[segIx(p, p.half.m)]);
     { const gl = grainUp(grainOf(p)); lineE(7, gl.a, gl.b); }       // always: a cut piece needs its grain; drawn upwards
@@ -9874,9 +10214,9 @@ function printDialog(at) {
     '<div class="df"><label>Print type</label><select data-p="mode">' + opt([["actual", "Actual size (tiled)"], ["fit", "Shrink to fit"]], st.mode) + '</select></div>' +
     num("margin", "Cut-off margin", "mm") + num("overlap", "Tile overlap", "mm") + num("customW", "Custom width", "mm") + num("customH", "Custom height", "mm") +
     chk("shrink", "Apply each pattern's shrinkage") + chk("selected", "Selected patterns only") + chk("skipBlank", "Leave out blank sheets") +
-    '<h3>Lines</h3><table>' + PRINT_LINES.map(([k, name]) => '<tr><td><label class="lk" style="margin:0"><input type="checkbox" data-l="' + k + '"' + (st.lines[k].show ? ' checked' : '') + '> ' + name + '</label></td>' +
+    '<h3>Lines</h3><table>' + PRINT_LINES.filter(x => !x[2]).map(([k, name]) => '<tr><td><label class="lk" style="margin:0"><input type="checkbox" data-l="' + k + '"' + (st.lines[k].show ? ' checked' : '') + '> ' + name + '</label></td>' +
       '<td><input type="color" data-c="' + k + '" value="' + st.lines[k].color + '"></td><td><select data-d="' + k + '">' + opt([["solid", "Solid"], ["dashed", "Dashed"], ["dotted", "Dotted"]], st.lines[k].dash) + '</select></td></tr>').join("") + '</table>' +
-    '<h3>Information</h3><div class="info">' + PRINT_INFO.map(([k, name]) => '<label class="lk"><input type="checkbox" data-i="' + k + '"' + (st.info[k] ? ' checked' : '') + '> ' + name + '</label>').join("") + '</div>' +
+    '<h3>Information</h3><div class="info">' + PRINT_INFO.filter(x => !x[2]).map(([k, name]) => '<label class="lk"><input type="checkbox" data-i="' + k + '"' + (st.info[k] ? ' checked' : '') + '> ' + name + '</label>').join("") + '</div>' +
     '<div class="sum" id="pr-sum"></div>' +
     '<div class="da"><button class="btn" id="pr-go">Print</button><button class="btn" id="pr-save">Save Print File</button><button class="btn" id="pr-reset">Reset</button><button class="btn" id="dlg-x">Close</button></div></div>';
   dlg.style.display = "block";
@@ -9914,13 +10254,54 @@ const PLOT_PENS = [1, 2, 3, 4, 5, 6, 7, 8];
    Plotter (this computer's printer, or an HP-GL file), Pen (the pen every line kind draws with unless its row names its own),
    Cutter (the cutter's pen number), Unit (mm per plotter unit; 0.025 is HP-GL's own), Cut on Outline (each pattern's outer line,
    its cut line where it has a seam allowance, cut with the cutter after everything is drawn: guess r20/28). */
+const SERIAL_ROWS = { baud: [1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200].map(v => [v, String(v)]), data: [[7, "7"], [8, "8"]],
+  parity: [["none", "None"], ["even", "Even"], ["odd", "Odd"]], stop: [[1, "1"], [2, "2"]], flow: [["none", "None"], ["hardware", "Hardware (RTS / CTS)"]] };
 function normPlot(o) {
   o = o && typeof o === "object" ? o : {};
   const pen = (v, def) => PLOT_PENS.includes(+v) ? +v : def, pens = {};
   for (const [k] of PRINT_LINES) if (o.pens && PLOT_PENS.includes(+o.pens[k])) pens[k] = +o.pens[k];
-  return { dev: o.dev === "plt" ? "plt" : "system", pen: pen(o.pen, 1), cutter: pen(o.cutter, 2),
-    unit: Number.isFinite(+o.unit) && +o.unit >= 0.001 && +o.unit <= 1 ? +o.unit : 0.025, cut: o.cut === true, pens };
+  const po = o.port && typeof o.port === "object" ? o.port : {}, one = (list, v, d) => list.some(x => String(x[0]) === String(v)) ? list.find(x => String(x[0]) === String(v))[0] : d;
+  return { dev: o.dev === "plt" || o.dev === "serial" ? o.dev : "system", pen: pen(o.pen, 1), cutter: pen(o.cutter, 2),
+    unit: Number.isFinite(+o.unit) && +o.unit >= 0.001 && +o.unit <= 1 ? +o.unit : 0.025, cut: o.cut === true, pens,
+    port: { baud: one(SERIAL_ROWS.baud, po.baud, 9600), data: one(SERIAL_ROWS.data, po.data, 8), parity: one(SERIAL_ROWS.parity, po.parity, "none"), stop: one(SERIAL_ROWS.stop, po.stop, 1), flow: one(SERIAL_ROWS.flow, po.flow, "none") } };
 }
+/* (Round BETA8-1 / C2, roadmap 1.H18 1.T10 3.C18, the housekeeping video 14:28 and the reference's Port settings) A plotter on a serial port:
+   the HP-GL written straight to it through the browser's Web Serial (Chrome and Edge; the desktop app lets the page choose among the ports,
+   desktop/main.js serialSetup()). Its settings as the reference's rows: Bits per second, Data bits, Parity, Stop bits, Flow control. Web
+   Serial has no Xon / Xoff, so Flow control is None or Hardware (RTS / CTS) (guess beta8-1/2); the reference's network plotter (an IP
+   address) is left out: a page opens no network connection to a printer (guess beta8-1/3). */
+const serialOk = () => typeof navigator !== "undefined" && !!navigator.serial && typeof navigator.serial.requestPort === "function";
+/* (Round BETA8-1 / 0b, the maintainer's brief) Sending to a plotter on a serial port was tried only against a stand-in for Web Serial: until a
+   real plotter has been tried it is shown only with Show Tools That Are Not Built Yet on (roadmap: "needs real-plotter test"). With the switch
+   off a stored "serial" choice is an HP-GL file (Save and Plot write the .plt), and the stored choice is kept as it was. */
+const serialShown = () => !!(S.ui && S.ui.unbuilt);
+const plotDev = () => { const d = normPlot(S.print && S.print.plot).dev; return d === "serial" && !serialShown() ? "plt" : d; };
+// every fabric's marker written to one serial port, one after the other; the port asked for once (the browser's or the desktop app's chooser)
+async function plotSerial() {
+  if (!serialShown()) return exportPLT();
+  if (!serialOk()) return toast("This browser reaches no serial port: plot from Chrome or Edge, or save an HP-GL file", 6000);
+  const jobs = layoutGroups().map(fk => pltText(fk)).filter(Boolean);
+  if (!jobs.length) return toast("Nothing to plot: there are no patterns in Print Layout");
+  const ps = normPlot(S.print.plot).port;
+  let port = null;
+  try { port = await navigator.serial.requestPort(); } catch (e) { return toast(e && e.name === "NotFoundError" ? "No serial port was chosen" : "The serial port could not be asked for: " + ((e && e.message) || e), 6000); }
+  try {
+    await port.open({ baudRate: +ps.baud, dataBits: +ps.data, parity: ps.parity, stopBits: +ps.stop, flowControl: ps.flow });
+    const w = port.writable.getWriter(), enc = new TextEncoder();
+    for (const j of jobs) await w.write(enc.encode(j.text));
+    w.releaseLock();
+    toast("Sent to the plotter: " + jobs.reduce((n, j) => n + j.n, 0) + " patterns" + (jobs.length > 1 ? " on " + jobs.length + " markers" : ""), 5000);
+  } catch (e) { toast("Plotting failed: " + ((e && e.message) || e), 6000); }
+  try { await port.close(); } catch (e) {}
+  return jobs.length;
+}
+// (the desktop app) the ports to choose from, when the page has asked for one: a box with a button a port, or none to choose
+function serialChoose(list) {
+  const pick = (id) => { try { window.desktop.serial.pick(id); } catch (e) {} };
+  if (!list || !list.length) { pick(""); return; }
+  askModal("Serial Port", "The port the plotter is on:", [...list.slice(0, 8).map((p, k) => ({ k: "p" + k, n: p.name, primary: !k, f: () => pick(p.id) })), { k: "cancel", n: "Cancel", f: () => pick("") }]);
+}
+if (typeof window !== "undefined" && window.desktop && window.desktop.serial && window.desktop.serial.onPorts) window.desktop.serial.onPorts(serialChoose);
 const PLT_LT = { solid: "LT;", dotted: "LT1,1;", dashed: "LT2,2;" };
 // a pattern's lines as polylines, by the print's line kinds and what is switched on: [{ k, pts, closed }]
 function pltLines(p, st) {
@@ -9933,7 +10314,16 @@ function pltLines(p, st) {
   if (on("symmetric") && p.half && segIx(p, p.half.s) >= 0 && segIx(p, p.half.m) >= 0) put("symmetric", [p.pts[segIx(p, p.half.s)], p.pts[segIx(p, p.half.m)]]);
   if (on("notch")) {
     for (const ln of notchMarks(p, S.notch)) put("notch", ln);
-    for (const pm of p.punches || []) { put("notch", Array.from({ length: 24 }, (_, k) => V(pm.x + Math.cos(k*Math.PI/12)*pm.d/2, pm.y + Math.sin(k*Math.PI/12)*pm.d/2)), true); for (const [a, b] of punchLines(pm)) put("notch", [a, b]); }
+  }
+  // (Round BETA8-1 / C2) punch marks a line kind of their own (they were drawn with the notches); graphic lines; the shrinkage line
+  const pk = st.lines.punch ? "punch" : "notch";
+  if (on(pk)) for (const pm of p.punches || []) { put(pk, Array.from({ length: 24 }, (_, k) => V(pm.x + Math.cos(k*Math.PI/12)*pm.d/2, pm.y + Math.sin(k*Math.PI/12)*pm.d/2)), true); for (const [a, b] of punchLines(pm)) put(pk, [a, b]); }
+  if (on("gfxline")) for (const fr of gfxFrames(p)) put("gfxline", fr, true);
+  if (on("shrink")) { const sl = shrinkOutline(p); if (sl) put("shrink", sl, true); }
+  // the buttons and buttonholes: a circle, a slot
+  if (st.info.buttons) for (const b of (S.buttons || []).filter(x => x.piece === p.id)) {
+    if (b.kind === "hole") { const a = (b.angle || 0)*Math.PI/180, u = V(Math.cos(a)*8, Math.sin(a)*8); out.push({ k: "notch", pts: [sub(V(b.x, b.y), u), add(V(b.x, b.y), u)], closed: false }); }
+    else out.push({ k: "notch", pts: Array.from({ length: 24 }, (_, k) => V(b.x + Math.cos(k*Math.PI/12)*6, b.y + Math.sin(k*Math.PI/12)*6)), closed: true });
   }
   if (on("dart")) for (const dart of p.darts || []) { const g = dartGeom(p, dart); if (g) put("dart", [g.legL, g.apex, g.legR]); }
   if (on("topstitch")) for (const sv of S.stitches || []) if (sv.part.piece === p.id) for (const sl of stitchRows(sv, [p])) put("topstitch", sl);
@@ -9964,6 +10354,10 @@ function pltText(fk) {
       out.push("PU" + P(c) + ";LB" + ascii(p.name + (p.quantity > 1 ? " x" + p.quantity : "")) + String.fromCharCode(3));
     }
   }
+  // (Round BETA8-1 / C2) the buffer spacing, the fabric's outline and the nesting information
+  const ex = layoutExtras(fk, st);
+  for (const ln of ex.lines) draw(pl.pens[ln.k] || pl.pen, PLT_LT[(st.lines[ln.k] || {}).dash] || "LT;", ln.pts, ln.closed);
+  for (const t of ex.texts) { if (!labels) { out.push("DT" + String.fromCharCode(3) + ";SI0.25,0.35;"); labels = true; } if (pen !== pl.pen) { out.push("SP" + pl.pen + ";"); pen = pl.pen; } out.push("PU" + P(t.at) + ";LB" + ascii(t.t) + String.fromCharCode(3)); }
   if (pl.cut) for (const x of ps) { const p = x.piece; draw(pl.cutter, "LT;", hasSA(p) ? cutLine(p) : flatten(p, 20), true); }
   out.push("PU;SP0;");
   return { text: out.join("\n") + "\n", n: ps.length, width: layoutSheet(fk).width, length: layoutStats(fk).length };
@@ -9994,13 +10388,15 @@ function plotterDialog(at) {
   const info = PRINT_INFO.map(([k, n]) => '<div class="pl-row"><label class="lk"><input type="checkbox" data-i="' + k + '"' + (st.info[k] ? ' checked' : '') + '> ' + n + '</label></div>').join("");
   dlg.className = "plotter";
   dlg.innerHTML = '<div class="dt">Plotter</div><div class="db"><div class="pl-cols"><div class="pl-col">' +
-    '<h3>Options</h3><div class="df"><label>Plotter</label><select data-pl="dev">' + opt([["system", "This computer's printer (print dialog)"], ["plt", "HP-GL file (.plt)"]], pl.dev) + '</select></div>' +
+    '<h3>Options</h3><div class="df"><label>Plotter</label><select data-pl="dev">' + opt([["system", "This computer's printer (print dialog)"], ["plt", "HP-GL file (.plt)"], ...(serialShown() && (serialOk() || pl.dev === "serial") ? [["serial", "Plotter on a serial port (HP-GL) (not built yet: needs a real-plotter test)"]] : [])], plotDev()) + '</select></div>' +
     '<div class="df"><label title="The pen every line kind draws with, unless its row below names its own">Pen</label><select data-pl="pen">' + opt(PLOT_PENS.map(n => [n, n]), pl.pen) + '</select></div>' +
     '<div class="df"><label title="The cutter\'s pen number, for Cut on Outline">Cutter</label><select data-pl="cutter">' + opt(PLOT_PENS.map(n => [n, n]), pl.cutter) + '</select></div>' +
     '<div class="df"><label title="Millimeters per plotter unit (HP-GL\'s own is 0.025)">Unit</label><input type="text" inputmode="decimal" data-num="1" data-pl="unit" value="' + pl.unit + '"><span class="u">mm</span></div>' +
     '<div class="df"><label title="Each pattern\'s outer line cut with the cutter, after everything is drawn">Cut on Outline</label><input type="checkbox" data-pl="cut"' + (pl.cut ? ' checked' : '') + '></div>' +
-    (nb ? '<h3>Port</h3>' + grey("Serial Port", '<select disabled><option>COM1</option></select>') + grey("Bits per second", '<select disabled><option>9600</option></select>') + grey("Data bits", '<select disabled><option>8</option></select>') +
-      grey("Parity", '<select disabled><option>None</option></select>') + grey("Stop bits", '<select disabled><option>1</option></select>') + grey("Flow control", '<select disabled><option>Xon / Xoff</option></select>') : '') +
+    // (Round BETA8-1 / C2) the Port: with a plotter on a serial port, its settings (the port itself is chosen when Plot is pressed)
+    (plotDev() === "serial" ? '<h3>Port</h3>' + [["baud", "Bits per second"], ["data", "Data bits"], ["parity", "Parity"], ["stop", "Stop bits"], ["flow", "Flow control"]].map(([k, n]) =>
+      '<div class="df"><label>' + n + '</label><select data-port="' + k + '">' + opt(SERIAL_ROWS[k], pl.port[k]) + '</select></div>').join("") +
+      '<div class="hint">' + (serialOk() ? "Plot asks which serial port the plotter is on." : "This browser reaches no serial port: use Chrome or Edge, or the desktop app.") + '</div>' : '') +
     '</div><div class="pl-col">' +
     '<h3>Line Options</h3><label class="lk pl-all"><input type="checkbox" data-all="lines"' + (allOn(PRINT_LINES.map(x => x[0]), k => st.lines[k].show) ? ' checked' : '') + '> Select All</label>' + lines +
     '<h3>Add\u2019l Information</h3><label class="lk pl-all"><input type="checkbox" data-all="info"' + (allOn(PRINT_INFO.map(x => x[0]), k => st.info[k]) ? ' checked' : '') + '> Select All</label>' + info +
@@ -10013,15 +10409,17 @@ function plotterDialog(at) {
   dlg.onchange = (e) => {
     const t = e.target, d = (t && t.dataset) || {};
     if (!dlg.querySelector("#pl-prev")) return;              // some other dialog is open now
-    if (d.pl || d.pp) {
+    if (d.pl || d.pp || d.port) {
       // (r20 / 8) the plotter's own settings
       const p = normPlot(st.plot);
-      if (d.pp) { if (t.value) p.pens[d.pp] = +t.value; else delete p.pens[d.pp]; }
+      if (d.port) p.port[d.port] = t.value;
+      else if (d.pp) { if (t.value) p.pens[d.pp] = +t.value; else delete p.pens[d.pp]; }
       else if (d.pl === "cut") p.cut = t.checked;
       else if (d.pl === "unit") { const v = numOf(t.value); if (Number.isFinite(v)) p.unit = v; }
       else p[d.pl] = d.pl === "dev" ? t.value : +t.value;
       st.plot = p; S.print = normPrint(st); savePrint();
       if (d.pl === "unit") t.value = S.print.plot.unit;
+      if (d.pl === "dev") return plotterDialog({ x: parseFloat(dlg.style.left), y: parseFloat(dlg.style.top) });      // (the Port rows come and go)
       return;
     }
     if (d.l) st.lines[d.l].show = t.checked;
@@ -10034,9 +10432,9 @@ function plotterDialog(at) {
     if (d.all) return plotterDialog({ x: parseFloat(dlg.style.left), y: parseFloat(dlg.style.top) });
     const pv = dlg.querySelector("#pl-prev"); if (pv) pv.innerHTML = plotterPreview();
   };
-  const plt = () => S.print.plot && S.print.plot.dev === "plt";
-  dlg.querySelector("#pl-plot").onclick = () => { hideDlg(); if (plt()) exportPLT(); else layoutCmd("print"); };
-  dlg.querySelector("#pl-save").onclick = () => { hideDlg(); if (plt()) exportPLT(); else layoutCmd("file"); };
+  const plt = () => plotDev() === "plt";
+  dlg.querySelector("#pl-plot").onclick = () => { hideDlg(); if (plotDev() === "serial") plotSerial(); else if (plt()) exportPLT(); else layoutCmd("print"); };
+  dlg.querySelector("#pl-save").onclick = () => { hideDlg(); if (plt() || plotDev() === "serial") exportPLT(); else layoutCmd("file"); };
   dlg.querySelector("#pl-reset").onclick = () => { const p0 = printDefault(); S.print = normPrint({ ...S.print, lines: p0.lines, info: p0.info }); savePrint(); drawLayout(); plotterDialog({ x: parseFloat(dlg.style.left), y: parseFloat(dlg.style.top) }); };
   dlg.querySelector("#dlg-x").onclick = hideDlg;
   dlgEsc = (e) => { if (e.key === "Escape") { e.stopPropagation(); hideDlg(); } };
@@ -10051,14 +10449,29 @@ function dxfOutNumeric(at) {
     if (!pieces.length) return toast("No pattern is selected");
     const grp = S.grading.groups[0];
     const text = dxfExport(pieces, { format: v.format, metric: v.units === "mm", scale: v.scale, rotate: v.rotate, toStraight: v.straight, optimise: v.optimise, baselines: !v.nobase, grading: !v.nograde,
-      dupNotch: v.dup, sample: grp ? gSize(S.grading, grp.base).name : "" }, S.grading);
-    dl("pattern.dxf", text, "application/dxf", () => toast(pieces.length + (pieces.length > 1 ? " patterns" : " pattern") + " written as " + (v.format === "astm" ? "DXF-ASTM" : "DXF-AAMA") + (v.units === "mm" ? ", millimeters" : ", inches")));
-  }, { wide: true, selects: [{ k: "format", label: "Format", val: "aama", options: [["aama", "DXF-AAMA"], ["astm", "DXF-ASTM"]] }, { k: "units", label: "Units", val: "mm", options: [["mm", "Metric (mm)"], ["inch", "English (inch)"]] }],
+      dupNotch: v.dup, noSA: v.nosa, sample: grp ? gSize(S.grading, grp.base).name : "" }, S.grading);
+    dl("pattern.dxf", dxfEncode(text, v.codec), "application/dxf", () => toast(pieces.length + (pieces.length > 1 ? " patterns" : " pattern") + " written as " + (v.format === "astm" ? "DXF-ASTM" : "DXF-AAMA") + (v.units === "mm" ? ", millimeters" : ", inches")));
+  }, { wide: true, selects: [{ k: "format", label: "Format", val: "aama", options: [["aama", "DXF-AAMA"], ["astm", "DXF-ASTM"]] }, { k: "units", label: "Units", val: "mm", options: [["mm", "Metric (mm)"], ["inch", "English (inch)"]] },
+                              { k: "codec", label: "Text Codec", val: "utf8", options: DXF_CODECS }],
        checks: [{ k: "straight", label: "Convert curves to straight (no curve points)", val: false }, { k: "optimise", label: "Optimize curve points", val: true },
-                { k: "nobase", label: "Export without baselines", val: false }, { k: "nograde", label: "Export without grading", val: false },
+                { k: "nobase", label: "Export without baselines", val: false }, { k: "nograde", label: "Export without grading", val: false }, { k: "nosa", label: "Export without seam allowance", val: false },
                 { k: "dup", label: "Duplicate notches on the seam allowance", val: false }, { k: "selected", label: "Selected patterns only", val: false }],
        hint: "Curves are written as polylines. Shrinkage is applied." });
   return true;
+}
+/* (Round FIX-3 / H, S15 03:21-03:43: "text codec … without seam allowance") The DXF's text (pattern names, sizes, categories) in the codec
+   chosen: UTF-8 as before, or Windows-1252 (Western European; a character it has not is written "?"). The reference also offers GBK,
+   Big5, EUC-KR and Shift-JIS: not offered here, a page has no encoder for them (left out, the round's report lists them). */
+const DXF_CODECS = [["utf8", "UTF-8"], ["cp1252", "Windows-1252"]];
+const CP1252_HI = "€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ";
+function dxfEncode(text, codec) {
+  if (codec !== "cp1252") return text;
+  const out = new Uint8Array(text.length);
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i), hi = CP1252_HI.indexOf(text[i]);
+    out[i] = c < 0x80 || (c >= 0xa0 && c <= 0xff) ? c : hi >= 0 ? 0x80 + hi : 0x3f;
+  }
+  return out;
 }
 // File → Import → DXF asks for a file and takes the document's place with it; Import (Add) puts it beside what is there.
 // Both end in the same dialog; they differ in how its "Append to this document" tick starts (dxfAdd).
@@ -10922,6 +11335,18 @@ function setGradePoint(G, p, sh, i, on) {
   for (const z of grp.sizes) if (z.id !== grp.base) { const v = ptDelta(G, p, sh, i, z.id); d[z.id] = { dx: v.x, dy: v.y }; }
   g.pts[key] = { d };
 }
+/* (Round FIX-2 / C6, the maintainer's brief: moving a corner's grade must never move the whole pattern) A shape with fewer than two
+   grade points moves whole in every size (shapeDeltas(): its one grade point carries every point; none, nothing). The reference's
+   corners are grade points from the start, so a grading tool, the grading table and the Grading… box make every corner of the
+   shape they change a grade point first, each at the offsets it has now (nothing moves). From then on a corner moves alone; a point
+   turned into a non-grade point later still follows in proportion. A shape that already has two grade points or more is left as
+   it is (its other points are non-grade on purpose). */
+function gradeCorners(G, p, sh) {
+  const g = ensureGrade(G, p);
+  let n = 0; for (let i = 0; i < sh.pts.length; i++) if (g.pts[ptKey(p, sh, i)]) n++;
+  if (n >= 2) return;
+  for (let i = 0; i < sh.pts.length; i++) setGradePoint(G, p, sh, i, true);
+}
 function newTable(G, name) { const t = { id: G.nextId++, name, rules: {} }; G.tables.push(t); return t; }
 // Save a point's offsets as a named rule in the piece's table (making and assigning a table if it has none), and tie the point to it
 function saveRule(G, p, sh, i, name) {
@@ -11113,7 +11538,7 @@ function gradeNumeric(at, p, sh, i) {
   if (!z) return toast("Pick a size in the Grading panel first (not the base size)");
   const cur = ptDelta(S.grading, p, sh, i, z.id);
   numDialog("Grading · size " + z.name, [{ k: "dx", label: "dX", val: +toDisp(cur.x).toFixed(2), unit: S.unit }, { k: "dy", label: "dY", val: +toDisp(-cur.y || 0).toFixed(2), unit: S.unit }], at, (v) => {
-    push(); setPtDelta(S.grading, p, sh, i, z.id, fromDisp(v.dx), -fromDisp(v.dy) || 0); commit();
+    push(); gradeCorners(S.grading, p, sh); setPtDelta(S.grading, p, sh, i, z.id, fromDisp(v.dx), -fromDisp(v.dy) || 0); commit();
   }, { hint: "How far this point is from where it is in the base size. Positive is right and up, negative left and down." });
   return true;
 }
@@ -11194,6 +11619,17 @@ function gradeHit(sx, sy, curve) {
 function gradePick(sx, sy, shift) {
   const h = gradeHit(sx, sy, gradeCurveTool(S.tool));
   const sel = S.gradeSel || [];
+  // (Round FIX-2 / C6, S13 02:49 "the different segments") Edit Grading on a line, off its points: its two end points, as one pick
+  if (!h && !gradeCurveTool(S.tool)) {
+    const l = hit(sx, sy);
+    if (l && l.k === "seg" && l.kind !== "base" && l.p && !l.p.link && !isLocked(l.p) && pickHere(l.p)) {
+      const shId = l.sh === l.p ? 0 : l.sh.id, ends = [l.i, (l.i + 1) % l.sh.pts.length].filter((i, j, a) => a.indexOf(i) === j && i < l.sh.pts.length).map(i => ({ pid: l.p.id, sh: shId, i }));
+      if (shift) { const all = ends.every(e => sel.some(s => gradeSelSame(s, e))); S.gradeSel = all ? sel.filter(s => !ends.some(e => gradeSelSame(s, e))) : [...sel, ...ends.filter(e => !sel.some(s => gradeSelSame(s, e)))]; }
+      else S.gradeSel = ends;
+      if (!S.sel.includes(l.p.id)) S.sel = [l.p.id];
+      ui(); draw(); return;
+    }
+  }
   if (!h) { if (!shift) { S.gradeSel = []; ui(); draw(); } return; }
   if (shift) S.gradeSel = sel.some(s => gradeSelSame(s, h)) ? sel.filter(s => !gradeSelSame(s, h)) : [...sel, h];
   else S.gradeSel = [h];
@@ -11242,6 +11678,7 @@ function gradeToolNudge(e) {
   const each = gradeEachTool(S.tool);
   if (each) { const z = gSize(G, G.active); if (!z || sel.every(s => { const grp = gGroup(G, s.p); return !grp.sizes.includes(z) || z.id === grp.base; })) { toast("Pick the size to change in the Grading panel (not the base size)"); return true; } }
   push(each ? "Edit Grading (Each)" : "Edit Grading");
+  for (const s of sel) if (s.k == null) gradeCorners(G, s.p, s.shape);
   let moved = 0, locked = 0;
   for (const s of sel) for (const { z, k } of gradeSteps(G, s.p)) {
     if (k === 0 || (each && z.id !== G.active)) continue;
@@ -11268,6 +11705,7 @@ function gradeTableSet(what, sizeId, axis, v) {
   if (!sel.length || !isFinite(v) || !gradingNeed()) return;
   const mm = fromDisp(v) * (axis === "y" ? -1 : 1);      // the table's y is up-positive
   push(what === "all" ? "Grading: All Offsets" : "Grading");
+  for (const s of sel) if (s.k == null) gradeCorners(G, s.p, s.shape);
   let n = 0;
   for (const s of sel) {
     const steps = gradeSteps(G, s.p), at = steps.findIndex(x => x.z.id === sizeId);
@@ -12043,6 +12481,108 @@ function addDartAt(p, i, total, arm, len, cap) {
   }
   return { legs };
 }
+/* (Round FIX-3b / C, S10 01:36-02:10: the dart shown folded with the turn, its cap shaped, sewn; its box never shown, so the Dart box,
+   W61, is used: guess fix3b/10) ADD DART WITH FULLNESS on an outline point: an ordinary dart takes its width out of the lines beside
+   the point; this one lets it in first. The pattern is slashed from the point along the corner's middle to its far side and opened
+   there by Total Width, hinged on the far side (slashSpread(): the side with the grainline stays); the opening's two legs meet at
+   Length in along the middle and are sewn to each other. The lines beside the point keep their lengths; the extra goes in beyond the
+   dart point as fullness. Returns { legs } or why not (the caller pushes, and takes the step back on a reason). */
+function addDartFullAt(p, i, total, len, cap) {
+  const plan = dartPlan(p, i, 2, 1, len);
+  if (typeof plan === "string") return plan;
+  if (!(total > 0)) return "The width must be more than 0";
+  const C = cp(p.pts[i]), R = 1e5, ray = { pts: [C, add(C, mul(plan.bis, R))], segs: [{ curved: false }], closed: false };
+  let best = null;
+  for (const h of shapeHits(ray, p)) if (h.t*R > len + 0.5 && (!best || h.t < best.t)) best = h;
+  if (!best) return "The pattern has no far side to open against along the corner's middle";
+  const H = cp(best.p), at = locateOn(p, H);
+  if (!at) return "The pattern has no far side to open against along the corner's middle";
+  splitAt(p, [{ i: at.i, t: at.t }]);
+  const c = nearIdx(p, C), h = nearIdx(p, H);
+  if (c === h || dist(p.pts[c], C) > 0.05 || dist(p.pts[h], H) > 0.05) return "That point can't take a dart";
+  const r = slashSpread(p, c, h, total, 0, []);
+  if (!r || !r.a) return "The pattern can't be opened there";
+  // the opening becomes the two legs, through the dart point Length in along its middle
+  const g = segIx(p, r.a.seg.id), n = p.pts.length, A = p.pts[g], B = p.pts[(g + 1) % n], M = V((A.x + B.x)/2, (A.y + B.y)/2), u = sub(B, A), ul = vlen(u) || 1;
+  let nv = V(-u.y/ul, u.x/ul);
+  if (!inside(flatten(p, 10), add(M, mul(nv, 0.5)))) nv = mul(nv, -1);
+  const apex = add(M, mul(nv, len));
+  if (!inside(flatten(p, 10), apex)) return "Pattern outlines and/or holes are intersecting.";
+  const legB = { id: newSegId(), curved: false, c1: null, c2: null, sa: p.segs[g].sa || 0, notches: [] };
+  setCurve(p, g, false); p.segs[g].notches = [];
+  p.pts.splice(g + 1, 0, apex); p.segs.splice(g + 1, 0, legB);
+  const legs = [p.segs[g].id, legB.id];
+  seamsSkip(p, legs);
+  sewLegs(p, legs[0], legs[1]);
+  halfLegs(p, [{ a: legs[0], b: legs[1] }]);
+  if (cap) {
+    const m = p.pts.length, nb = [(g - 1 + m) % m, (g + 2) % m].map(j => p.segs[j].id);
+    for (const id of nb) { const j = segIx(p, id); if (!p.segs[j].curved) { const [a, b] = sEnds(p, j); p.segs[j].curved = true; p.segs[j].cps = [V((a.x + b.x)/2, (a.y + b.y)/2)]; } else if (!isSpline(p.segs[j])) toCurvePoints(p, j); }
+    S.dartCap = { pid: p.id, sids: nb };
+  }
+  return { legs };
+}
+function dartFullDialog(at, p, i) {
+  if (isLocked(p)) return toast(p.name + " is locked");
+  const ok = (v) => { const q = clone(p); const was = [S.nextSegId, S.seams]; S.seams = clone(S.seams); const r = addDartFullAt(q, i, fromDisp(v.total), fromDisp(v.len), false); S.nextSegId = was[0]; S.seams = was[1]; return { r, q }; };
+  numDialog("Dart", [
+    { k: "total", label: "Total Width", val: +toDisp(20).toFixed(1), unit: S.unit },
+    { k: "arm", label: "Dart Arm Width", val: +toDisp(10).toFixed(1), unit: S.unit },
+    { k: "len", label: "Length", val: +toDisp(DART_LEN).toFixed(1), unit: S.unit },
+  ], at, (v) => {
+    push("Add Dart with Fullness");
+    const r = addDartFullAt(p, i, fromDisp(v.total), fromDisp(v.len), v.cap);
+    if (typeof r === "string") { unpush(); S.dartCap = null; return toast(r, 5000); }
+    S.selPt = S.selSeg = -1; commit();
+    if (v.cap) { setTool("edit_curve_point"); S.dartCap = { ...S.dartCap }; toast("Click and drag a curve point beside the dart to shape the outline over it; Enter ends", 7000); }
+  }, { checks: [{ k: "cap", label: "Shape Dart Cap", val: true }],
+       sync: (v, k) => (k === "total" ? { arm: v.total/2 } : k === "arm" ? { total: v.arm*2 } : {}),
+       preview: (v) => { const t = ok(v); return typeof t.r === "string" ? null : [t.q]; },
+       check: (v) => { const t = ok(v); return typeof t.r === "string" ? t.r : ""; },
+       hint: "The pattern is opened at this point by the dart's width, hinged on its far side, so the lines beside the point keep their lengths; the dart's legs are sewn to each other." });
+  return true;
+}
+/* (Round FIX-3b / C, W60: Length 5,0 mm, Direction Start; its preview the neighbouring line yellow, a dot on it at that length from the
+   corner) PERPENDICULAR PATTERN CORNER on an outline point: the line of Direction (Start: the line that starts at the point; End: the
+   one that ends there; guess fix3b/9) gets a point Length from the corner, moved to stand square to the other line there, so the
+   corner is a right angle for that length (a hem's or a cuff's corner, made to fold back square). The rest of the line runs on from
+   that point to where it ran. One step. */
+function perpCornerPlan(p, i, len, dir) {
+  const n = p.pts.length, si = dir === "end" ? (i - 1 + n) % n : i, oi = dir === "end" ? i : (i - 1 + n) % n, L = segLen(p, si);
+  if (!(len > 0 && len < L - 0.5)) return "The length must be more than 0 and shorter than the line";
+  const P = p.pts[i], to = dir === "end" ? segTan(p, oi, 0) : segTan(p, oi, 1);
+  let nv = V(-to.y, to.x);
+  const far = dir === "end" ? p.pts[si] : p.pts[(i + 1) % n];
+  if (dot(sub(far, P), nv) < 0) nv = mul(nv, -1);
+  return { si, Q: add(P, mul(nv, len)), at: segPt(p, si, tAtFrac(p, si, dir === "end" ? 1 - len/L : len/L)), t: tAtFrac(p, si, dir === "end" ? 1 - len/L : len/L), P };
+}
+function perpCornerAt(p, i, len, dir) {
+  const pl = perpCornerPlan(p, i, len, dir);
+  if (typeof pl === "string") return pl;
+  addPoint(p, pl.si, pl.t);
+  const k = p.pts.findIndex(q => dist(q, pl.at) < 1e-6);
+  if (k < 0) return "That line can't take a point there";
+  p.pts[k] = cp(pl.Q);
+  const n = p.pts.length, short = dir === "end" ? k : (k - 1 + n) % n;
+  setCurve(p, short, false);
+  return "";
+}
+function perpCornerDialog(at, p, i) {
+  if (isLocked(p)) return toast(p.name + " is locked");
+  const plan = (v) => perpCornerPlan(p, i, fromDisp(v.len), v.dir);
+  numDialog("Perpendicular Pattern Corner", [
+    { k: "len", label: "Length", val: +toDisp(5).toFixed(1), unit: S.unit },
+    { k: "dir", label: "Direction", val: "start", options: [["start", "Start"], ["end", "End"]] },
+  ], at, (v) => {
+    push("Perpendicular Pattern Corner");
+    const r = perpCornerAt(p, i, fromDisp(v.len), v.dir);
+    if (r) { unpush(); return toast(r, 5000); }
+    S.selPt = S.selSeg = -1; commit();
+  }, { preview: (v) => { const pl = plan(v); return typeof pl === "string" ? null : [previewLine(pl.P, pl.Q), previewLine(pl.Q, segPt(p, pl.si, v.dir === "end" ? 0 : 1))]; },
+       check: (v) => { const pl = plan(v); return typeof pl === "string" ? pl : ""; },
+       hint: "A point on the line of Direction, Length from the corner, square to the other line: the corner becomes a right angle for that length." });
+  return true;
+}
 // Add Dart (a point's menu): the dialog "Dart" (W61), with a preview of the legs and the centre line. It opens at Total Width 20,
 // Dart Arm Width half of it, Length 70 and Shape Dart Cap ticked (S10)
 const DART_LEN = 70;
@@ -12439,7 +12979,7 @@ function makeSeam(seams, a, b, rev) {
      deleted  a tied seam deleted (its patterns still there) takes its mirror with it; one whose pattern went is untied
    Unlink Symmetric Sewing (Edit Sewing's menu) unties a pair: each stays as it is. A file from before has no tie and nothing
    changes in it until a seam is made or edited. One undo step: what the pass does belongs to the step that caused it. */
-const MIR_KEYS = ["off", "hide", "turned", "foldAngle", "foldStrength"];
+const MIR_KEYS = ["off", "hide", "turned", "foldAngle", "foldStrength", "tension", "sub", "line3", "rips"];
 let mirSeen = new Map(), mirPush = -1;
 // the partner of pattern p in a symmetric pair, or null (one copy only: with several the mirror is not known)
 function symPartner(p) {
@@ -12568,7 +13108,13 @@ function loadSeams(list, pieces) {
       ...(sm.turned === true ? { turned: true } : {}), ...(Number.isFinite(sm.foldAngle) && sm.foldAngle !== 180 ? { foldAngle: Math.max(0, Math.min(360, sm.foldAngle)) } : {}),
       ...(Number.isFinite(sm.foldStrength) && sm.foldStrength >= 0 && sm.foldStrength !== FOLD_STRENGTH ? { foldStrength: Math.min(100, sm.foldStrength) } : {}),
       // (Round r30 / 4) the seam it is mirrored with on the other side of a symmetric pair
-      ...(Number.isInteger(sm.mir) && sm.mir !== sm.id ? { mir: sm.mir } : {}) }))
+      ...(Number.isInteger(sm.mir) && sm.mir !== sm.id ? { mir: sm.mir } : {}),
+      // (Round FIX-3b / A, W15) its name, Tension, Set Sublayer and 3D Seamline, each kept only when set (setSeamProps())
+      ...(typeof sm.name === "string" && sm.name.trim() ? { name: sm.name.trim().slice(0, 200) } : {}),
+      ...(Number.isFinite(sm.tension) && sm.tension > 0 ? { tension: Math.min(SEAM_TENSION_MAX, sm.tension) } : {}), ...(sm.sub === true ? { sub: true } : {}),
+      ...(normLine3(sm.line3) ? { line3: normLine3(sm.line3) } : {}),
+      // (Round FIX-4 / A) its rips: stretches left open (normRips())
+      ...(normRips(sm.rips).length ? { rips: normRips(sm.rips) } : {}) }))
     .filter(sm => sm.a.length && sm.b.length), pieces);
 }
 
@@ -12978,7 +13524,10 @@ function seamHit(sx, sy, only) {
     const d0 = far(f.i, f.u), d1 = far(l.i, l.v);
     if (d0 < de - 1e-9) { de = d0; end = { sm, side, k, end: 0 }; }
     if (d1 < de - 1e-9) { de = d1; end = { sm, side, k, end: 1 }; }
-    for (const s of sp) for (let j = 0; j <= 24; j++) { const d = far(s.i, s.u + (s.v - s.u)*j/24); if (d < dm - 1e-9) { dm = d; mid = { sm, side, k, end: null }; } }
+    // (Round FIX-4 / A) the distance to the line between the samples, not to the samples alone: on a long seam they lie 20 px apart and more
+    for (const s of sp) { let q0 = null; for (let j = 0; j <= 24; j++) { const q = lanePt(X, s.i, s.u + (s.v - s.u)*j/24, off); let d = Math.hypot(q.x - sx, q.y - sy);
+      if (q0) { const dx = q.x - q0.x, dy = q.y - q0.y, l2 = dx*dx + dy*dy; if (l2 > 1e-12) { const u = Math.max(0, Math.min(1, ((sx - q0.x)*dx + (sy - q0.y)*dy)/l2)); d = Math.min(d, Math.hypot(q0.x + u*dx - sx, q0.y + u*dy - sy)); } }
+      q0 = q; if (d < dm - 1e-9) { dm = d; mid = { sm, side, k, end: null }; } } }
   }
   return end || mid;
 }
@@ -13124,7 +13673,7 @@ function editSewMenu(x, y, sx, sy) {
       { n: "Reverse Sewing", k: keyOf("reverse"), f: () => reverseSewing(sm, part) }, { n: "Delete Sewing", k: keyOf("delete"), f: () => deleteSewing(many ? seamSelList() : sm) }, { sep: 1 },
       many ? { n: "Merge", note: seamSelIds().length + " selected", f: () => mergeSewingAll(sm) } : before ? { n: "Merge", f: () => mergeSewing(before, sm) } : { n: "Merge", off: true, note: "select another first", f: () => toast("Select a sewing line first, then right-click the one to merge it with") }, { sep: 1 },
       endRow("Add Point to Pattern on Start", false), endRow("Add Point to Pattern on End", true), { sep: 1 },
-      { n: "Add Seamline Topstitch", f: () => seamlineStitch(sm) }, ctxNb("Add Seamline Rip"), { sep: 1 },
+      { n: "Add Seamline Topstitch", f: () => seamlineStitch(sm) }, { n: "Add Seamline Rip", f: () => addSeamlineRip(sm) }, { sep: 1 },
       { n: sm.off ? "Activate Sewing (Selected)" : "Deactivate Sewing (Selected)", f: () => toggleSewing(sm) }, { sep: 1 },
       { n: "Hide Sewing (Selected)", f: () => hideSewing(sm) },
       S.seams.some(x => x.hide) ? { n: "Show Sewing (All)", f: showAllSewing } : { n: "Show Sewing (All)", off: true, note: "none hidden", f: () => toast("No sewing line is hidden") }, { sep: 1 },
@@ -13216,8 +13765,141 @@ function drawZippers() {
     ctx.stroke();
   }
 }
+/* ---- (Round FIX-4 / A) RIPS: Seamline Rip, Edit Rip, Add Seamline Rip (3d_tools 04:30-04:31: the two tools named, not used; the
+   seam's menu's Add Seamline Rip, a row of the recorded seam menu; what they do is not shown: guesses fix4/1-3) ----
+   A rip is a stretch of a seam left open, as a seam torn or unpicked there: sm.rips = [{ a, b }], fractions of the seam's length (0 to 1,
+   in sewing order, the two sides matched in proportion as the seam is), sorted, apart, each at least RIP_MIN long. The solver leaves
+   out the stitches in a rip (ripPairs()); the seam stays a seam (its lengths, its lines in 2D), so a rip closes again when it is
+   deleted. Drawn on both sides over the seam's line as a dark-rimmed dashed line in the accent's light tint with a tick across at
+   each end (rips2D()): told by its dashes and ticks, not by colour. Seamline Rip (both windows): a click on a seam starts a rip there,
+   a second click on the same seam ends it, Esc gives it up. Edit Rip (both windows): a click selects a rip, its ends dragged along the
+   seam, Delete or its right-click's Delete Rip takes it away. Add Seamline Rip (Edit Sewing's menu on a seam): the whole seam. One
+   step each; selecting is none. */
+const RIP_MIN = 0.005;
+function normRips(list) {
+  const r = (Array.isArray(list) ? list : []).filter(x => x && Number.isFinite(x.a) && Number.isFinite(x.b))
+    .map(x => ({ a: Math.max(0, Math.min(1, Math.min(x.a, x.b))), b: Math.max(0, Math.min(1, Math.max(x.a, x.b))) })).filter(x => x.b - x.a >= RIP_MIN).sort((p, q) => p.a - q.a);
+  const out = [];
+  for (const x of r) { const l = out[out.length - 1]; if (l && x.a <= l.b + 1e-9) l.b = Math.max(l.b, x.b); else out.push({ a: +x.a.toFixed(6), b: +x.b.toFixed(6) }); }
+  for (const x of out) x.b = +x.b.toFixed(6);
+  return out;
+}
+// the stitches the solver keeps: those whose place along the seam is in no rip
+function ripPairs(pairs, rips) {
+  if (!rips || !rips.length || pairs.length < 2) return pairs;
+  const n = pairs.length - 1;
+  return pairs.filter((_, k) => !rips.some(r => k/n >= r.a - 1e-9 && k/n <= r.b + 1e-9));
+}
+// a side's lengths: [{ X, part, len, at }] (at: where the part starts along the side), and the whole
+function sideRun(sm, side) {
+  const out = []; let L = 0;
+  for (const part of sm[side]) { const X = seamSide(part, S.pieces); if (!X) return null; const len = partLen(X, part); out.push({ X, part, len, at: L }); L += len; }
+  return L > 0 ? { parts: out, len: L } : null;
+}
+// the stretch of a side between fractions f0 and f1 of its length, as parts
+function sideStretch(sm, side, f0, f1) {
+  const R = sideRun(sm, side);
+  if (!R) return [];
+  const out = [], a = f0*R.len, b = f1*R.len;
+  for (const q of R.parts) {
+    const s0 = Math.max(a, q.at), s1 = Math.min(b, q.at + q.len);
+    if (s1 - s0 > 1e-6) out.push(subPart(q.X, q.part, (s0 - q.at)/q.len, (s1 - q.at)/q.len, q.len));
+  }
+  return out;
+}
+// the place on a side at fraction f, in the world
+function sideAt(sm, side, f) {
+  const R = sideRun(sm, side);
+  if (!R) return null;
+  const d = f*R.len, q = R.parts.find(x => d <= x.at + x.len + 1e-9) || R.parts[R.parts.length - 1], m = partPlace(q.X, q.part, Math.max(0, Math.min(1, (d - q.at)/q.len)), q.len);
+  return segPt(q.X.sh, m.i, m.t);
+}
+// the fraction along a seam nearest the pointer, on either side: { f, d } (d in pixels)
+function seamFracAt(sm, sx, sy) {
+  let best = null;
+  for (const side of ["a", "b"]) {
+    const R = sideRun(sm, side);
+    if (!R) continue;
+    for (const q of R.parts) {
+      if (!q.X.p.on) continue;
+      const n = Math.max(8, Math.min(240, Math.round(q.len/2)));
+      for (let j = 0; j <= n; j++) { const m = partPlace(q.X, q.part, j/n, q.len), s = toS(segPt(q.X.sh, m.i, m.t)), d = Math.hypot(s.x - sx, s.y - sy); if (!best || d < best.d) best = { f: (q.at + q.len*j/n)/R.len, d }; }
+    }
+  }
+  return best;
+}
+function ripSet(sm, rips, name) { push(name); const r = normRips(rips); if (r.length) sm.rips = r; else delete sm.rips; commit(); }
+function addSeamlineRip(sm) {
+  if (!sm) return;
+  ripSet(sm, [{ a: 0, b: 1 }], "Add Seamline Rip");
+  toast("The whole seam is ripped open: it stays a seam, and the simulation leaves its stitches out (Edit Rip deletes the rip)");
+}
+// the rip under the pointer: { sm, k, end: 0 | 1 | null }
+function ripAt(sx, sy) {
+  let best = null;
+  for (const sm of S.seams) if (!sm.hide && sm.rips) sm.rips.forEach((r, k) => {
+    for (const side of ["a", "b"]) {
+      const A = sideAt(sm, side, r.a), B = sideAt(sm, side, r.b);
+      for (const [q, end] of [[A, 0], [B, 1]]) if (q) { const s = toS(q), d = Math.hypot(s.x - sx, s.y - sy); if (d <= 8 && (!best || d < best.d)) best = { sm, k, end, d }; }
+    }
+    const h = seamFracAt(sm, sx, sy);
+    if (h && h.d <= 7 && h.f >= r.a && h.f <= r.b && (!best || h.d + 2 < best.d)) best = { sm, k, end: null, d: h.d + 2 };
+  });
+  return best;
+}
+function ripDown(sx, sy) {
+  if (S.tool === "edit_rip") {
+    const h = ripAt(sx, sy);
+    S.selRip = h ? { seam: h.sm.id, k: h.k } : null;
+    if (h && h.end !== null) S.drag = { k: "ripEnd", seam: h.sm.id, rip: h.k, end: h.end, st: histState(), moved: false };
+    ui(); draw(); return;
+  }
+  const h = seamHit(sx, sy), fr = h && seamFracAt(h.sm, sx, sy);
+  if (!h || !fr) return toast("Click a sewing line");
+  const d = S.ripFrom;
+  if (!d || d.seam !== h.sm.id) { S.ripFrom = { seam: h.sm.id, f: fr.f }; draw(); return toast("Click where the rip ends, on the same seam (Esc gives it up)"); }
+  S.ripFrom = null;
+  if (Math.abs(fr.f - d.f) < RIP_MIN) return toast("Click further along the seam");
+  ripSet(h.sm, [...(h.sm.rips || []), { a: d.f, b: fr.f }], "Seamline Rip");
+  S.selRip = null;
+}
+function ripDragTo(d, sx, sy) {
+  const sm = S.seams.find(x => x.id === d.seam), r = sm && sm.rips && sm.rips[d.rip], fr = sm && seamFracAt(sm, sx, sy);
+  if (!r || !fr) return;
+  if (!d.moved) { d.moved = true; pushState(d.st, "Edit Rip"); }
+  if (d.end === 0) r.a = Math.min(fr.f, r.b - RIP_MIN); else r.b = Math.max(fr.f, r.a + RIP_MIN);
+  r.a = Math.max(0, r.a); r.b = Math.min(1, r.b);
+  drawSoon();
+}
+function ripDelete() {
+  const sel = S.selRip, sm = sel && S.seams.find(x => x.id === sel.seam);
+  if (!sm || !sm.rips || !sm.rips[sel.k]) return false;
+  ripSet(sm, sm.rips.filter((_, k) => k !== sel.k), "Delete Rip");
+  S.selRip = null; ui(); draw();
+  return true;
+}
+function rips2D() {
+  const line = uiAccent("line"), drawOne = (sm, r, hot, from) => {
+    for (const side of ["a", "b"]) {
+      for (const part of sideStretch(sm, side, r.a, r.b)) {
+        ctx.setLineDash([]); drawPart(part, "#1c1c1e", hot ? 8 : 6, true);
+        ctx.setLineDash([7, 5]); drawPart(part, line, hot ? 4 : 2.6, true); ctx.setLineDash([]);
+      }
+      for (const f of from ? [r.a] : [r.a, r.b]) {
+        const q = sideAt(sm, side, f);
+        if (!q) continue;
+        const s = toS(q), g = sideAt(sm, side, Math.min(1, f + 0.002)) || q, h = sideAt(sm, side, Math.max(0, f - 0.002)) || q, tx = g.x - h.x, ty = g.y - h.y, L = Math.hypot(tx, ty) || 1;
+        ctx.strokeStyle = "#1c1c1e"; ctx.lineWidth = hot ? 3 : 2.2; ctx.beginPath(); ctx.moveTo(s.x - ty/L*8, s.y + tx/L*8); ctx.lineTo(s.x + ty/L*8, s.y - tx/L*8); ctx.stroke();
+      }
+    }
+  };
+  for (const sm of S.seams) if (!sm.hide && sm.rips) sm.rips.forEach((r, k) => drawOne(sm, r, !!(S.selRip && S.selRip.seam === sm.id && S.selRip.k === k), false));
+  // a rip being made: its start, and the stretch to the pointer on the same seam
+  const d = S.ripFrom, sm = d && S.seams.find(x => x.id === d.seam);
+  if (sm && S.mouse) { const fr = seamFracAt(sm, S.mouse.sx, S.mouse.sy), to = fr && fr.d < 40 ? fr.f : d.f; drawOne(sm, { a: Math.min(d.f, to), b: Math.max(d.f, to) }, true, Math.abs(to - d.f) < RIP_MIN); }
+}
 function drawSeams() {
-  const T = S.tool, live = SEW_TOOLS.includes(T), edit = T === "edit_sewing" || T === "edit_zipper";
+  const T = S.tool, live = SEW_TOOLS.includes(T), edit = T === "edit_sewing" || T === "edit_zipper" || T === "seamline_rip" || T === "edit_rip";
   if (S.show.sewing === false && !live && !edit) return;             // Show Sewing off: only the sewing tools still show the seams
   ctx.lineCap = "round"; ctx.lineJoin = "round";
   LANES = seamLanes(S.seams);
@@ -13637,6 +14319,9 @@ function keyTable() {
   for (const [v, n] of CAM_VIEWS) row("view:" + v, VK[v], n + " view", OVER, () => cam3d(v), { w: "3d" });
   row("arr_points", "Shift+F", "Show Arrangement Points", OVER, () => setArrPoints(!S.ui.arrPts), { w: "3d", pass: 1 });
   row("turnHalf", "Shift+H", "Turn the selected patterns half round", OVER, () => turnPieces3([0, 1, 0], 180), { w: "3d" });
+  // (Round FIX-2 / D, session 3 video 4 13:52 "if I press A, it's also going to go to the moving part in the 3D window. That's actually quite
+  // useful") A over the 3D window is Select/Move (Q stays too); over the 2D window it is Transform Pattern
+  row("tool3:select_move", "A", "Select/Move (the 3D window's)", OVER, () => setTool3("select_move"), { w: "3d" });
   row("flipOver", "Shift+V", "Flip the selected patterns over (inside out)", OVER, () => turnPieces3([1, 0, 0], 180), { w: "3d" });
   row("simulate", "Space", "Simulate / stop simulating", "3D window", (e) => { if (!e.repeat) simToggle(); }, { l: 1 });
   row("loadAvatar", "Ctrl+Shift+A", "Load Avatar", "3D window", () => loadAvatar());
@@ -13727,10 +14412,10 @@ function keyTable() {
   // the tools: a built tool's key picks it, the key of one that is not built says so
   for (const k of Object.keys(KEYMAP).sort()) {
     const t = TOOLS[KEYMAP[k]];
-    row("tool:" + t.id, k, t.n + (t.off ? " (not built yet)" : ""), "Tools", () => { if (t.off) toast(toolNote(t), 4200); else setTool(t.id); }, { pass: 1 });
+    row("tool:" + t.id, k, t.n + (t.off ? " (not built yet)" : ""), "Tools", () => { if (t.off) { if (S.ui.unbuilt) toast(toolNote(t), 4200); } else setTool(t.id); }, { pass: 1, ...(t.off ? { nb: 1 } : {}) });      // (Round FIX-4b / A, gate G2: with the switch off a not-built tool's key says nothing)
   }
   // kept for what is not built yet (left to the browser as well: nothing of its own is taken for a note)
-  for (const [k, n] of KEYS_KEPT) row("kept:" + k, k, n + " (not built yet)", "Kept for what is not built yet", () => toast(n + " is not built yet"), { pass: 1 });
+  for (const [k, n] of KEYS_KEPT) row("kept:" + k, k, n + " (not built yet)", "Kept for what is not built yet", () => { if (S.ui.unbuilt) toast(n + " is not built yet"); }, { pass: 1, nb: 1 });
   // Print Layout has its own few keys
   row("layPrint", "Ctrl+P", "Print", "Print Layout", () => layoutCmd("print"), { w: "layout" });
   row("layFit", "F", "Fit the sheet to the window", "Print Layout", () => layoutFit(), { w: "layout", pass: 1 });
@@ -13747,11 +14432,14 @@ function keyTable() {
     else if (S.tool === "transform_pattern") scaleNumeric(at);
   }, { l: 1 });
   row("enter", "Enter", "Finish (a line, a seam side, a walk, Smooth Curve)", WORK, () => keyEnter(), { l: 1, pass: 1 });
-  row("escape", "Escape", "Give up what is being done", WORK, () => { if (gizEsc()) return; if (typeof foldEsc === "function" && foldEsc()) return; if (S.noteLink) { S.noteLink = null; draw(); return toast("Link to given up"); } if (typeof ikEsc === "function" && ikEsc()) return; if (G3.tackFrom) { G3.tackFrom = null; note3d(); } if (S.layTape) layTape(false); S.replace = null; S.rotAxis = null; S.pickPoly = null; if (S.bgMode) { S.bgMode = null; ui(); } if (S.avOutEdit) avOutEditEnd(); S.place = null; S.draft = null; S.walk = null; S.pleatPick = null; S.blockDraft = null; S.sticker = null; hideMenu(); closeFlyouts(); draw(); }, { l: 1, pass: 1, w: "any" });      // (Round r13 / 9: in Print Layout too, where it stops the Tape Measure)
+  row("escape", "Escape", "Give up what is being done", WORK, () => { if (gizEsc()) return; if (typeof foldEsc === "function" && foldEsc()) return; if (S.noteLink) { S.noteLink = null; draw(); return toast("Link to given up"); } if (typeof ikEsc === "function" && ikEsc()) return; if (G3.tackFrom) { G3.tackFrom = null; note3d(); tackLiveEnd(); } if (S.layTape) layTape(false); S.replace = null; S.rotAxis = null; S.pickPoly = null; if (S.bgMode) { S.bgMode = null; ui(); } S.place = null; S.draft = null; S.walk = null; S.pleatPick = null; S.blockDraft = null; S.sticker = null; S.subPick = null; S.ripFrom = null; hideMenu(); closeFlyouts(); draw(); }, { l: 1, pass: 1, w: "any" });      // (Round r13 / 9: in Print Layout too, where it stops the Tape Measure)
   row("delete", "Delete", "Delete what is selected; while drawing, the last point", WORK, () => keyDelete(), { l: 1, hist: "Delete" });
   row("delete", "Backspace", "Delete", WORK, () => keyDelete(), { l: 1, hist: "Delete", alias: 1 });
   for (const k of ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]) row("nudge", k, "Transform Pattern: move the selection 1 mm (Shift: 10 mm). Edit Pattern with a size picked: move the grading", WORK, (e) => keyArrow(e),
     { l: 1, hist: "Nudge", as: "Arrow keys", alias: k !== "ArrowLeft" });
+  // (Round BETA8-1 / C3) the keys changed on User Settings' Shortcuts page
+  const own = (S.prefs && S.prefs.keys) || {};
+  for (const r of T) { const v = own[r.id + "|" + r.k]; if (typeof v === "string" && keyEditable(r)) { r.k0 = r.k; r.k = v; } }
   return (KEYS = T);
 }
 /* (Round desk-2) On a Mac the command key (Cmd) does what Ctrl does elsewhere, and is shown as Cmd. A few Ctrl keys of the
@@ -14056,7 +14744,6 @@ const selAllRows = (ids) => () => [{ n: "Sewn", k: keyOf("selectSewn"), f: () =>
   { n: "Fabric", f: () => selectAllWith("fabric", ids) }, { n: "Layer", f: () => selectAllWith("layer", ids) }];
 function keyEnter() {
   if (S.bgMode && S.bgMode.k === "edit") { S.bgMode = null; ui(); draw(); return; }      // (Round UI-1e / D) editing the background image ends
-  if (avOutEditEnd()) return;                                // (Round beta.6 / 0) and the avatar outline
   if (S.replace) { if (S.replace.src != null && S.replace.pairs.length) replaceDone(); else toast("Match at least one point first"); return; }
   if (sewKey("Enter")) return;
   if (S.dartCap) { S.dartCap = null; S.selCp = null; setTool("edit_pattern"); toast("The dart cap is done"); return; }
@@ -14073,6 +14760,7 @@ function keyDelete() {
   if (S.replace) { const R = S.replace; if (R.pending != null) R.pending = null; else if (R.pairs.length) R.pairs.pop(); else R.src = null; draw(); return; }      // (Round r12 / 5) the last click back
   if (sewKey("Delete")) return;
   if (typeof tackDeleteSel === "function" && tackDeleteSel()) return;
+  if (S.tool === "edit_rip" && ripDelete()) return;      // (Round FIX-4 / A) the selected rip
   if (typeof measDeleteSel === "function" && measDeleteSel()) return;
   if (typeof trimDeleteSel === "function" && trimDeleteSel()) return;
   if (["button2d", "buttonhole2d", "fasten2d"].includes(S.tool) && S.selBtn != null && (S.buttons || []).some(b => b.id === S.selBtn)) { deleteButton(S.selBtn); return; }
@@ -14473,6 +15161,66 @@ function setSeamFold(sms, o) {
   }
   commit();
 }
+/* (Round FIX-3b / A) THE SEAM'S OTHER ROWS (W15, 3d_tools 00:51 and 02:14; the recorded answers, r14/12, of the seam panel): Information ▸ Name
+   (the seam's own name, "Sewing_<id>" until one is typed; Tag in glTF ▸ Simulation Only is not shown while there is no glTF export,
+   Round FIX-4 / 0), and the four switches the reference shows Off, then 3D Seamline:
+   - Tension (sm.tension, % 1-60, SEAM_TENSION when switched on): the seam's two sides are drawn in as an elastic of ratio
+     100 - tension % is, on the cloth's own edges along them (elasticsOf()); the recordings show the row Off only, what it does is
+     not shown (guess fix3b/4).
+   - Set Sublayer (sm.sub): the patterns of the seam's side B lie one layer under those of side A in the simulation, so they stand
+     nearer the body (simLayers(); guess fix3b/5). The document's Layer is left alone.
+   - Topstitch / Puckering: on when a seamline topstitch / seamline puckering runs along the seam (what Seamline Topstitch and
+     Seamline Puckering make); switched on, one is made along both sides; off, the seam's are taken away.
+   - 3D Seamline (sm.line3 = { kind, i, t }, kept only when not Plain Seam at Intensity 10, Thickness 1.5 mm): Plain Seam draws
+     the seam on the cloth in 3D as a fine dark line along both its sides, as dark as its Intensity says (out of 100); None draws
+     nothing. Thickness is kept and shown (a WebGL line is one pixel wide: guess fix3b/6). Other kinds of the drop-down were not seen.
+   Every change is one step, on every selected seam (the Name only with one). */
+const SEAM_TENSION = 10, SEAM_TENSION_MAX = 60, LINE3_DEF = { kind: "plain", i: 10, t: 1.5 }, LINE3_KINDS = [["plain", "Plain Seam"], ["none", "None"]];
+function normLine3(o) {
+  if (!o || typeof o !== "object") return null;
+  const L = { kind: LINE3_KINDS.some(k => k[0] === o.kind) ? o.kind : "plain", i: Number.isFinite(o.i) ? Math.max(0, Math.min(100, o.i)) : LINE3_DEF.i, t: Number.isFinite(o.t) ? Math.max(0.1, Math.min(20, o.t)) : LINE3_DEF.t };
+  return L.kind === LINE3_DEF.kind && L.i === LINE3_DEF.i && L.t === LINE3_DEF.t ? null : L;
+}
+const line3Of = (sm) => ({ ...LINE3_DEF, ...(sm.line3 || {}) });
+const seamName = (sm) => sm.name || "Sewing_" + sm.id;
+const seamStitched = (sm) => (S.stitches || []).some(st => st.seam === sm.id);
+const seamPuckered = (sm) => (S.puckers || []).some(pk => pk.seam === sm.id);
+// o: { name?, tension? (true / false / a number), sub?, topstitch?, puckering?, line3? }
+function setSeamProps(sms, o) {
+  const L = (Array.isArray(sms) ? sms : [sms]).filter(Boolean);
+  if (!L.length) return;
+  push(o.name !== undefined ? "Seam Name" : o.tension !== undefined ? "Seam Tension" : o.sub !== undefined ? "Set Sublayer" : o.topstitch !== undefined ? "Seamline Topstitch" : o.puckering !== undefined ? "Seamline Puckering" : "3D Seamline");
+  for (const sm of L) {
+    if (o.name !== undefined) { const n = String(o.name).trim().slice(0, 200); if (n && n !== "Sewing_" + sm.id) sm.name = n; else delete sm.name; }
+    if (o.tension !== undefined) {
+      const t = o.tension === true ? (sm.tension || SEAM_TENSION) : o.tension === false ? 0 : +o.tension;
+      if (Number.isFinite(t) && t > 0) sm.tension = Math.round(Math.min(SEAM_TENSION_MAX, t)*100)/100; else delete sm.tension;
+    }
+    if (o.sub !== undefined) { if (o.sub) sm.sub = true; else delete sm.sub; }
+    if (o.line3) { const l = normLine3({ ...line3Of(sm), ...o.line3 }); if (l) sm.line3 = l; else delete sm.line3; }
+    if (o.topstitch === true && !seamStitched(sm)) addSeamlineStitch(sm, "both");
+    if (o.topstitch === false) S.stitches = (S.stitches || []).filter(st => st.seam !== sm.id);
+    if (o.puckering === true && !seamPuckered(sm)) for (const side of ["a", "b"]) for (const part of sm[side]) addPucker({ piece: part.piece, shape: part.shape || 0, sids: part.sids.slice(), t0: part.t0, t1: part.t1 }, { seam: sm.id, side });
+    if (o.puckering === false) S.puckers = (S.puckers || []).filter(pk => pk.seam !== sm.id);
+  }
+  commit();
+}
+// (Round FIX-3b / A) a pattern's layer as the solver takes it: a seam's Set Sublayer puts its side B one layer under side A
+function simLayers(ids) {
+  const lay = new Map(ids.map(id => [id, (byId(id) || {}).layer || 0])), pairs = [];
+  for (const sm of S.seams) if (sm.sub && !sm.off) for (const a of sm.a) for (const b of sm.b) pairs.push([a.piece, b.piece]);
+  // (Round FIX-3b / B) a pattern made a sublayer with the Set Sublayer tool lies under the one named
+  for (const id of ids) { const p = byId(id); if (p && Number.isInteger(p.under3)) pairs.push([p.under3, id]); }
+  for (let round = 0; round < 8 && pairs.length; round++) {
+    let moved = false;
+    for (const [top, low] of pairs) {
+      if (top === low || !lay.has(top) || !lay.has(low)) continue;
+      if (lay.get(top) <= lay.get(low)) { lay.set(top, lay.get(low) + 1); moved = true; }
+    }
+    if (!moved) break;
+  }
+  return lay;
+}
 // one segment of a line as points about res apart along it, evenly by length, both ends included
 function segSamples(sh, i, res) {
   const n = Math.max(1, Math.round(segLen(sh, i)/res)), out = [];
@@ -14521,7 +15269,7 @@ function setElastic(o) {
   push("Elastic");
   for (const x of lines) {
     const sg = x.sh.segs[x.i], L = segLen(x.sh, x.i);
-    if (o.on === false) { delete sg.elastic; continue; }
+    if (o.on === false) { delete sg.elastic; delete sg.shirr; continue; }
     const e = elasticOf(sg) || { k: ELASTIC_STRENGTH, r: ELASTIC_ON };
     if (Number.isFinite(o.k)) e.k = o.k;
     if (Number.isFinite(o.r)) e.r = o.r;
@@ -14531,8 +15279,82 @@ function setElastic(o) {
   }
   commit();
 }
+/* (Round FIX-3b / C, W20 and the recorded answers, r14/12: "Shirring works only with Elastic on: it gathers the line in folds"; Shirring On: Interval
+   (mm) 20,0, Height (mm) 80,0, a zigzag drawn along the line in 2D, a direction A / B / Both) SHIRRING on an elastic line: sg.shirr =
+   { iv, h, dir } (only while the line has an elastic; taken away with it). The elastic draws the line in; the shirring makes the cloth
+   beside it, Height deep on the side(s) of Direction (A: the line's left as it runs, B: its right; an outline line's cloth is on one
+   side only), bend SHIRR_BEND times as easily, so it gathers in small folds instead of one wide bulge (shirrZones(), the solver's
+   zones; guess fix3b/8). Drawn in 2D as a zigzag of Interval's pitch, Height deep, in the elastic's colour. One step a change. */
+const STEAM = { s: 10 }, STEAM_MAX = 50, STEAM_LIM = [0.5, 1.5], TAPE_STRENGTH = 10;      // (Round BETA8-1 / E) Steam and Seam Taping (STEAM below)
+const PRESS_MAX = 50;      // (Round FIX-3b / C) a pattern's Pressure, Pa either way (guess fix3b/11)
+const SHIRR_DEF = { iv: 20, h: 80, dir: "both" }, SHIRR_BEND = 0.05, SHIRR_DIRS = [["a", "A"], ["b", "B"], ["both", "Both"]];
+const shirrOf = (sg) => sg && sg.elastic && sg.shirr ? { ...SHIRR_DEF, ...sg.shirr } : null;
+function setShirr(o) {
+  const lines = selLines().filter(elasticLine).filter(x => x.sh.segs[x.i].elastic);
+  if (!lines.length) return toast("Shirring needs Elastic on the line");
+  if (lines.some(x => isLocked(x.p))) return toast("A selected line's pattern is locked");
+  push("Shirring");
+  for (const x of lines) {
+    const sg = x.sh.segs[x.i];
+    if (o.on === false) { delete sg.shirr; continue; }
+    const v = { ...SHIRR_DEF, ...(sg.shirr || {}) };
+    if (Number.isFinite(o.iv)) v.iv = Math.max(2, Math.min(500, o.iv));
+    if (Number.isFinite(o.h)) v.h = Math.max(1, Math.min(1000, o.h));
+    if (SHIRR_DIRS.some(d => d[0] === o.dir)) v.dir = o.dir;
+    sg.shirr = v;
+  }
+  commit();
+}
+// the solver's zones with the shirred cloth made to bend easily: each triangle within Height of a shirred line, on its side(s)
+function shirrZones(p, mesh, fab, zones) {
+  const lines = [];
+  for (const x of subShapes(p).filter(elasticLine)) x.sh.segs.forEach((sg, i) => { const sr = shirrOf(sg); if (sr) lines.push({ P: segSamples(x.sh, i, 4), sr }); });
+  if (!lines.length || !mesh || !mesh.tri) return zones;
+  const xy = mesh.xy, T = mesh.tri, nt = T.length/3, t = zones ? zones.t.slice() : new Array(nt).fill(-1), fabs = zones ? zones.fabs.slice() : [], soft = new Map();
+  const softOf = (k) => { if (!soft.has(k)) { const b = k < 0 ? fab : fabs[k]; fabs.push({ ...b, bend: b.bend*SHIRR_BEND }); soft.set(k, fabs.length - 1); } return soft.get(k); };
+  let any = false;
+  for (let j = 0; j < nt; j++) {
+    const a = T[3*j], b = T[3*j+1], c = T[3*j+2], qx = (xy[2*a] + xy[2*b] + xy[2*c])/3, qy = (xy[2*a+1] + xy[2*b+1] + xy[2*c+1])/3;
+    for (const L of lines) {
+      let best = Infinity, side = 0;
+      for (let k = 0; k + 1 < L.P.length; k++) {
+        const [x0, y0] = L.P[k], [x1, y1] = L.P[k+1], dx = x1 - x0, dy = y1 - y0, l2 = dx*dx + dy*dy || 1, u = Math.max(0, Math.min(1, ((qx - x0)*dx + (qy - y0)*dy)/l2));
+        const d = Math.hypot(qx - x0 - u*dx, qy - y0 - u*dy);
+        if (d < best) { best = d; side = dx*(qy - y0) - dy*(qx - x0); }
+      }
+      // (the 2D window is y down: a point on the line's left as it runs has a negative cross product)
+      if (best <= L.sr.h && (L.sr.dir === "both" || (L.sr.dir === "a") === (side < 0))) { t[j] = softOf(t[j]); any = true; break; }
+    }
+  }
+  return any ? { t, fabs } : zones;
+}
+function drawShirr2D() {
+  for (const p of S.pieces) {
+    if (!p.on) continue;
+    for (const x of subShapes(p).filter(elasticLine)) {
+      if (x.kind !== "outline" && !shapeShown(x.kind, x.sh)) continue;
+      x.sh.segs.forEach((sg, i) => {
+        const sr = shirrOf(sg);
+        if (!sr) return;
+        const L = segLen(x.sh, i), n = Math.max(2, Math.round(L/(sr.iv/2)));
+        ctx.save(); ctx.strokeStyle = C_ELASTIC; ctx.lineWidth = 1; ctx.setLineDash([]);
+        for (const sd of sr.dir === "both" ? [1, -1] : [sr.dir === "a" ? 1 : -1]) {
+          ctx.beginPath();
+          for (let k = 0; k <= n; k++) {
+            const u = tAtFrac(x.sh, i, k/n), q = segPt(x.sh, i, u), tn = segTan(x.sh, i, u), d = k % 2 ? sr.h : 0;
+            // A on the line's left as it runs (y down: the left of (tx, ty) is (ty, -tx))
+            const w = toS(V(q.x + sd*tn.y*d, q.y - sd*tn.x*d));      // sd 1: the left, (ty, -tx)
+            k ? ctx.lineTo(w.x, w.y) : ctx.moveTo(w.x, w.y);
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
+      });
+    }
+  }
+}
 // what of the elastics the solver is built from (simSig)
-const elasticSig = (p) => subShapes(p).filter(elasticLine).map(x => x.sh.segs.filter(s => s.elastic).map(s => [s.id, s.elastic]));
+const elasticSig = (p) => subShapes(p).filter(elasticLine).map(x => x.sh.segs.filter(s => s.elastic || s.tape).map(s => [s.id, s.elastic || 0].concat(s.shirr ? [s.shirr] : [], s.tape ? ["tape"] : [])));
 // a pattern's elastics as the solver takes them (SIM3D.clothBuild's pieces[k].elastics): the cloth's points along each
 // elastic line in order (an outline line's from its chain on the cloth's edge, an internal line's by place, as it was meshed
 // along it), its ratio, and its stiffness ELASTIC_K × its strength
@@ -14540,11 +15362,19 @@ function elasticsOf(p, mesh) {
   const out = [], at = new Map(), key = (x, y) => Math.round(x*1e4) + "," + Math.round(y*1e4);
   for (let v = 0; v < mesh.xy.length/2; v++) at.set(key(mesh.xy[2*v], mesh.xy[2*v+1]), v);
   for (const x of subShapes(p).filter(elasticLine)) x.sh.segs.forEach((sg, i) => {
-    const e = elasticOf(sg);
+    const e = elasticOf(sg) || (sg.tape ? { k: ELASTIC_STRENGTH*TAPE_STRENGTH, r: 100 } : null);      // (Round BETA8-1 / E) a tape: a cord at its own length
     if (!e || !(e.k > 0)) return;
     const ids = x.kind === "outline" ? (mesh.chains.get(sg.id) || []).map(c => c.v) : segSamples(x.sh, i, mesh.res).map(q => at.get(key(q[0], q[1]))).filter(v => v !== undefined);
     if (ids.length > 1) out.push({ i: ids, r: e.r, k: ELASTIC_K*e.k });
   });
+  // (Round FIX-3b / A) a seam's Tension: its sides on this pattern drawn in by that share, as an elastic of the cloth's edges along them
+  for (const sm of S.seams) if (sm.tension > 0 && !sm.off) for (const part of [...sm.a, ...sm.b]) {
+    if (part.piece !== p.id) continue;
+    const ids = [];
+    if (!part.shape) for (const sid of part.sids) { const c = (mesh.chains.get(sid) || []).map(c => c.v); ids.push(...(ids.length && c[0] === ids[ids.length - 1] ? c.slice(1) : c)); }
+    else { const sh = (p.internals || []).find(x => x.id === part.shape); if (sh) sh.segs.forEach((sg, i) => { if (part.sids.includes(sg.id)) ids.push(...segSamples(sh, i, mesh.res).map(q => at.get(key(q[0], q[1]))).filter(v => v !== undefined)); }); }
+    if (ids.length > 1) out.push({ i: ids, r: 100 - sm.tension, k: ELASTIC_K*ELASTIC_STRENGTH });
+  }
   return out;
 }
 // the elastics in the 2D window: a dotted band over the line, its ratio written at its middle
@@ -14600,13 +15430,14 @@ function symbolClick(sx, sy, e) {
   listMenu([{ hd: "Pattern Symbol" }, ...PATTERN_SYMBOLS.map(([k, n]) => ({ n, on: sg.sym === k, f: () => set(k) })), { sep: 1 }, { n: "None", off: !sg.sym, f: () => set(null) }], at.x, at.y);
 }
 function drawElastics2D() {
+  drawShirr2D(); drawSteam2D();
   for (const p of S.pieces) {
     if (!p.on) continue;
     for (const x of subShapes(p).filter(elasticLine)) {
       if (x.kind !== "outline" && !shapeShown(x.kind, x.sh)) continue;
       x.sh.segs.forEach((sg, i) => {
         const e = elasticOf(sg);
-        if (!e) return;
+        if (!e) { if (sg.tape) drawTape2D(x.sh, i); return; }
         segPath(x.sh, i); ctx.save(); ctx.strokeStyle = C_ELASTIC; ctx.lineWidth = 3.2; ctx.setLineDash([2, 3]); ctx.stroke(); ctx.restore();
         const m = toS(segPt(x.sh, i, 0.5)), t = segTan(x.sh, i, 0.5), txt = "Elastic " + (Math.round(e.r*10)/10) + " %";
         ctx.save(); ctx.font = "10px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
@@ -14615,6 +15446,14 @@ function drawElastics2D() {
       });
     }
   }
+}
+// (Round BETA8-1 / E) a taped line: a double line over it (dark, light inside), "Tape" at its middle
+function drawTape2D(sh, i) {
+  segPath(sh, i); ctx.save(); ctx.strokeStyle = "#3d3d3d"; ctx.lineWidth = 5; ctx.stroke(); segPath(sh, i); ctx.strokeStyle = "#f0e442"; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
+  const m = toS(segPt(sh, i, 0.5)), t = segTan(sh, i, 0.5), txt = "Tape";
+  ctx.save(); ctx.font = "10px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const lx = m.x + t.y*12, ly = m.y - t.x*12, w = ctx.measureText(txt).width + 6;
+  ctx.fillStyle = "rgba(255,255,255,0.85)"; ctx.fillRect(lx - w/2, ly - 7, w, 14); ctx.fillStyle = "#3d3d3d"; ctx.fillText(txt, lx, ly); ctx.restore();
 }
 // Clone as Internal Shape: the pattern's outline hangs on the pointer and becomes an internal shape of the pattern that is clicked
 function cloneInside(p) {
@@ -15189,7 +16028,70 @@ function tracedPiece(src, sh, skip) {
   for (const kind of ["internals", "bases"]) for (const c of kids[kind]) addChild(q, kind, kidWithIds(c));
   return q;
 }
+/* (Round FIX-2 / C2, the maintainer's brief) TRACE AS A PATTERN CLOSED BY INTERNAL LINES. Selected outline lines and internal (or base)
+   lines of one pattern, where an internal line runs from one selected outline line to another: those outline lines are cut where it
+   meets them (on a copy of the pattern that nothing refers to, through addPoint(), so curves are cut exactly), and the pieces with a
+   loose end are dropped one by one until a loop is left: e.g. a rectangle's sides A, B and D and a line from B to D give A, the parts
+   of B and D on A's side, and the line. Several internal lines work the same way. Returns the lines to trace, or the selection as it
+   was when no single loop comes out of it (Trace then does what it always did). */
+function traceBoundary(lines) {
+  const E = 0.01, byP = new Map();
+  for (const x of lines) { if (!byP.has(x.p)) byP.set(x.p, []); byP.get(x.p).push(x); }
+  if (byP.size !== 1) return lines;
+  const [p, mine] = [...byP][0], outl = mine.filter(x => x.sh === p), inner = mine.filter(x => x.sh !== p);
+  if (!outl.length || !inner.length) return lines;
+  // where the inner lines' ends lie inside a selected outline line
+  const cuts = [];
+  for (const x of inner) for (const e of sEnds(x.sh, x.i)) {
+    const h = locateOn(p, e);
+    if (h.i < 0 || h.d > 0.05 || h.t < 1e-4 || h.t > 1 - 1e-4 || !outl.some(o => o.i === h.i)) continue;
+    if (!cuts.some(c => c.i === h.i && Math.abs(c.t - h.t) < 1e-6)) cuts.push({ i: h.i, t: h.t });
+  }
+  if (!cuts.length) return lines;
+  const q = { id: -1, name: "", pts: p.pts.map(cp), segs: clone(p.segs), closed: true, internals: [], bases: [], darts: [], notes: [] };
+  splitAt(q, cuts);
+  // the copy's lines that lie on a selected outline line (by their middle), and the inner lines as they are
+  const onSel = (k) => { const m = segPt(q, k, 0.5), h = locateOn(p, m); return h.d < 0.05 && outl.some(o => o.i === h.i); };
+  let items = [];
+  for (let k = 0; k < nSeg(q); k++) if (onSel(k)) items.push({ x: { p, sh: q, i: k, kind: "outline", int: -1 }, ends: sEnds(q, k) });
+  for (const x of inner) items.push({ x, ends: sEnds(x.sh, x.i) });
+  // drop pieces with a loose end until none is left
+  for (let changed = true; changed; ) {
+    changed = false;
+    const deg = (pt) => items.reduce((n, it) => n + it.ends.filter(e => dist(e, pt) < E).length, 0);
+    const keep = items.filter(it => it.ends.every(e => deg(e) >= 2));
+    if (keep.length !== items.length) { items = keep; changed = true; }
+  }
+  if (items.length < 2) return lines;
+  const allTwo = items.every(it => it.ends.every(e => items.reduce((n, o) => n + o.ends.filter(f => dist(f, e) < E).length, 0) === 2));
+  let loop = allTwo ? items : null;
+  if (!loop) {
+    // several inner lines: where three pieces meet, the loop turns onto the inner line (the boundary closes along them). A walk from a
+    // selected outline line that was not cut, inner lines first, never back to a place it passed, until it comes back to its start
+    const isInner = (it) => it.x.sh !== q, cutAt = (pt) => inner.some(x => sEnds(x.sh, x.i).some(e => dist(e, pt) < E));
+    const start = items.find(it => !isInner(it) && !it.ends.some(cutAt)) || items.find(it => !isInner(it));
+    if (!start) return lines;
+    const home = start.ends[0], seen = [start.ends[1]], path = [start];
+    const walk = (at, from) => {
+      if (dist(at, home) < E) return true;
+      const next = items.filter(it => !path.includes(it) && it.ends.some(e => dist(e, at) < E)).sort((a, b) => (isInner(b) - isInner(a)) * (isInner(from) ? -1 : 1));
+      for (const it of next) {
+        const far = dist(it.ends[0], at) < E ? it.ends[1] : it.ends[0];
+        if (dist(far, home) >= E && seen.some(s => dist(s, far) < E)) continue;
+        path.push(it); seen.push(far);
+        if (walk(far, it)) return true;
+        path.pop(); seen.pop();
+      }
+      return false;
+    };
+    if (walk(start.ends[1], start)) loop = path;
+  }
+  if (!loop) return lines;
+  const out = loop.map(it => it.x), ch = traceChains(out);
+  return ch.length === 1 && ch[0].closed ? out : lines;
+}
 function traceAsPattern(lines) {
+  lines = traceBoundary(lines);
   const ch = traceSource(lines);
   if (!ch.length) return;
   const name = "Trace as a Pattern";
@@ -15963,7 +16865,7 @@ function bootPieces() { return []; }
 // a new, empty document with every document setting at its default (the view, the preferences and the avatar are not the document's)
 function blankDoc() {
   S.known3 = null; S.home3 = null;
-  S.render = null; S.renderSet = false; S.histOn = histNewOn(); S.hgroups = []; S.pieces = []; S.seams = []; S.stitches = []; S.puckers = []; S.lineLinks = []; S.selMore = []; S.guides = []; S.measures = []; S.tacks = []; S.buttons = []; S.pipings = []; S.bindings = []; S.glues = []; S.selTrim = null; S.images = []; S.backdrop = null; S.avedit = normAvEdit(null); S.bgMode = null; S.avOutEdit = null; S.lights = [];
+  S.render = null; S.renderSet = false; S.histOn = histNewOn(); S.hgroups = []; S.pieces = []; S.seams = []; S.stitches = []; S.puckers = []; S.lineLinks = []; S.selMore = []; S.guides = []; S.measures = []; S.tacks = []; S.buttons = []; S.pipings = []; S.bindings = []; S.glues = []; S.selTrim = null; S.images = []; S.backdrop = null; S.avedit = normAvEdit(null); S.bgMode = null; S.lights = [];
   S.notch = normNotch(null); S.grading = defaultGrading(); S.lib = normLib(null); S.layout = normLayout(null); S.cloth = normCloth(null); S.drapeIn = null;
   G3.look = null; S.states3 = [];
   S.docAv = null; S.docAvAsk = false; S.docAvTried = false; S.docAvFile = null; S.avEmbed = null; S.garMeas = []; S.docPose = null;
@@ -16213,7 +17115,7 @@ function histPack(max, bin, apart) {
 }
 // the file versions whose saved history this build can replay: a step holds whole patterns, and 12 to 15 changed nothing in them
 // that can't be read with its defaults
-const HIST_FV = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34];
+const HIST_FV = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36];
 // a state of a file's history in parts, as the session keeps them; prev: the parts of the state it is to share its unchanged parts with
 function histPartsOf(s, prev) {
   histLast = prev || null;
@@ -16907,19 +17809,94 @@ function noteDialog(at, p, nt, pos) {
 /* Settings: units and decimals, snapping, and every colour of the 2D window. They are
    preferences (per browser), except the notch colour, which belongs to the document
    because it is printed. Changes show at once; Cancel puts them back. */
+const SET_PAGES = [["ui", "User Interface"], ["view", "View Controls"], ["keys", "Shortcuts"], ["2d", "2D"], ["3d", "3D"], ["other", "Other"]], SET_PAGE = { now: "ui" };
+// the Shortcuts page: every row whose key can be changed, by its section; a click on a key waits for the new one
+function keyPageHTML() {
+  const rows = keyTable().filter(r => keyEditable(r) && (!r.desk || DESK) && (S.ui.unbuilt || !r.nb)), secs = [];
+  for (const r of rows) { let s = secs.find(x => x.n === r.sec); if (!s) secs.push(s = { n: r.sec, r: [] }); if (!s.r.some(x => x.id === r.id)) s.r.push(r); }
+  return '<h3>Shortcuts</h3><div class="hint">Click a key, then press the new one (Esc: keep it, Backspace: none). A key another command has is refused.</div>' +
+    secs.map(s => '<h3>' + esc(s.n) + '</h3><table>' + s.r.map(r => '<tr><td>' + esc(r.n) + '</td><td><button type="button" class="btn" data-key="' + esc(keyPrefId(r)) + '" title="Click, then press the new key">' + (r.k ? esc(keyShow(r.k)) : "(none)") + '</button>' +
+      (r.k0 !== undefined ? ' <button type="button" class="btn" data-keyreset="' + esc(keyPrefId(r)) + '" title="Back to ' + esc(keyShow(r.k0)) + '">↺</button>' : '') + '</td></tr>').join("") + '</table>').join("") +
+    '<div class="da"><button type="button" class="btn" id="keys-reset">Reset All Shortcuts</button></div>';
+}
+// a key given to the row of that id (k: the key as the table writes it, "" none); refused if another row has it where both apply -> the reason, or ""
+function keySet(pid, k) {
+  const T = keyTable(), r = T.find(x => keyPrefId(x) === pid);
+  if (!r) return "There is no such command";
+  if (k) {
+    const why = k !== (r.k0 !== undefined ? r.k0 : r.k) ? keyRefused(k) : "";      // (its own key can always be given back)
+    if (why) return why;
+    const sameWhere = (a) => a.w === r.w || a.w === "any" || r.w === "any" || (a.w === "3d" && r.w === "draft") || (a.w === "draft" && r.w === "3d");
+    const other = T.find(x => x !== r && x.id !== r.id && x.k === k && sameWhere(x) && (!x.desk || DESK));
+    // (Round BETA8-1 / 0b) a key kept for a command that is not built yet is refused without naming it while the switch is off
+    if (other) return other.nb && !(S.ui && S.ui.unbuilt) ? keyShow(k) + " is kept for a command that is not built yet" : keyShow(k) + " is " + other.n + "'s key: give that one another first";
+  }
+  const own = { ...(S.prefs.keys || {}) }, orig = r.k0 !== undefined ? r.k0 : r.k;
+  if (k === orig) delete own[r.id + "|" + orig]; else own[r.id + "|" + orig] = k;
+  S.prefs = normPrefs({ ...S.prefs, keys: own }); KEYS = null;
+  return "";
+}
+/* (Round BETA8-1 / 0b, the maintainer's brief) keys that cannot be given: on a Mac the system's own (Cmd+H hides the app, Cmd+Q quits, Cmd+W
+   closes the window, Cmd+M minimizes, Cmd+Tab and Cmd+Space are the system's: the table's Ctrl+H / Q / W are the Control key there, MAC_CTRL),
+   and in a browser the keys the browser keeps for itself (Ctrl+W, Ctrl+N, Ctrl+T, Ctrl+Tab, F5, F11, F12: never reach the page or
+   close it; the desktop app's only Ctrl+N and Ctrl+W stay theirs). k: the key as the table writes it -> the reason, or "" */
+const MAC_OS_KEYS = ["Cmd+H", "Cmd+Q", "Cmd+W", "Cmd+M", "Cmd+Tab", "Cmd+Space", "Cmd+Alt+H", "Cmd+Alt+Escape"];
+const BROWSER_KEYS = ["Ctrl+W", "Ctrl+N", "Ctrl+T", "Ctrl+Shift+N", "Ctrl+Shift+T", "Ctrl+Shift+W", "Ctrl+Tab", "F5", "F11", "F12"];
+function keyRefused(k) {
+  if (MAC && MAC_OS_KEYS.includes(keyHere(k))) return macKeys(k) + " belongs to macOS";
+  if (!DESK && BROWSER_KEYS.includes(k)) return k + " is the browser's own: the page never gets it";
+  return "";
+}
+// a key pressed on the Shortcuts page as the table writes it -> { k } or { why }. On a Mac Cmd is the table's Ctrl, and Control goes only
+// with H, Q and W (the keys the system takes with Cmd); Control with any other key would be shown and pressed as Cmd, so it is refused
+function keyPressed(e) {
+  if (e.key === "Backspace" || e.key === "Delete") return { k: "" };
+  const c = keyCombo(e);
+  if (MAC) {
+    if (e.metaKey && e.ctrlKey) return { why: "Press Cmd or Control, not both" };
+    if (MAC_OS_KEYS.includes(c)) return { why: c + " belongs to macOS" };
+    if (e.ctrlKey && !MAC_CTRL.includes(c)) return { why: "On a Mac, Control goes only with H, Q and W: press Cmd instead" };
+  }
+  return { k: c.replace(/^Cmd\+/, "Ctrl+") };
+}
+function keyPageWire() {
+  const redraw = () => { const p = dlg.querySelector('[data-page="keys"]'); if (p) { p.innerHTML = keyPageHTML(); keyPageWire(); } };
+  dlg.querySelectorAll("[data-key]").forEach(b => { b.onclick = () => {
+    b.textContent = "Press a key…";
+    const take = (e) => {
+      if (["Shift", "Control", "Alt", "Meta"].includes(e.key)) return;
+      e.preventDefault(); e.stopPropagation(); window.removeEventListener("keydown", take, true);
+      if (e.key === "Escape") return redraw();
+      const p = keyPressed(e), why = p.why || keySet(b.dataset.key, p.k);
+      if (why) toast(why, 5000);
+      redraw();
+    };
+    window.addEventListener("keydown", take, true);
+  }; });
+  dlg.querySelectorAll("[data-keyreset]").forEach(b => { b.onclick = () => { const r = keyTable().find(x => keyPrefId(x) === b.dataset.keyreset); if (r && r.k0 !== undefined) keySet(b.dataset.keyreset, r.k0); redraw(); }; });
+  const all = dlg.querySelector("#keys-reset");
+  if (all) all.onclick = () => { S.prefs = normPrefs({ ...S.prefs, keys: {} }); KEYS = null; redraw(); toast("Every shortcut is back to its own key"); };
+}
 function settingsDialog(at) {
   hideMenu(); closeFlyouts(); hideDlg();
   const before = clone(S.prefs), notchBefore = S.notch.color, P0 = S.prefs, V0 = viewCtl();
   const opt = (v, cur, txt) => '<option value="' + v + '"' + (String(v) === String(cur) ? ' selected' : '') + '>' + txt + '</option>';
-  dlg.innerHTML = '<div class="dt">Settings</div><div class="db">' +
+  // (Round BETA8-1 / C3, roadmap 1.T29: "User settings … the view controls … the shortcuts, user interface, 3D, 2D, others", bars_2 03:26) its
+  // pages as the reference's, a tab each: User Interface, View Controls, Shortcuts, 2D, 3D, Other (Graphic Options, Default Files and the
+  // online pages have nothing here: left out)
+  const pg = (k) => '</div><div class="spage" data-page="' + k + '"' + (k === SET_PAGE.now ? '' : ' style="display:none"') + '>';
+  dlg.innerHTML = '<div class="dt">Settings</div><div class="db"><div class="facetabs" role="tablist">' + SET_PAGES.map(([k, n]) => '<button type="button" role="tab" class="ftab' + (k === SET_PAGE.now ? ' on' : '') + '" aria-selected="' + (k === SET_PAGE.now) + '" data-spage="' + k + '">' + n + '</button>').join("") + '</div><div>' +
+    pg("ui") +
     '<h3>Units</h3>' +
     '<div class="df"><label>Unit</label><select data-p="unit">' + opt("mm", P0.unit, "Millimeters") + opt("cm", P0.unit, "Centimeters") + opt("in", P0.unit, "Inches") + '</select></div>' +
     '<div class="df"><label>Decimals</label><select data-p="decimals">' + [0, 1, 2, 3].map(n => opt(n, P0.decimals, n)).join("") + '</select></div>' +
+    pg("2d") +
     '<h3>Snapping</h3>' +
     '<div class="df"><label>Grid snap</label><select data-p="grid">' + opt(0, P0.grid, "Off") + opt(1, P0.grid, "1 mm") + opt(5, P0.grid, "5 mm") + opt(10, P0.grid, "10 mm") + '</select></div>' +
     '<label class="lk"><input type="checkbox" data-p="smart"' + (P0.smart ? ' checked' : '') + '> A dragged point catches the extensions of its edges</label>' +
     '<label class="lk"><input type="checkbox" data-p="snapPts"' + (P0.snapPts ? ' checked' : '') + '> Points catch other pattern points</label>' +
     '<div class="hint">Hold Ctrl while dragging a point to keep it on a line through where it was.</div>' +
+    pg("view") +
     '<h3>View controls</h3>' +
     '<div class="df"><label>Mouse</label><select data-v="preset">' + VIEW_PRESETS.map(([k, n]) => opt(k, P0.view.preset, n)).join("") + '</select></div>' +
     '<div class="df"><label>Turn the 3D view</label><select data-v="turn">' + VIEW_BUTTONS.map(([k, n]) => opt(k, V0.turn, n)).join("") + '</select></div>' +
@@ -16927,24 +17904,33 @@ function settingsDialog(at) {
     '<div class="df"><label>Menu in the 3D window</label><select data-v="menu">' + opt("right", V0.menu, "Right-click") + opt("middle", V0.menu, "Middle-click") + '</select></div>' +
     '<label class="lk"><input type="checkbox" data-p="wheelRev"' + (P0.wheelRev ? ' checked' : '') + '> Reverse the wheel: forward zooms out, backward zooms in</label>' +
     '<div class="hint">The two ready-made sets differ in which button turns the 3D view. Choose Custom to set each button yourself. The wheel turned forward zooms in unless it is reversed above: in the 2D window, the 3D window and Print Layout alike, whatever the set. The middle button pans the 2D window in every set.</div>' +
+    pg("2d2") +
     '<h3>2D window</h3>' +
     '<label class="lk"><input type="checkbox" data-p="labelHalo"' + (P0.labelHalo !== false ? ' checked' : '') + '> Number halo: a thin band of the window\'s gray behind the small numbers (lengths, angles, the total)</label>' +
+    pg("3d") +
     '<h3>3D window</h3>' +
     '<div class="df"><label>Gizmo size</label><select data-p="gizmo">' + GIZ_SIZES.map(([k, n, px]) => opt(k, P0.gizmo, n + " (" + px + " px)")).join("") + '</select></div>' +
     // (Round r24) the desktop app's only: whether it asks for a newer version at the start
+    pg("other") + (DESK && DESK.updates ? '' : '<div class="hint">Nothing to set here in a browser.</div>') +
     (DESK && DESK.updates ? '<h3>Updates</h3><label class="lk"><input type="checkbox" data-p="updateCheck"' + (P0.updateCheck !== false ? ' checked' : '') + '> Check for updates on start: asks where the versions are published whether a newer one is out (nothing else is sent; Help \u25b8 Check for Updates\u2026 asks at any time)</label>' : '') +
-    '<h3>Colors</h3><table>' +
+    pg("ui2") + '<h3>Colors</h3><table>' +
     COLORS.map(([k, name]) => '<tr><td>' + name + '</td><td><input type="color" data-col="' + k + '" value="' + P0.colors[k] + '"></td></tr>').join("") +
     '<tr><td>Notch (this document)</td><td><input type="color" data-notch="1" value="' + S.notch.color + '"></td></tr></table>' +
     '<div class="hint">States are never told by color alone: hover is a thin line, selection a thick one, baselines are dotted, bad seams are bold with their difference written on them.</div>' +
+    pg("keys") + keyPageHTML() + '</div>' +
     '<div class="da"><button class="btn" id="dlg-ok">OK</button><button class="btn" id="dlg-def">Defaults</button><button class="btn" id="dlg-x">Cancel</button></div></div>';
   dlg.className = "print wide";
   dlg.style.display = "block";
   const r = dlg.getBoundingClientRect();
   dlg.style.left = Math.min(Math.max(6, at.x), window.innerWidth - r.width - 6) + "px";
   dlg.style.top = Math.min(Math.max(6, at.y), window.innerHeight - r.height - 6) + "px";
+  // (Round BETA8-1 / C3) the pages: "2d2" goes with "2d", "ui2" with "ui"
+  const showPage = (k) => { SET_PAGE.now = k; dlg.querySelectorAll("[data-page]").forEach(el => { const p = el.dataset.page; el.style.display = p === k || p === k + "2" ? "" : "none"; }); dlg.querySelectorAll("[data-spage]").forEach(b => { b.classList.toggle("on", b.dataset.spage === k); b.setAttribute("aria-selected", String(b.dataset.spage === k)); }); };
+  dlg.querySelectorAll("[data-spage]").forEach(b => { b.onclick = () => showPage(b.dataset.spage); });
+  showPage(SET_PAGE.now);
+  keyPageWire();
   const read = () => {
-    const o = { colors: {} };
+    const o = { colors: {}, keys: { ...((S.prefs && S.prefs.keys) || {}) } };
     dlg.querySelectorAll("[data-p]").forEach(el => { const k = el.dataset.p; o[k] = el.type === "checkbox" ? el.checked : k === "unit" || k === "gizmo" ? el.value : numOf(el.value); });
     dlg.querySelectorAll("[data-col]").forEach(el => { o.colors[el.dataset.col] = el.value; });
     const nc = dlg.querySelector("[data-notch]");
@@ -17132,6 +18118,7 @@ function blockNumeric(at, blockId, level, given, key, where) {
     push();
     const built = key ? regenBlock(key, vals.level, g) : addBlock(blockId, vals.level, g, where);
     if (!built) return rollback("That block is no longer in the document");
+    if (!key) bodyPlace(built.pieces);                        // (Round FIX-3b / 0) at body height
     if (!key) S.sel = built.pieces.map(p => p.id);
     S.selPt = S.selSeg = S.selInt = -1; S.selKind = "outline";
     commit();
@@ -17577,7 +18564,9 @@ function addDartDouble(host, c, o) {
   if (sm) S.seams.push(sm);
   return { j, seam: sm };
 }
-function dartDoubleNumeric(at, host, c) {
+/* (Round FIX-3 / H, 2D ▸ Create ▸ Base Dart, the reference's Base Markings) Base Dart: the same click and Create Dart box, the dart made
+   as a closed baseline of the pattern (reference only: not cut, not sewn), as Base Rectangle is to Rectangle. One step "Base Dart". */
+function dartDoubleNumeric(at, host, c, base) {
   const d2 = (mm) => +toDisp(mm).toFixed(2), last = S.dart2 || DART2_DEF, pos0 = last.pos === "center" ? "center" : "outline";
   const opt = (v) => ({ wl: fromDisp(v.wl), wr: fromDisp(v.wr), up: fromDisp(v.up), down: fromDisp(v.down), pos: v.pos === "center" ? "center" : "outline" });
   const ok = (o) => o.wl >= 0 && o.wr >= 0 && o.wl + o.wr > 0 && o.up > 0 && o.down > 0;
@@ -17611,6 +18600,14 @@ function dartDoubleNumeric(at, host, c) {
     const m = place(v);
     if (!fit(m, o)) return toast("Pattern outlines and/or holes are intersecting.");
     S.dart2 = o;
+    if (base) {
+      push("Base Dart");
+      const sh = dartDoubleShape(m, o);
+      if (!sh.pts.every(q => inside(flatten(host, 16), q))) { unpush(); return toast("The dart must lie inside " + host.name); }
+      const j = addChild(host, "bases", sh);
+      S.sel = [host.id]; S.selKind = "base"; S.selInt = j; S.selPt = S.selSeg = -1;
+      commit(); return toast("Base dart drawn in " + host.name + " (a baseline: not cut, not sewn)");
+    }
     push("Dart");
     const r = addDartDouble(host, m, o);
     if (!r) { unpush(); return toast("The dart must lie inside " + host.name); }
@@ -17627,6 +18624,7 @@ function dartDoubleNumeric(at, host, c) {
     preview: (v) => { const o = opt(v); if (!ok(o)) return null; const m = place(v), ids = [S.nextSegId, S.nextShapeId]; try { return [dartDoubleShape(m, o)]; } finally { S.nextSegId = ids[0]; S.nextShapeId = ids[1]; } } });
   return true;
 }
+HINT.base_dart_double = "Click inside a pattern where the dart goes; Create Dart takes its widths and heights. Drawn as a baseline: a reference line, not cut and not sewn.";
 HINT.dart_double = "Click inside a pattern where the dart goes; Create Dart takes its widths left and right, its heights up and down and which part of it is at the click. A double-pointed dart: cut out and its legs sewn to each other.";
 /* Internal Spiral (Round r9 / 6, provisional: compare in the other program): a click inside a pattern is the centre; the
    dialog takes Turns, Spacing (how much further out each turn is), Start Radius and Direction, with a preview. The spiral is
@@ -18379,11 +19377,14 @@ if (menu.addEventListener) {
 let menuSubs = [];
 function closeSubs(level) { for (const el of menuSubs.splice(level)) { try { el.remove(); } catch (e) {} } }
 const inMenu = (t) => !!t && (menu.contains(t) || menuSubs.some(el => el.contains && el.contains(t)));
-function showMenu(e) {
+/* (Round BETA8-1 / 0, the beta.8 gate G10) force: { h } a line taken as if it had been right-clicked (Edit ▸ Context Menu ▸ 2D Pattern on
+   the selected line): its menu's rows are returned instead of shown, and nothing else under that place counts */
+function showMenu(e, force) {
   const r = cv.getBoundingClientRect();
   const sx = e.clientX-r.left, sy = e.clientY-r.top;
-  S.mouse = { ...toW(sx, sy), sx, sy };
-  let h = hit(sx, sy, { menu: true });
+  if (!force) S.mouse = { ...toW(sx, sy), sx, sy };
+  let h = force ? force.h : hit(sx, sy, { menu: true });
+  if (!force) {
   // the Pleat tool (Round r9 / 8): a right-click with pleat lines picked opens their dialog
   if (S.tool === "pleats") return void pleatDialog({ x: e.clientX, y: e.clientY });
   // (Round build-1) Edit Gluing: a glue's own menu; Sticker: a right-click gives up the piece on the pointer
@@ -18408,13 +19409,14 @@ function showMenu(e) {
     }
     return listMenu(I, e.clientX, e.clientY);
   }
-  const lk = h ? null : lockedAt(sx, sy);
+  }
+  const lk = h || force ? null : lockedAt(sx, sy);
   // on a linked copy or a mirrored half only the whole-pattern commands apply
   const ro = h ? followerMsg(h) : "";
   if (ro) h = { k: "body", p: h.p };
   const I = [];
   let dartLeaf = false, more = null;          // (more: this program's own rows of the menu, under More ▸ at its end)
-  const mh = measAt(sx, sy), gh = mh || (h && h.k !== "body") ? null : guideAt(sx, sy);
+  const mh = force ? null : measAt(sx, sy), gh = force || mh || (h && h.k !== "body") ? null : guideAt(sx, sy);
   if (mh) {
     // (Round r15 / 10, the check videos S01: a measurement's menu has Delete and Reverse, and line types this program has not)
     const inf = measureInfo(mh, S.pieces);
@@ -18446,9 +19448,10 @@ function showMenu(e) {
     const p = h.p, at = { x: e.clientX, y: e.clientY };
     // Transform Pattern takes the pattern wherever it is clicked, and so does a click inside it on no line or point: the
     // pattern's menu (W1); otherwise the menu of what is under the pointer (Round G1)
-    const whole = S.tool === "transform_pattern" || !["seg", "pt", "cp", "punch", "note", "dart"].includes(h.k);
+    const whole = !force && S.tool === "transform_pattern" || !["seg", "pt", "cp", "punch", "note", "dart"].includes(h.k);
     if (whole) {
       I.push(...patternMenu(p, at, toW(sx, sy), ro));
+      I.tabs = patternTabs(I);                                 // (Round BETA8-1 / L, W1) All / Edit / Pattern / Line / Arrange
     } else if (h.k === "seg" && h.kind === "outline") {
       /* An outline line's menu (Edit Pattern and the tools that pick lines): one line as W56 (Edit_patern_tools 00:07), two or
          more selected lines as the screenshot line_selection_data_field, in their order and with their separators. The lines
@@ -18534,7 +19537,7 @@ function showMenu(e) {
       S.selPt = h.i; S.selSeg = -1; selectSub(h);
       I.push({ n: "Delete Point", k: keyOf("delete"), f: del },
         { n: "Lock", f: () => { push("Lock"); for (const q of selPieces()) q.lock = true; S.selPt = S.selSeg = S.selInt = -1; commit(); toast("Locked: right-click the pattern to unlock it"); } },
-        { n: "Add Notch", f: () => notchAtHit(h) }, { n: "Add Dart", f: () => dartDialog(at, p, h.i) }, ctxNb("Add Dart with Fullness"));
+        { n: "Add Notch", f: () => notchAtHit(h) }, { n: "Add Dart", f: () => dartDialog(at, p, h.i) }, { n: "Add Dart with Fullness", f: () => dartFullDialog(at, p, h.i) });
       // (from a point: the line starts there; Local is the direction of the line that leaves the point)
       I.push({ n: "Add Perpendicular Internal Line", menu: perpMenu(at, p, h.sh, h.i, true) }, { sep: 1 });
       // a corner made a curve point: the two lines become one curve through it
@@ -18546,7 +19549,7 @@ function showMenu(e) {
         S.selPt = S.selSeg = -1; commit();
         if (r.added !== undefined) toast("The same shape: " + r.added + " curve points added, at most " + (+r.left.toFixed(3)) + " mm from the old lines");
       } })) });
-      I.push(ctxNb("Perpendicular Pattern Corner"));
+      I.push({ n: "Perpendicular Pattern Corner", f: () => perpCornerDialog(at, p, h.i) });
       I.push(...ctxMore([
         { n: "Smooth Curve", f: () => { push(); smoothPoint(h.sh, h.i); commit(); } },
         { n: "Seam Allowance Corner", menu: () => cornerRows(p, h.i, at) },
@@ -18870,10 +19873,10 @@ function showMenu(e) {
     I.push({ n: "Paste", k: keyOf("paste"), f: () => paste(false) }, { n: "Mirror Paste", k: keyOf("mirror"), f: () => paste(true) }, { sep: 1 },
       { n: S.show.lockAll ? "Unlock All Pattern Outlines" : "Lock All Pattern Outlines", f: () => setView("lockAll", !S.show.lockAll) },
       ...lockRows(), { sep: 1 },
-      ctxNb("Refresh Textures", keyOf("kept:F5")),
+      { n: "Refresh Textures", f: refreshTextures },      // (Round BETA8-1 / E, 3.B6; F5 stays the browser's)
       S.pieces.some(q => q.bases.length) ? { n: "Delete All Baselines", f: () => { push("Delete All Baselines"); for (const q of S.pieces) q.bases = []; if (S.selKind === "base") { S.selInt = S.selPt = S.selSeg = -1; S.selKind = "outline"; } commit(); } }
         : { n: "Delete All Baselines", off: true, note: "none", f: () => toast("There are no baselines") },
-      { n: "Delete All Overlapping Points", f: deleteOverlapping }, { n: "Optimize All Curve Points", f: () => optimizeCurves() }, ctxNb("Remove All Steam"), { sep: 1 },
+      { n: "Delete All Overlapping Points", f: deleteOverlapping }, { n: "Optimize All Curve Points", f: () => optimizeCurves() }, steamCount() ? { n: "Remove All Steam", f: removeAllSteam } : { n: "Remove All Steam", off: true, note: "none", f: () => toast("There is no steam to remove") }, { sep: 1 },
       { n: "Smart Guide", on: !!S.prefs.smart, f: () => setPrefs({ smart: !S.prefs.smart }) },
       { n: "Snap to Pattern", on: !!S.prefs.snapPts, f: () => setPrefs({ snapPts: !S.prefs.snapPts }) },
       { n: "Snap to Grid", on: S.snapG > 0, f: () => { if (S.snapG > 0) { lastGrid = S.snapG; setPrefs({ grid: 0 }); } else setPrefs({ grid: lastGrid || 10 }); } },
@@ -18889,8 +19892,32 @@ function showMenu(e) {
       { n: "Notch Settings\u2026", f: () => notchNumeric({ x: e.clientX, y: e.clientY }) }]));
   }
   if (more) I.push(...ctxMore(more));
+  if (force) return I;
   listMenu(I, e.clientX, e.clientY);
   ui(); draw();
+}
+/* (Round BETA8-1 / 0, the beta.8 gate G10) Edit ▸ Context Menu ▸ 2D Pattern's line rows: with a line selected, the row of that line's own
+   right-click menu (taken from showMenu() as if the line had been right-clicked at its middle, so it runs the same command, its submenu
+   too); a row that line's menu does not have (Unfold on a curve, Cut on the outline, …) or no line selected: shown only with the
+   not-built switch, saying what to select */
+function lineCtxRow(n, k) {
+  // the selected line, else the selected point (Convert to Curve Point is a point's row)
+  const L = typeof selLines === "function" ? selLines() : [], pr = primary(), g = !L.length && pr && S.selPt >= 0 ? subShapes(pr).find(x => x.kind === S.selKind && x.j === S.selInt) : null;
+  const f = L[0] ? { ...L[0], k: "seg", at: segPt(L[0].sh, L[0].i, 0.5) } : g && g.sh.pts[S.selPt] ? { p: pr, sh: g.sh, kind: g.kind, int: g.j, i: S.selPt, k: "pt", at: g.sh.pts[S.selPt] } : null;
+  let row = null;
+  if (f && cv && cv.getBoundingClientRect) {
+    const q = toS(f.at), r = cv.getBoundingClientRect(), keep = { sel: S.sel.slice(), seg: S.selSeg, pt: S.selPt, kind: S.selKind, int: S.selInt, more: (S.selMore || []).slice() };
+    try {
+      const I = showMenu({ clientX: r.left + q.x, clientY: r.top + q.y, preventDefault() {} }, { h: { k: f.k, p: f.p, sh: f.sh, kind: f.kind, int: f.int, i: f.i, ...(f.k === "seg" ? { t: 0.5 } : {}) } }) || [];
+      const want = (x) => x && !x.sep && !x.hd && x.n === n && !x.off;
+      row = I.find(want) || null;
+      if (!row) for (const x of I) if (x && x.n === "More" && typeof x.menu === "function") { row = (x.menu() || []).find(want) || null; if (row) break; }
+    } catch (err) { row = null; }
+    S.sel = keep.sel; S.selSeg = keep.seg; S.selPt = keep.pt; S.selKind = keep.kind; S.selInt = keep.int; S.selMore = keep.more;
+  }
+  if (row) return { ...row, k: row.k || k || "" };
+  if (!S.ui.unbuilt) return null;
+  return { n, k: k || "", off: true, note: f ? "not on this " + (f.k === "pt" ? "point" : "line") : "select a line", f: () => toast(f ? n + " is not on this " + (f.k === "pt" ? "point" : "line") + "'s menu" : n + ": select a line (or a point) with Edit Pattern first") };
 }
 /* ---- Round r17b / 1: rows of the 2D right-click menus that were "not built" ----
    Each is one undo step. What the reference does with them is known by their names only (the frames of S01 and S21), but for Extend/Trim &
@@ -19012,6 +20039,8 @@ function patternMenu(p, at, w, ro) {
     if (S.selKind === "base") { S.selInt = S.selPt = S.selSeg = -1; S.selKind = "outline"; }
     commit(); toast(n > 1 ? n + " reference lines deleted" : "Reference line deleted");
   } });
+  // (Round FIX-2 / B, the maintainer's brief) Create History Group… on the menu itself, not under More (it was there since H1d / B)
+  if (!ro) I.push({ sep: 1 }, { n: "Create History Group…", f: () => hgCreate(S.sel.includes(p.id) ? S.sel.slice() : [p.id]) });
   I.push({ sep: 1 }, { n: "3D Pattern", menu: () => [...state3Rows(), { n: state3Name("freeze3"), k: keyOf("freeze3"), f: () => state3Toggle("freeze3") },
       { n: state3Name("strong3"), k: keyOf("strong3"), f: () => state3Toggle("strong3") }, { n: state3Name("solid3"), k: keyOf("solid3"), f: () => state3Toggle("solid3") }, { sep: 1 }, { n: state3Name("arch3"), f: () => state3Toggle("arch3") }, { n: state3Name("hide3"), k: keyOf("hide3"), f: () => state3Toggle("hide3") }] }, { sep: 1 },
     ...arrangeRows(),
@@ -19022,7 +20051,6 @@ function patternMenu(p, at, w, ro) {
     { n: "Mirror Paste (Position Only)", f: () => paste("pos") },
     { n: "Replace (by the Copied Pattern)", f: () => replaceFromClip(p) },
     !ro && { n: "Add Annotation…", f: () => noteDialog(at, p, null, w) },
-    !ro && { n: "Create History Group\u2026", f: () => hgCreate(S.sel.includes(p.id) ? S.sel.slice() : [p.id]) },      // (Round H1d / B)
     p.link && { n: p.link.kind === "instance" ? "Remove Instance" : "Unlink Symmetric Pattern", f: () => { push(); delete p.link; commit(); toast("Unlinked — it is now an ordinary pattern"); } },
     p.half && { n: "Remove Half Symmetry", f: () => { push(); delete p.half; commit(); toast("The two halves are now independent"); } },
     p.group && { n: "Ungroup", f: () => { if (!S.sel.includes(p.id)) S.sel = groupIds(p); ungroupSel(); } },      // (Round r34 / 7)
@@ -19039,7 +20067,7 @@ function patternMenu(p, at, w, ro) {
 function contextMenuRows() {
   const nb = (n, k) => nbRow(n, k), sm = S.selSeam != null ? S.seams.find(x => x.id === S.selSeam) : null, part = sm && S.selPart ? sm[S.selPart.side][S.selPart.k] : sm && sm.a[0];
   const needSeam = (n, f, k) => sm ? { n, k: k || "", f } : { n, k: k || "", off: true, note: "select a seam", f: () => toast(n + ": select a sewing line with Edit Sewing first") };
-  const onLine = (n, k) => ({ n, k: k || "", off: true, note: "right-click a line", f: () => toast(n + " is on a line's right-click menu") });
+  const onLine = (n, k) => lineCtxRow(n, k);          // (Round BETA8-1 / 0, gate G10) the selected line's own row, else hidden with the switch off
   const g3 = () => [{ n: state3Name("arch3"), f: () => state3Toggle("arch3") }, { n: off3Name("pattern"), k: keyOf("off3"), f: () => deactivate3("pattern") }, { n: off3Name("sewing"), f: () => deactivate3("sewing") },
     { n: state3Name("freeze3"), k: keyOf("freeze3"), f: () => state3Toggle("freeze3") }, { n: state3Name("strong3"), k: keyOf("strong3"), f: () => state3Toggle("strong3") },
     { n: state3Name("solid3"), k: keyOf("solid3"), f: () => state3Toggle("solid3") }, nb("Quadrangulate"), nb("Triangulate"), nb("Mesh Type"), { n: "Flip Normal", f: () => state3Toggle("flip3") }, nb("Convert"), { sep: 1 },
@@ -19058,9 +20086,9 @@ function contextMenuRows() {
     { n: "Clone", menu: cloneRows }, selGrouped() ? { n: "Ungroup", f: ungroupSel } : { n: "Group", f: groupSel }, ...arrangeRows().slice(2), arrangeRows()[0], arrangeRows()[1], { n: "Distribute", menu: () => [{ n: "Horizontally", h: "Distribute", f: () => distributeSel("x") }, { n: "Vertically", h: "Distribute", f: () => distributeSel("y") }] }, toolRow("Trace", "trace"), { n: "Grading", menu: gradingCtxRows }].filter(Boolean);
   const sew = () => [needSeam("Reverse Sewing", () => reverseSewing(sm, part), keyOf("reverse")), needSeam(sm && sm.off ? "Activate Sewing (Selected)" : "Deactivate Sewing (Selected)", () => toggleSewing(sm)),
     { n: "Assign to New Topstitch", f: () => stitchNewType((S.stitches || []).find(s => s.id === S.selStitch)) }, { n: "Add Internal Line on Topstitch", f: () => stitchToLine((S.stitches || []).find(s => s.id === S.selStitch)) }, needSeam("Add Seamline Topstitch", () => seamlineStitch(sm))].filter(Boolean);
-  const mat = () => ["Reset to Basic Fabric", "Assign to New Fabric", "Delete Texture", "Flip Texture Horizontally", "Flip Texture Vertically", "Reset Fabric Angle", "Align Grain X-Axis", "Align Grain Y-Axis",
-    "Align Grain Parallel to Selected", "Match Up Grain", "Duplicate to Symmetric Pattern"].map(n => nb(n)).concat([{ n: "Reset 3D Position", k: keyOf("reset3d"), f: () => resetArrangement3(true) }],
-    ["Set Number of Sewing Layers", "Flip", "Remove Steam on Selected Pattern"].map(n => nb(n)), [nb("Refresh Textures", keyOf("kept:F5"))]).filter(Boolean);
+  const mat = () => [nb("Reset to Basic Fabric"), { n: "Assign to New Fabric", f: assignNewFabric }].concat(["Delete Texture", "Flip Texture Horizontally", "Flip Texture Vertically", "Reset Fabric Angle", "Align Grain X-Axis", "Align Grain Y-Axis",
+    "Align Grain Parallel to Selected", "Match Up Grain", "Duplicate to Symmetric Pattern"].map(n => nb(n))).concat([{ n: "Reset 3D Position", k: keyOf("reset3d"), f: () => resetArrangement3(true) }],
+    ["Set Number of Sewing Layers", "Flip"].map(n => nb(n)), [{ n: "Remove Steam on Selected Pattern", f: removeSteamSel }, { n: "Refresh Textures", f: refreshTextures }]).filter(Boolean);      // (Round BETA8-1 / E)
   const av = () => [S.av ? { n: "Delete Avatar", f: () => removeAvatar() } : { n: "Delete Avatar", off: true, note: "none loaded", f: () => toast("There is no avatar") },
     nb("Delete All Avatars"), nb("Delete Scene and Props"), nb("Delete All Scene and Props"), { n: show3("avatar") ? "Hide Avatar" : "Show Avatar", k: keyOf("show3:avatar"), f: () => setShow3("avatar", !show3("avatar")) }, nb("Set As Heel"), nb("Show All Avatars"), nb("Deactivate Avatar"),
     S.av ? { n: "Reset Joints", f: () => { const was = G3.joint; G3.joint = null; try { jointReset(); } finally { G3.joint = was; } } } : { n: "Reset Joints", off: true, note: "none loaded", f: () => toast("There is no avatar") }, nb("Delete Accessory"), nb("Move to Ground")].filter(Boolean);
@@ -19087,6 +20115,22 @@ function arrangeRows() {
     { n: "Rotate", menu: () => [{ n: "Reset Along Grain Direction", f: grainReset }, { sep: 1 }, ...ROTATE.map(([deg, name]) => ({ n: name, k: keyOf("turn:" + deg), f: () => turnSel(deg, name) })),
       { sep: 1 }, { n: "X-Axis", f: () => rotAxisStart("x") }, { n: "Y-Axis", f: () => rotAxisStart("y") }, { n: "Parallel to…", f: () => rotAxisStart("par") }] },
     { n: "Flip", menu: () => [{ n: "Horizontally", f: () => flipSel(true, false) }, { n: "Horizontally (Each)", f: () => flipSel(true, true) }, { n: "Vertically", f: () => flipSel(false, false) }, { n: "Vertically (Each)", f: () => flipSel(false, true) }] }];
+}
+/* (Round BETA8-1 / L, roadmap 1.T61 / 3.B1, W1 frames 0115-0118, Transform_pattern_tool 04:01: "it's actually quite nice to have it
+   different again") The pattern menu's tabs All / Edit / Pattern / Line / Arrange: five pills under its search field; All is the menu
+   as it is, each other tab a flat list of the same rows in which a submenu is a bold title with its rows indented under it, as the
+   frames list them. This program's own rows (Create History Group…, Placement, More) are in All only (guess beta8-1/22). The rows
+   are the All list's own (the same commands), taken by name. */
+const MENU_TABS = [["all", "All"], ["edit", "Edit"], ["pattern", "Pattern"], ["line", "Line"], ["arrange", "Arrange"]];
+function patternTabs(I) {
+  const top = (n) => I.find(r => r && r.n === n), S1 = { sep: 1 };
+  const sub = (n, title) => { const r = top(n); if (!r || !r.menu) return []; return [{ hd: "<b>" + title + "</b>" }, ...r.menu().filter(x => x && !x.hd).map(x => x.sep ? x : { ...x, sub: true })]; };
+  const layer = () => { const r = top("Layer Clone"); return r && r.menu ? r.menu().filter(x => x && !x.sep).map(x => ({ ...x, n: x.h || x.n })) : []; };
+  return {
+    edit: [top("Delete"), top("Copy"), top("Paste"), top("Mirror Paste"), S1, top("Replaced by"), S1, top("Invert Selection"), top("Lock"), S1, ...sub("Select All", "Select All"), S1, top("Export To USD Layer")],
+    pattern: [...sub("Clone with Linked Editing", "Clone as"), ...sub("Apply Linked Editing", "Apply"), ...sub("3D Pattern", "3D Pattern"), S1, ...layer(), S1, { n: "Assign to New Fabric", f: assignNewFabric }],
+    line: [top("Offset as Internal Line"), top("Offset as Seamless Block Line"), top("Offset Pattern Outline"), S1, top("Clone as Internal Shape"), top("Clone as Reference Line"), top("Delete Reference Line")],
+    arrange: [...sub("Order", "Order"), ...sub("Rotate", "Rotate"), ...sub("Flip", "Flip"), S1, top("Zoom to Selected")] };
 }
 /* (Round r15 / 10) An internal line's menu as the check videos show it (S01, the frame r12-09a-c), the All list in its order and
    with its separators: Select All ▸ | Delete, Copy, Paste, Mirror Paste | Lock, Invert Selection | Replaced by (not built),
@@ -19270,6 +20314,8 @@ function ui() {
   if (S.tool === "seamless_blocking") { pr.innerHTML = blockPanel(); wireBlockPanel(); return; }
   // (Round r33 / 4) a grading tool in hand: the grading table of the selected points
   if (GRADE_TOOLS.includes(S.tool)) { pr.innerHTML = gradeTablePanel(); wireGradeTable(pr); return; }
+  // (Round FIX-3 / F, W16) the tack selected with Edit Tack (or in the Object Browser's Tack list): its Property Editor
+  { const t = (S.tool3 === "edit_tack" || S.tool3 === "tack" || S.tool3 === "tack_avatar") && typeof G3 !== "undefined" && G3.selTack != null ? (S.tacks || []).find(x => x.id === G3.selTack) : null; if (t) { pr.innerHTML = tackPanel(t); wireTackPanel(pr, t); return; } }
   if (!p) { pr.innerHTML = '<h2>Nothing selected</h2><div class="note">Select a pattern, or pick something in the Object Browser.</div>' + measuresPanel(); wireMeasures(pr); return; }
   let tot = 0, saTot = 0;
   const dis = p.lock ? ' disabled' : '';
@@ -19287,8 +20333,16 @@ function ui() {
   // (Round r15 / 3) each corner by its picture: a click opens the eight types
   const cornerSel = (id, cur, at) => '<span class="w cpw">' + cornerPicker(id, cur, dis, at.some(i => !pocketFits(p, i)), at.some(i => !dartAtPt(p, i))) + '</span>';
   const ct = (s) => { const i = p.segs.indexOf(s); return ((i >= 0 ? cornerAtPt(p, i) : cornerOf(s && s.corner)) || { t: "ext" }).t; };
+  // (Round FIX-2 / D, W20) the line's length on the cloth, and with a symmetric copy both sides' together (2D and 3D)
+  const mono = (v) => '<span style="font-family:var(--mono);font-size:11px">' + fmt(v) + ' ' + S.unit + '</span>';
+  const twin = sg ? symTwin(p) : null, tl = twin ? twin.segs.findIndex(x => x.id === sg.id) : -1, l3 = sg ? segLen3(p, sg.id) : null, t3 = tl >= 0 ? segLen3(twin, sg.id) : null;
   const lineSec = sg ? sec("Selected Line",
-    '<div class="row"><label>2D Line Length</label><span style="font-family:var(--mono);font-size:11px">' + fmt(segLen(p, si)) + ' ' + S.unit + '</span></div>' +
+    '<div class="row"><label>2D Line Length</label>' + mono(segLen(p, si)) + '</div>' +
+    (tl >= 0 ? '<div class="row"><label title="This line and its mirror image on the symmetric copy, together">+ Symmetric Line Length</label>' + mono(segLen(p, si) + segLen(twin, tl)) + '</div>' : '') +
+    (l3 != null ? '<div class="row"><label title="The line as long as it is on the cloth in the 3D window now">3D Line Length</label>' + mono(l3) + '</div>' : '') +
+    (l3 != null && t3 != null ? '<div class="row"><label>+ Symmetric Line Length</label>' + mono(l3 + t3) + '</div>' : '') +
+    (elasticLine({ kind: "outline", sh: p }) ? '<div class="row"><label for="sl-tape" title="A tape along the line keeps it from stretching (it has no elastic then)">Seam Taping</label><input type="checkbox" id="sl-tape"' + (sg.tape ? ' checked' : '') + dis + '></div>' : '') +      // (Round BETA8-1 / E)
+    nbPE(["Show Schematic Line"]) +      // (Round FIX-3b / C: Shirring is in the Elastic section, with Elastic on)
     '<div class="row"><label for="sl-on">Custom Seam Allowance</label><input type="checkbox" id="sl-on"' + (sg.sa > 0 ? ' checked' : '') + dis + '></div>' +
     '<div class="row"><label>Width (' + S.unit + ')</label><input type="text" inputmode="decimal" data-num="1" id="sl-w" step="' + toDisp(1) + '" min="0" value="' + +toDisp(sg.sa > 0 ? sg.sa : S.saValue).toFixed(2) + '"' + dis + '></div>' +
     '<div class="row"><label title="The corner of the allowance at the start point of this line">Seam Type: Start</label>' + cornerSel("sl-c0", ct(sg), [si]) + '</div>' +
@@ -19349,7 +20403,13 @@ function ui() {
     '<div class="row"><label title="The elastic\'s length as a share of the line\'s: 100 % as long as drawn, 80 % drawn in to 80 %, up to 200 %">Ratio (%)</label><input type="text" inputmode="decimal" data-num="1" id="el-r" min="1" max="200" step="1" value="' + +(el0 ? el0.r : ELASTIC_ON).toFixed(2) + '"' + elOff + '></div>' +
     '<div class="row"><label title="The elastic\'s length: typed, it sets the ratio' + (elL.length > 1 ? ' of each selected line to this length' : '') + '">Segment Length (' + S.unit + ')</label><input type="text" inputmode="decimal" data-num="1" id="el-len" step="' + toDisp(1) + '" min="0" value="' + +toDisp(segLen(elL[0].sh, elL[0].i)*(el0 ? el0.r : ELASTIC_ON)/100).toFixed(2) + '"' + elOff + '></div>' +
     (elL.length > 1 ? '<div class="row"><label title="The selected lines\' elastic all together: typed, it sets one ratio for all of them">Total Length (' + S.unit + ')</label><input type="text" inputmode="decimal" data-num="1" id="el-tot" step="' + toDisp(1) + '" min="0" value="' + +toDisp(elL.reduce((s, x) => s + segLen(x.sh, x.i)*((elasticOf(x.sh.segs[x.i]) || {}).r || ELASTIC_RATIO)/100, 0)).toFixed(2) + '"' + elOff + '></div>' : '') +
-    '<div class="note" style="margin-bottom:6px">' + (el0 ? 'Drawn in to ' + fmt(elTot*el0.r/100) + ' of ' + fmt(elTot) + ' ' + S.unit + ' in 3D.' : 'No elastic.') + '</div>') : '';
+    '<div class="note" style="margin-bottom:6px">' + (el0 ? 'Drawn in to ' + fmt(elTot*el0.r/100) + ' of ' + fmt(elTot) + ' ' + S.unit + ' in 3D.' : 'No elastic.') + '</div>' +
+    // (Round FIX-3b / C) Shirring, only with Elastic on
+    (() => { const sr = el0 ? shirrOf(elL[0].sh.segs[elL[0].i]) : null, so = el0 && !dis ? '' : ' disabled', sv = sr || SHIRR_DEF, so2 = sr && !dis ? '' : ' disabled';
+      return '<div class="row"><label for="sh-on" title="Shirring (only with Elastic on): the cloth beside the line gathers in small folds">Shirring</label><input type="checkbox" id="sh-on"' + (sr ? ' checked' : '') + so + '></div>' +
+        '<div class="row"><label title="The zigzag\'s pitch along the line">Interval (' + S.unit + ')</label><input type="text" inputmode="decimal" data-num="1" id="sh-iv" value="' + +toDisp(sv.iv).toFixed(2) + '"' + so2 + '></div>' +
+        '<div class="row"><label title="How far from the line the shirring reaches">Height (' + S.unit + ')</label><input type="text" inputmode="decimal" data-num="1" id="sh-h" value="' + +toDisp(sv.h).toFixed(2) + '"' + so2 + '></div>' +
+        '<div class="row"><label title="Which side of the line: A its left as it runs, B its right, or both">Direction</label><select class="w" id="sh-dir"' + so2 + '>' + SHIRR_DIRS.map(([k, n]) => '<option value="' + k + '"' + (sv.dir === k ? ' selected' : '') + '>' + n + '</option>').join("") + '</select></div>'; })()) : '';
   // (Round r15 / 7, the check videos S11) the topstitch selected with Edit Topstitch: its rows as the reference's Property Editor
   // has them (Name, Topstitch Property, Extend Start / End, Corner, and for a seamline topstitch Placement ▸ Topstitch Seam A /
   // Seam B / Seam Both); Placement used to be in Properties… on the right-click only
@@ -19381,6 +20441,22 @@ function ui() {
     '<div class="row"><label for="sf-t" title="Turned: a turned seam; the two patterns stay flat and open at it, and Fold Strength and Fold Angle do nothing. Off: the seam folds by its Fold Angle">Turned</label><input type="checkbox" id="sf-t"' + (sf.turned === true ? ' checked' : '') + '></div>' +
     '<div class="row"><label title="How firmly the seam holds its angle in the simulation">Fold Strength</label><input type="range" id="sf-kr" min="0" max="100" step="1" value="' + (typeof sf.strength === "number" ? sf.strength : 50) + '"' + sfOff + '><input type="text" inputmode="decimal" data-num="1" class="s" id="sf-k" min="0" max="100" step="1" value="' + sf.strength + '"' + sfOff + '></div>' +
     '<div class="row"><label title="180 lies flat; below folds back toward back, above front toward front (as an internal line\'s Fold Angle)">Fold Angle (°)</label><input type="range" id="sf-ar" min="0" max="360" step="1" value="' + (typeof sf.angle === "number" ? sf.angle : 180) + '"' + sfOff + '><input type="text" inputmode="decimal" data-num="1" class="s" id="sf-a" min="0" max="360" step="1" value="' + sf.angle + '"' + sfOff + '></div>') : '';
+  // (Round FIX-2 / D, W15) the seam's rows the reference shows that are not built here: greyed while Show Tools That Are Not Built Yet is on
+  // (Round FIX-3b / A, W15) the seam's Information, Tension, Set Sublayer, Topstitch, Puckering and 3D Seamline (setSeamProps())
+  const allOn = (f) => ssms.every(f) ? 1 : ssms.some(f) ? 0 : -1, box = (id, v, tip, label) => '<div class="row"><label for="' + id + '" title="' + tip + '">' + label + '</label><input type="checkbox" id="' + id + '"' + (v === 1 ? ' checked' : '') + '></div>';
+  const ten = allOn(sm => sm.tension > 0), sl3s = ssms.map(line3Of), sl3 = sl3s[0] || LINE3_DEF, sl3same = (k) => sl3s.every(x => x[k] === sl3[k]);
+  const seamNb = ssm ? sec("Seam <span style=\"color:var(--dimmer)\">" + (ssms.length > 1 ? ssms.length + " seams" : esc(seamName(ssm))) + "</span>",
+    (ssms.length === 1 ? '<div class="row"><label>Name</label><input type="text" class="w" id="sp-nm" value="' + esc(seamName(ssm)) + '"></div>' : '') +
+    // (Round FIX-4 / 0, the maintainer: no empty shells) Tag in glTF is not shown at all while there is no glTF export (roadmap AFTER 1.0)
+    box("sp-ten", ten, "Tension: the seam's two sides are drawn in by this share of their length in the simulation", "Tension") +
+    (ten === 1 ? '<div class="row"><label title="How much shorter the seam’s sides pull, % of their length (1 to ' + SEAM_TENSION_MAX + ')">Tension (%)</label><input type="text" inputmode="decimal" data-num="1" class="s" id="sp-tv" value="' + (ssms.every(x => x.tension === ssm.tension) ? ssm.tension : "\u2014") + '"></div>' : '') +
+    box("sp-sub", allOn(sm => sm.sub), "Set Sublayer: side B's patterns lie one layer under side A's in the simulation (nearer the body)", "Set Sublayer") +
+    box("sp-st", allOn(seamStitched), "A seamline topstitch along both sides of the seam", "Topstitch") +
+    box("sp-pk", allOn(seamPuckered), "Seamline puckering along both sides of the seam", "Puckering") +
+    '<div class="row"><label title="How the seam looks on the cloth in 3D">3D Seamline</label><select class="w" id="sp-l3k">' + LINE3_KINDS.map(([k, n]) => '<option value="' + k + '"' + (sl3same("kind") && sl3.kind === k ? ' selected' : '') + '>' + n + '</option>').join("") + (sl3same("kind") ? '' : '<option selected value="">\u2014</option>') + '</select></div>' +
+    (sl3.kind === "plain" || !sl3same("kind") ? '<div class="note" style="margin:4px 0 2px">Normal Map</div>' +
+      '<div class="row"><label title="How dark the seam’s line is on the cloth (0 to 100)">Intensity</label><input type="range" id="sp-l3ir" min="0" max="100" step="1" value="' + (sl3same("i") ? sl3.i : 50) + '"><input type="text" inputmode="decimal" data-num="1" class="s" id="sp-l3i" value="' + (sl3same("i") ? sl3.i : "\u2014") + '"></div>' +
+      '<div class="row"><label title="The seam line’s thickness, kept with the seam">Thickness (mm)</label><input type="text" inputmode="decimal" data-num="1" class="s" id="sp-l3t" value="' + (sl3same("t") ? sl3.t : "\u2014") + '"></div>' : '')) : "";
   const fabrics = libOf().fabric, fab = fabricOf(p), gr = grainOf(p);
   pr.innerHTML =
     '<h2>Pattern' + (S.sel.length > 1 ? ' <span>' + S.sel.length + ' selected</span>' : '') + '</h2>' +
@@ -19389,6 +20465,7 @@ function ui() {
       (p.link ? '<div class="note" style="margin-bottom:6px">' + (p.link.kind === "instance" ? "Instance" : "Symmetric copy") + ' of <b>' + esc((byId(p.link.of)||{}).name || "?") + '</b>. Edit that one; this follows.</div>' : '') +
       (p.block && BLOCKS[p.block.type] ? '<div class="note" style="margin-bottom:6px">Part of a <b>' + esc(BLOCKS[p.block.type].name) + '</b> block (' + esc(p.block.level) + ' level).</div>' +
         '<div class="btns" style="margin-bottom:6px"><button class="btn" id="p-blk">Edit Block\u2026</button></div>' : '') +
+      (Number.isInteger(p.under3) && byId(p.under3) ? '<div class="note" style="margin-bottom:6px">Sublayer of <b>' + esc(byId(p.under3).name) + '</b>: it lies under it in 3D (the Set Sublayer tool; click it twice to take it away).</div>' : '') +
       (p.half ? '<div class="note" style="margin-bottom:6px">Symmetric unfold: the half past the blue fold line mirrors the other.</div>' : '') +
       '<div class="row"><label>Category</label><input type="text" class="w" id="pp-cat" list="pp-cats" value="' + esc(p.category) + '"' + dis + '>' +
         '<datalist id="pp-cats">' + CATEGORIES.map(c => '<option value="' + c + '">').join("") + '</datalist></div>' +
@@ -19397,7 +20474,7 @@ function ui() {
       '<div class="row"><label title="Stacking order: higher is drawn on top and clicked first">Layer</label><input type="text" inputmode="decimal" data-num="1" id="pp-lay" step="1" value="' + p.layer + '"' + dis + '></div>' +
       '<div class="row"><label for="pp-lock" title="A locked pattern can\'t be edited, moved or deleted on the canvas">Lock</label><input type="checkbox" id="pp-lock"' + (p.lock ? ' checked' : '') + '></div>' +
       '<div class="btns"><button class="btn" id="p-dup">Duplicate</button><button class="btn warn" id="p-del"' + dis + '>Delete</button></div>') +
-    stitchSec + seamSec + notchSec + lineSec + ptSec + cornerSec + foldSec + elSec +
+    stitchSec + seamSec + seamNb + notchSec + lineSec + ptSec + cornerSec + foldSec + elSec +
     sec("Fabric",
       '<div class="row"><label>Fabric</label><select class="w" id="pp-fab"' + dis + '>' + fabrics.map(f => '<option value="' + f.id + '"' + (fab && f.id === fab.id ? ' selected' : '') + '>' + esc(f.name) + '</option>').join("") + '</select></div>' +
       '<div class="row"><label title="0 is straight up and down; positive leans to the left at the top">Grain Direction (\u00b0)</label><input type="text" inputmode="decimal" data-num="1" id="pp-grain" step="1" value="' + +grainAngle(gr).toFixed(2) + '"' + dis + ' title="The Up and Down arrows step it by 45° (One Way) or 90° (Two or Four Way)"></div>' +
@@ -19417,6 +20494,10 @@ function ui() {
         '<input type="range" id="pp-s3s-r" min="0" max="100" step="1" value="' + (p.solid3s ?? SOLID_S) + '"' + dis + '><input type="text" inputmode="decimal" data-num="1" class="s" id="pp-s3s" value="' + (p.solid3s ?? SOLID_S) + '"' + dis + '></div>' : '') +
       '<div class="row"><label title="0 is no filling. With fill the pattern swells away from the patterns it is sewn to, as a cushion or a padded jacket does: more fill, fuller">Fill</label>' +
         '<input type="range" id="pp-fill-r" min="0" max="100" step="1" value="' + (p.fill || 0) + '"' + dis + '><input type="text" inputmode="decimal" data-num="1" class="s" id="pp-fill" min="0" max="100" step="1" value="' + (p.fill || 0) + '"' + dis + '></div>') +
+    // (Round FIX-3b / C) Pressure (W20: a slider under the number, 0)
+    sec("Pressure",
+      '<div class="row"><label title="A push on the cloth along its front (below 0: along its back), in Pa; 0 is none. A medium cloth weighs about 2 Pa">Pressure (Pa)</label>' +
+        '<input type="range" id="pp-press-r" min="' + -PRESS_MAX + '" max="' + PRESS_MAX + '" step="0.5" value="' + (p.press3 || 0) + '"' + dis + '><input type="text" inputmode="decimal" data-num="1" class="s" id="pp-press" value="' + (p.press3 || 0) + '"' + dis + '></div>') +
     // (Round r20 continued (4)) how the Thick styles draw this pattern
     sec("Rendering",
       '<div class="row"><label for="pp-thick3" title="How thick the Thick styles of the 3D window draw this pattern (' + RENDER_THICK + ' mm unless set). Only its look: the simulation is not changed">Rendering Thickness (mm)</label><input type="text" inputmode="decimal" data-num="1" class="s" id="pp-thick3" value="' + ((p.thick3 || {}).t || RENDER_THICK) + '"' + dis + '></div>' +
@@ -19443,11 +20524,21 @@ function ui() {
     g("sf-t").onchange = (e) => setSeamFold(ssms, { turned: e.target.checked });
     if (sf.turned === null) g("sf-t").indeterminate = true;
     num("sf-k", "strength"); num("sf-kr", "strength"); num("sf-a", "angle"); num("sf-ar", "angle");
+    // (Round FIX-3b / A) the seam's own rows
+    const val = (id, f) => { const el = g(id); if (el) el.onchange = (e) => { const v = numOf(e.target.value); if (Number.isFinite(v)) f(v); }; };
+    if (g("sp-nm")) g("sp-nm").onchange = (e) => setSeamProps(ssms, { name: e.target.value });
+    const ons = { tension: (sm) => sm.tension > 0, sub: (sm) => !!sm.sub, topstitch: seamStitched, puckering: seamPuckered };
+    for (const [id, k] of [["sp-ten", "tension"], ["sp-sub", "sub"], ["sp-st", "topstitch"], ["sp-pk", "puckering"]]) { const el = g(id); el.onchange = (e) => setSeamProps(ssms, { [k]: e.target.checked }); if (allOn(ons[k]) === 0) el.indeterminate = true; }
+    val("sp-tv", (v) => setSeamProps(ssms, { tension: Math.max(1, v) }));
+    g("sp-l3k").onchange = (e) => { if (e.target.value) setSeamProps(ssms, { line3: { kind: e.target.value } }); };
+    val("sp-l3i", (v) => setSeamProps(ssms, { line3: { i: v } })); val("sp-l3ir", (v) => setSeamProps(ssms, { line3: { i: v } })); val("sp-l3t", (v) => setSeamProps(ssms, { line3: { t: v } }));
   }
   if (elL.length && !p.lock) {
     const g = (id) => document.getElementById(id), num = (id, k, f) => { const el = g(id); if (el) el.onchange = (e) => { const v = +e.target.value; if (Number.isFinite(v)) setElastic({ [k]: f ? f(v) : v }); }; };
     g("el-on").onchange = (e) => setElastic({ on: e.target.checked });
     num("el-k", "k"); num("el-r", "r"); num("el-len", "len", fromDisp); num("el-tot", "total", fromDisp);
+    if (g("sh-on")) { g("sh-on").onchange = (e) => setShirr({ on: e.target.checked }); const sn = (id, k) => { const el = g(id); if (el) el.onchange = (e) => { const v = numOf(e.target.value); if (Number.isFinite(v)) setShirr({ [k]: fromDisp(v) }); }; };
+      sn("sh-iv", "iv"); sn("sh-h", "h"); if (g("sh-dir")) g("sh-dir").onchange = (e) => setShirr({ dir: e.target.value }); }
   }
   if (sit && !p.lock) {
     const g = (id) => document.getElementById(id), ang = (v) => { const a = +v; if (Number.isFinite(a)) setFold({ angle: a }); };
@@ -19463,6 +20554,7 @@ function ui() {
   if (sg && !p.lock) {
     const g = (id) => document.getElementById(id);
     g("sl-on").onchange = (e) => { push(); sg.sa = e.target.checked ? (S.saValue || 10) : 0; commit(); };
+    if (g("sl-tape")) g("sl-tape").onchange = (e) => setTape(e.target.checked);      // (Round BETA8-1 / E)
     g("sl-w").onchange = (e) => { const v = Math.max(0, fromDisp(+e.target.value || 0)); push(); sg.sa = v; if (v > 0) S.saValue = v; commit(); };
     const ni = (si + 1) % p.segs.length;
     wireCorners(p, { "sl-c0": [si], "sl-c1": [ni], "sl-cx": [si, ni] });
@@ -19505,6 +20597,7 @@ function ui() {
   prop("pp-qty", (el) => { p.quantity = el.value; });
   prop("pp-lay", (el) => { p.layer = el.value; });
   prop("pp-fill", (el) => { p.fill = el.value; });
+  prop("pp-press", (el) => { p.press3 = numOf(el.value); }); prop("pp-press-r", (el) => { p.press3 = +el.value; });
   prop("pp-fill-r", (el) => { p.fill = el.value; });
   prop("pp-sw", (el) => { p.shrink.w = el.value; });
   prop("pp-res3", (el) => { const v = numOf(el.value); if (isFinite(v) && v >= 5 && v < BROWSER_LIMIT.res && !DESK) { el.value = p.res3 || ""; deskOnly("A particle distance under " + BROWSER_LIMIT.res + " mm"); } else if (isFinite(v) && v >= 5 && v <= 60) p.res3 = v; else { delete p.res3; if (String(el.value).trim()) toast("A particle distance of 5 to 60 mm (empty: the document's)"); } });
@@ -19610,7 +20703,7 @@ function exportOBJ(only, kind) {
 }
 function dl(n, t, m, then) {
   if (DESK && DESK.exportFile) {
-    DESK.exportFile(n, t).then((f) => { if (f && typeof then === "function") then(f.name); }).catch((e) => toast("Couldn't save: " + deskErr(e), 6000));
+    DESK.exportFile(n, t).then((f) => { if (f && typeof then === "function") then(f.name, f.path); }).catch((e) => toast("Couldn't save: " + deskErr(e), 6000));      // (Round BETA8-1 / K: and where it went, for the library's Copy the Path)
     return;
   }
   const u = URL.createObjectURL(new Blob([t], { type: m }));
@@ -19641,6 +20734,21 @@ function dlURL(n, url, then) {
     r.readAsDataURL(f); e.target.value = "";
   }; }
 { const lb = document.getElementById("s-lib"); if (lb) lb.onclick = () => { histNote("Library"); libraryDialog(); }; }
+/* (Round BETA8-1 / G, roadmap 3.A25: the reference's menu bar has a magnifier that finds any menu row) The menu bar's search: the magnifier
+   beside the Library opens a menu of every menu of the bar, with the right-click menus' search field at its top (menuSearch()): what is
+   typed lists every row of every menu and its submenus whose name holds it ("File ▸ Export ▸ DXF…"), Enter runs the first that can be
+   run, a click runs one. What is hidden in the menus (not built, with the switch off) is not found. */
+const MENU_BAR = [["file", "File"], ["edit", "Edit"], ["3d", "3D"], ["2d", "2D"], ["materials", "Materials/UV"], ["avatar", "Avatar"], ["fabric", "Fabric"], ["production", "Production"], ["render", "Render"], ["settings", "Settings"], ["help", "Help"]];
+function menuBarSearch() {
+  hideMenu(); closeFlyouts();
+  const b = document.getElementById("s-find"), r = b && b.getBoundingClientRect ? b.getBoundingClientRect() : { left: 200, bottom: 24 };
+  const items = MENU_BAR.filter(([k]) => MENUS[k]).map(([k, n]) => ({ n, menu: () => MENUS[k]() }));
+  listMenu(items, r.left, r.bottom + 1);
+  const inp = document.querySelector && document.querySelector("#menu .msearch input");
+  if (inp && inp.focus) inp.focus();
+  return items;
+}
+{ const fb = document.getElementById("s-find"); if (fb) fb.onclick = (e) => { if (e && e.stopPropagation) e.stopPropagation(); menuBarSearch(); }; }      // (a second click closes it: popOwner)
 document.getElementById("ex-svg").onclick = () => {
   // with a size picked in the Grading panel, that size is what is exported
   const gs = gSize(S.grading, S.grading.active);
@@ -19924,14 +21032,16 @@ function openFile(name, bytes, path, sure) {
    Below the Others, In the Middle of the Window (S.added: their ids and where they were saved). Not added: the other document's
    guidelines, measurements, line links, Print Layout, library items other than fabrics, symmetric unfold links (the patterns
    stay as they are drawn), and its 3D arrangement and drape (the patterns stand where 3D puts new patterns). */
-function addProject() { pickBinary(".pdraft,.json", (name, buf) => readDocBytes(name, new Uint8Array(buf), (err, d) => err ? toast("Couldn't add " + name + ": " + err, 6000) : addDocument(name, d)), true); }
+// (Round BETA8-1 / K, roadmap 3.C4) through the Open Garment box, Add chosen (its Translation)
+function addProject() { pickBinary(".pdraft,.json", (name, buf) => readDocBytes(name, new Uint8Array(buf), (err, d) => err ? toast("Couldn't add " + name + ": " + err, 6000) : openGarmentDialog(name, d, "add")), true); }
 // a pattern file's bytes as a document object: done(error text or null, d)
 function readDocBytes(name, bytes, done) {
   if (!isZip(bytes)) { let d = null; try { d = JSON.parse(utf8Text(bytes)); } catch (e) {} return d && Array.isArray(d.pieces) ? done(null, d) : done("expected a pattern file (.pdraft or .json)"); }
   zipUnpack(bytes, (err, parts) => { let d = null; try { if (err) throw err; d = pdraftDoc(parts); } catch (e) { return done(deskErr(e)); } done(null, d); });
 }
-function addDocument(name, d) {
+function addDocument(name, d, opt) {
   if (!d || !Array.isArray(d.pieces) || !d.pieces.length) { toast("There are no patterns in " + name); return 0; }
+  const mv = opt && Array.isArray(opt.move) && opt.move.some(c => c) ? opt.move : null;      // (Round BETA8-1 / K) the Open Garment box's Translation, mm, 3D axes
   defaultsFill(d, defaultsOf(d));                            // (Round H1a / 2) with the defaults it was written with, as an opened file
   // the other document's patterns, read as a file is read (their own migrations), with ids above the open document's
   S.nextSegId = Math.max(S.nextSegId, d.nextSegId || 1, maxSegId(d.pieces) + 1, maxSegId(S.pieces) + 1);
@@ -19968,7 +21078,7 @@ function addDocument(name, d) {
     // the fabric: the open document's of the same name, else the other document's added to the library
     const f = fabrics.find(x => x.id === p.fabric);
     if (f && fab.has(f.id)) p.fabric = fab.get(f.id);
-    else if (f) { const L = libOf(), same = L.fabric.find(x => x.name === f.name), it = same || normLibItem("fabric", f, L.nextId++); if (!same) L.fabric.push(it); fab.set(f.id, it.id); p.fabric = it.id; }
+    else if (f) { const L = libOf(), same = L.fabric.find(x => x.name === f.name), it = same || normLibItem("fabric", f, L.nextId++); if (!same) { if (it.tex) { if (img.has(it.tex.img)) it.tex.img = img.get(it.tex.img); else delete it.tex; } L.fabric.push(it); } fab.set(f.id, it.id); p.fabric = it.id; }
     else delete p.fabric;
   }
   const part = (q) => ({ ...q, piece: pid.get(q.piece), shape: sh0(q.piece, q.shape), sids: q.sids.map(x => segOf(q.piece, x)) });
@@ -19989,10 +21099,14 @@ function addDocument(name, d) {
   S.pieces.push(...inc); S.seams.push(...seams); S.stitches = [...(S.stitches || []), ...stitches];
   for (const k of ["pipings", "bindings", "glues"]) S[k] = [...(S[k] || []), ...tr[k]];
   bakeDarts(inc);                                            // its darts are made of ordinary lines, as a file's are (Round F / 7)
+  // (Round BETA8-1 / K) moved by the Translation: in 2D x right and y up (the 2D axes are the 3D floor and center line), then in 3D z
+  if (mv && (mv[0] || mv[1])) for (const p of inc) mapPiece(p, (r) => add(r, V(mv[0], -mv[1])));
   setTool("transform_pattern");
   S.sel = inc.map(p => p.id); S.selPt = S.selSeg = S.selInt = -1; S.selKind = "outline";
-  S.added = { ids: S.sel.slice(), at: V(bi.x0, bi.y0) };
-  commit(); fitAll();
+  S.added = { ids: S.sel.slice(), at: mv ? V(bi.x0 + mv[0], bi.y0 - mv[1]) : V(bi.x0, bi.y0) };
+  commit();
+  if (mv && mv[2]) { for (const p of inc) if (p.p3) p.p3.pos[2] += mv[2]; commit(); }
+  fitAll();
   toast("Added " + name + ": " + inc.length + (inc.length === 1 ? " pattern" : " patterns") + (seams.length ? ", " + seams.length + (seams.length === 1 ? " seam" : " seams") : ""));
   return inc.length;
 }
@@ -20029,8 +21143,10 @@ function myPatterns() {
   try { list = JSON.parse(kv().getItem(LIB_KEY) || "[]"); } catch (e) { list = []; }
   return Array.isArray(list) ? list.filter(x => x && typeof x.name === "string" && x.doc && Array.isArray(x.doc.pieces)) : [];
 }
-function libraryOpen(entry) { openLoaded(entry.name, clone(entry.doc), null); }
-function libraryAdd(entry) { return addDocument(entry.name, clone(entry.doc)); }
+// (Round FIX-3b / 0) a block that ships with the program comes in at body height (bodyPlace()); the user's own patterns where saved
+const libDoc = (entry) => { const d = clone(entry.doc); if (shippedBlocks().includes(entry)) { bodyPlace(d.pieces); for (const p of d.pieces) delete p.p3; } return d; };
+function libraryOpen(entry) { openLoaded(entry.name, libDoc(entry), null); }
+function libraryAdd(entry) { return addDocument(entry.name, libDoc(entry)); }
 function saveToLibrary(name) {
   const ask = (n) => {
     n = String(n || "").trim();
@@ -20041,7 +21157,8 @@ function saveToLibrary(name) {
     catch (e) { kept = false; }
     // and the file, so the pattern is not only in this browser
     let files = null; try { files = pdraftFiles(); } catch (e) {}
-    if (files) zipPack(files, (bytes) => dl(n.replace(/[\\/:*?"<>|]+/g, "_") + ".pdraft", bytes, "application/octet-stream"));
+    // (Round BETA8-1 / K) in the desktop app the entry remembers the file it was saved as (Copy the Path, Show in Explorer)
+    if (files) zipPack(files, (bytes) => dl(n.replace(/[\\/:*?\x22<>|]+/g, "_") + ".pdraft", bytes, "application/octet-stream", (f, where) => { if (kept && typeof where === "string" && where) libraryPath(n, where); }));
     toast(kept ? "Saved to the library as " + n + ", and as the file " + n + ".pdraft" : "This browser would not keep it (its storage may be full or blocked): saved as the file " + n + ".pdraft only", 6000);
     if (dlg.className === "library") libraryDialog();
   };
@@ -20051,6 +21168,43 @@ function saveToLibrary(name) {
 function libraryDelete(name) {
   try { kv().setItem(LIB_KEY, JSON.stringify(myPatterns().filter(x => x.name !== name))); } catch (e) { return toast("This browser would not change its storage"); }
   toast(name + " taken out of the library"); libraryDialog();
+}
+// (Round BETA8-1 / K) a library entry's file, once the desktop app saved it (saveToLibrary())
+function libraryPath(name, where) {
+  try { kv().setItem(LIB_KEY, JSON.stringify(myPatterns().map(x => x.name === name ? { ...x, path: where } : x))); } catch (e) {}
+}
+/* (Round BETA8-1 / K, roadmap 1.T34 / 3.C3, W8) A library item's right-click menu: Add to Workspace (the Open Garment box with Add
+   chosen), Copy the Path and Show in Explorer (a pattern of one's own the desktop app saved: the file it was saved as; a shipped block
+   is no file of its own, so it has neither: guess beta8-1/19). Show in Explorer is the desktop app's only (desktop.showFile(): a
+   .pdraft file that is there, no other path). */
+function libraryItemRows(entry) {
+  const where = typeof entry.path === "string" && entry.path ? entry.path : "";
+  return [{ hd: esc(entry.name) },
+    { n: "Add to Workspace", f: () => openGarmentDialog(entry.name, libDoc(entry), "add") },
+    ...(where ? [{ n: "Copy the Path", f: () => copyText(where).then(() => toast("Copied: " + where)).catch(() => toast("The clipboard would not take it")) }] : []),
+    ...(where && DESK && DESK.showFile ? [{ n: "Show in Explorer", f: () => DESK.showFile(where).then((ok) => { if (!ok) toast("That file is no longer there: " + where, 6000); }).catch(() => toast("Couldn't show it")) }] : [])];
+}
+/* (Round BETA8-1 / K, roadmap 3.C4, W9 Open Garment) The box before a garment comes in from the library (a double-click on it, Add to
+   Workspace) or from File ▸ Add ▸ Project: Load Type Open (a new document, unsaved work asked about first) or Add (into the open one,
+   one step), and Add's Translation: X, Y, Z in a Unit of its own (mm, cm, m, in; opening at the display unit, guess beta8-1/20), every
+   pattern added moved by as much in 3D (x to the right, y up, z forward) and in 2D (whose axes are the 3D floor and center line). The
+   reference's Content rows (Garment, Display Settings) are greyed there: left out. W10's Pose & Size: not here (a library entry and an
+   added project bring no avatar; opening a file stands its avatar as the file has it, for that document only, as before). */
+const OG_UNITS = [["mm", "mm", 1], ["cm", "cm", 10], ["m", "m", 1000], ["in", "in", 25.4]];
+function openGarmentDialog(name, d, load) {
+  const u0 = OG_UNITS.some(u => u[0] === S.unit) ? S.unit : "mm";
+  numDialog("Open Garment", [
+    { k: "load", label: "Load Type", val: load === "add" ? "add" : "open", options: [["open", "Open"], ["add", "Add"]], radios: true, head: "Load Type" },
+    { k: "x", head: "Translation (Add)", label: "X", val: 0, unit: "" }, { k: "y", label: "Y", val: 0, unit: "" }, { k: "z", label: "Z", val: 0, unit: "" },
+    { k: "unit", label: "Unit", val: u0, options: OG_UNITS.map(([k, n]) => [k, n]) }],
+    { x: window.innerWidth/2 - 160, y: 120 }, (v) => openGarmentGo(name, d, v),
+    { reset: { load: "open", x: 0, y: 0, z: 0, unit: u0 }, hint: name + ": Open makes it the document (asking about unsaved work first); Add puts its patterns beside what is there, moved by the Translation (X right, Y up, Z forward, in 3D and in 2D)." });
+}
+function openGarmentGo(name, d, v) {
+  if (v.load !== "add") return openLoaded(name, d, null);
+  const k = (OG_UNITS.find(u => u[0] === v.unit) || OG_UNITS[0])[2], mv = [+v.x || 0, +v.y || 0, +v.z || 0].map(c => c*k);
+  if (!mv.every(Number.isFinite)) return toast("Numbers only");
+  return addDocument(name, d, { move: mv });
 }
 function libraryDialog() {
   hideMenu(); closeFlyouts(); hideDlg();
@@ -20075,6 +21229,13 @@ function libraryDialog() {
     if (!e) return;
     if (b.dataset.a === "del") return libraryDelete(e.name);
     hideDlg(); if (b.dataset.a === "open") libraryOpen(e); else libraryAdd(e);
+  });
+  // (Round BETA8-1 / K, W8 / W9) a row's right-click: its menu; a double-click on its name: the Open Garment box
+  if (dlg.querySelectorAll) dlg.querySelectorAll(".lb-row").forEach((r, k) => {
+    const e = k < blocks.length ? blocks[k] : mine[k - blocks.length];
+    if (!e) return;
+    r.oncontextmenu = (ev) => { ev.preventDefault(); listMenu(libraryItemRows(e), ev.clientX, ev.clientY); };
+    const nm = r.querySelector && r.querySelector(".lb-name"); if (nm) nm.ondblclick = () => { hideDlg(); openGarmentDialog(e.name, libDoc(e), "open"); };
   });
   const sv = dlg.querySelector("#lb-save"); if (sv) sv.onclick = () => saveToLibrary();
   const x = dlg.querySelector("#dlg-x"); if (x) x.onclick = hideDlg;
@@ -20531,7 +21692,7 @@ function hpShowHere() {
 }
 /* ================================================================
    (Round H1d / B) HISTORY GROUPS
-   Patterns selected, right-click ▸ More ▸ Create History Group…, a name: from that step on the history of those patterns is a lane of
+   Patterns selected, right-click ▸ Create History Group… (2D and 3D; under More until FIX-2), a name: from that step on the history of those patterns is a lane of
    its own in the History panel (a band with the group's colour, its icon's shape and its name; never told by colour alone). Every
    step goes to the lane of the patterns it changed: all in one group, that group's lane; patterns of several groups, patterns in none,
    or anything of the document as a whole (fabrics, grading, sewing to a pattern of another group, the avatar, …), the Shared lane.
@@ -21224,7 +22385,7 @@ function nestPack(items, W, opt) {
   const gap = opt.gap || 0, pad = gap/2, cell = opt.cell || Math.min(20, Math.max(4, W/110)), cols = Math.max(1, Math.floor((W + gap)/cell)), rots = opt.rots && opt.rots.length ? opt.rots : [0];
   const grid = [], top = new Array(cols).fill(0), place = {};
   const area = (it) => { const b = turnPoly(it.poly, 0, false).pts; return Math.max(...b.map(q => q.x))*Math.max(...b.map(q => q.y)); };
-  for (const it of items.slice().sort((a, b) => area(b) - area(a))) {
+  for (const it of opt.keep ? items : items.slice().sort((a, b) => area(b) - area(a))) {      // (Round BETA8-1 / F) keep: in the order given
     let best = null;
     for (const rot of it.rots || rots) {
       const bf = turnBuffer(opt.buffer, rot, !!it.flip), cl = (v) => Math.ceil(v/cell - 1e-9);
@@ -21250,6 +22411,88 @@ function nestPack(items, W, opt) {
     place[it.key] = { x: best.x*cell + best.m.off.x, y: best.y*cell + best.m.off.y, rot: best.rot, flip: !!it.flip };
   }
   return { place, length: Math.max(0, ...top)*cell, cell };
+}
+/* (Round BETA8-1 / F, roadmap 1.H22; the housekeeping video 17:03: "stop nesting while it's doing all that, sometimes it takes very long,
+   that's why you have to stop it") NEST ALL GOES ON IMPROVING, STOP NESTING. Nest All Patterns nests at once as before (the largest
+   first: its step "Nest Patterns"), then goes on trying other orders in the background (a few swaps of the best order so far, and for
+   each pattern which of its allowed turns it tries first), a slice of NEST_SLICE ms a frame, and keeps a marker only when it is shorter
+   (all fabrics' markers together; the same length with fewer patterns left off counts as shorter). The bar's Stop Nesting (shown while it
+   runs, with the tries and the best length in the status) ends it; it also ends by itself after NEST_TRIES tries or NEST_MS, and the
+   moment anything else touches the history (pushFlush(): a step, undo, redo, going to a step) or the layout's commands. What it found is
+   part of the Nest Patterns step (undo takes the whole nest back). Guess beta8-1/12: the tries, the time and what is varied are ours. */
+const NEST_TRIES = 400, NEST_MS = 30000, NEST_SLICE = 30;
+var NEST_RUN = { on: false };      // (a var: pushFlush() asks it, at any time)
+// one marker per fabric from an order of the copies' keys (and a turn to try first per key): { place, length, left }
+function nestTry(order, first) {
+  const L = layoutOf(), place = {};
+  let length = 0, left = 0;
+  for (const fk of layoutGroups()) {
+    const copies = layoutCopies().filter(c => fk == null || fabKey(c.src) === fk);
+    if (!copies.length) continue;
+    const at = new Map((order || []).map((k, i) => [k, i]));
+    const items = copies.slice().sort((a, b) => (at.get(a.key) ?? 1e9) - (at.get(b.key) ?? 1e9)).map(c => {
+      const rots = grainRots(c.src), f = first && first.get(c.key);
+      return { key: c.key, poly: layoutOutline(c.p), flip: c.pair, rots: f !== undefined && rots.includes(f) ? [f, ...rots.filter(r => r !== f)] : rots };
+    });
+    const res = nestPack(items, layoutSheet(fk).width, { gap: L.gap, buffer: L.buffer, keep: !!order });
+    for (const c of copies) { if (res.place[c.key]) place[c.key] = res.place[c.key]; else left++; }
+    length += res.length;
+  }
+  return { place, length, left };
+}
+const nestBetter = (a, b) => a.left < b.left || (a.left === b.left && a.length < b.length - 1e-6);
+function nestStart() {
+  nestStop(true);
+  const L = layoutOf(), copies = layoutCopies();
+  if (copies.length < 2) return;
+  // nestPack()'s own order (the largest box first): the first nest as nestLayout() laid it
+  const area = (c) => { const b = turnPoly(layoutOutline(c.p), 0, false).pts; return Math.max(...b.map(q => q.x))*Math.max(...b.map(q => q.y)); };
+  const order = copies.slice().sort((a, b) => area(b) - area(a)).map(c => c.key), now = nestTry(order, null);
+  // the first nest as it was laid (nestLayout()) is what is kept until a try beats it
+  NEST_RUN.on = true; NEST_RUN.byHand = false; NEST_RUN.tries = 0; NEST_RUN.t0 = Date.now(); NEST_RUN.order = order; NEST_RUN.first = new Map(); NEST_RUN.best = now; NEST_RUN.found = 0;
+  NEST_RUN.start = now.length;
+  layoutToolsBuild(); nestStatus();
+  if (typeof setTimeout === "function") NEST_RUN.timer = setTimeout(nestSlice, 0);
+}
+function nestSlice() {
+  if (!NEST_RUN.on) return;
+  const R = NEST_RUN, t1 = Date.now() + NEST_SLICE, keys = R.order;
+  while (Date.now() < t1 && R.tries < NEST_TRIES) {
+    R.tries++;
+    const o = keys.slice(), first = new Map(R.first), swaps = 1 + Math.floor(Math.random()*3);
+    for (let s = 0; s < swaps; s++) { const i = Math.floor(Math.random()*o.length), j = Math.floor(Math.random()*o.length); [o[i], o[j]] = [o[j], o[i]]; }
+    const c = layoutCopies().find(x => x.key === o[Math.floor(Math.random()*o.length)]);
+    if (c) { const rots = grainRots(c.src); first.set(c.key, rots[Math.floor(Math.random()*rots.length)]); }
+    const r = nestTry(o, first);
+    if (nestBetter(r, R.best)) { R.best = r; R.order = o; R.first = first; R.found++; nestApply(r); }
+  }
+  nestStatus();
+  if (R.tries >= NEST_TRIES || Date.now() - R.t0 > NEST_MS) return nestStop();
+  if (typeof setTimeout === "function") R.timer = setTimeout(nestSlice, 0);
+}
+function nestApply(r) {
+  const L = layoutOf();
+  for (const c of layoutCopies()) delete L.place[c.key];
+  Object.assign(L.place, r.place);
+  layoutSync(); if (S.mode === "layout") drawLayout();
+}
+// quiet: started again or given up without a word
+function nestStop(quiet) {
+  if (!NEST_RUN.on) return false;
+  const R = NEST_RUN;
+  R.on = false;
+  if (R.timer && typeof clearTimeout === "function") clearTimeout(R.timer);
+  R.timer = null;
+  layoutToolsBuild();
+  if (R.found) { commit(); }      // (part of the Nest Patterns step: the history holds the state before it)
+  if (!quiet && (R.found || R.byHand)) { const s = layoutStats(); toast("Nesting stopped after " + R.tries + " tries: " + metricAnd(s.length, true) + " long, " + s.use.toFixed(1) + " % of the cloth used" + (R.found ? " (" + metricAnd(R.start - R.best.length, true) + " shorter than the first nest)" : " (the first nest was the best)"), 5000); }
+  nestStatus();
+  return true;
+}
+// the bar's Stop Nesting says how far it has come
+function nestStatus() {
+  const b = typeof document !== "undefined" && document.querySelector && document.querySelector('#lay-tools [data-cmd="stop"]');
+  if (b && NEST_RUN.on) b.title = "Stop Nesting\n" + NEST_RUN.tries + " tries, best " + metricAnd(NEST_RUN.best.length, true);
 }
 // Nest Patterns: every copy, on the layout's width, turned only as its grain allows ((r25) its own Grain Orientation, else the
 // layout's Grain Direction)
@@ -21315,10 +22558,13 @@ function layoutJob() {
   for (const fk of layoutGroups()) {
     const st = layoutPrintSt(fk), ps = layoutPieces(fk), sheet = layoutSheet(fk), stat = layoutStats(fk);
     if (!ps.length) continue;
-    const plan = printPlan({ x0: 0, y0: 0, x1: Math.max(sheet.width, 1), y1: Math.max(stat.length + 2, 1) }, st);
+    const ex = layoutExtras(fk, st), plan = printPlan({ x0: 0, y0: 0, x1: Math.max(sheet.width, 1), y1: Math.max(stat.length + 2 + ex.more, 1) }, st);
     if (!plan) continue;
-    const pieces = ps.map(x => x.piece), tiles = usedTiles(plan, pieces);
-    jobs.push({ plan, tiles, pieces, html: printHTML(plan, tiles, printInner(pieces, { ...st, info: { ...st.info, grainline: true } }, S.unit), st, layoutOf().name || "Pattern layout") });
+    const pieces = ps.map(x => x.piece), tiles = usedTiles(plan, pieces), T = (q) => q.x.toFixed(3) + "," + q.y.toFixed(3);
+    // (Round BETA8-1 / C2) the buffer spacing, the fabric's outline and the nesting information
+    const extra = ex.lines.map(l => { const S2 = st.lines[l.k] || { color: "#000000", dash: "solid" }; return '<path data-layer="' + l.k + '" d="M ' + l.pts.map(T).join(" L ") + (l.closed ? " Z" : "") + '" fill="none" stroke="' + (S2.color || "#000000") + '" stroke-width="0.25"' + (PRINT_DASH[S2.dash] ? ' stroke-dasharray="' + PRINT_DASH[S2.dash] + '"' : '') + '/>'; })
+      .concat(ex.texts.map(t => '<text data-layer="' + t.k + '" x="' + t.at.x.toFixed(2) + '" y="' + t.at.y.toFixed(2) + '" font-family="sans-serif" font-size="4" fill="#000">' + esc(t.t) + '</text>')).join("\n");
+    jobs.push({ plan, tiles, pieces, html: printHTML(plan, tiles, printInner(pieces, { ...st, info: { ...st.info, grainline: true } }, S.unit) + (extra ? "\n" + extra : ""), st, layoutOf().name || "Pattern layout") });
   }
   if (!jobs.length) return null;
   if (jobs.length === 1) return jobs[0];
@@ -21613,7 +22859,9 @@ function layoutMenu(x, y, key) {
 }
 function layoutCmd(what) {
   const L = layoutOf();
-  if (what === "nest") { push("Nest Patterns"); const note = nestLayout(); commit(); layoutFit(); const s = layoutStats(); return toast(note || "Nested: " + metricAnd(s.length, true) + " long, " + s.use.toFixed(1) + " % of the cloth used", note ? 6000 : 3500); }
+  if (what === "stop") { if (NEST_RUN.on) NEST_RUN.byHand = true; return nestStop(); }      // (Round BETA8-1 / F)
+  nestStop(true);
+  if (what === "nest") { push("Nest Patterns"); const note = nestLayout(); commit(); layoutFit(); const s = layoutStats(); nestStart(); return toast(note || "Nested: " + metricAnd(s.length, true) + " long, " + s.use.toFixed(1) + " % of the cloth used" + (NEST_RUN.on ? "; looking for a shorter one (Stop Nesting ends it)" : ""), note ? 6000 : 3500); }
   if (what === "unnest") { push("Remove All Nesting"); L.place = {}; Object.assign(L.place, defaultPlaces(layoutCopies(), "window")); commit(); layoutFit(); return toast("Back as the patterns lie in the 2D window"); }
   if (what === "row") { push("Default Arrangement"); L.place = defaultPlaces(layoutCopies(), "row"); commit(); layoutFit(); return toast("One row, side by side"); }
   if (what === "labels") { push("Auto Arrange Labels"); L.labels = L.labels === "center" ? "pattern" : "center"; commit(); return toast(L.labels === "center" ? "Names at the middle of each pattern" : "Names where they are in the 2D window"); }
@@ -21727,7 +22975,7 @@ function modeMenu() {
 const LAY_BAR = 36;                                         // its width, px (#lay-tools)
 const LAY_TOOLS = [
   ["nest", "Nest All Patterns", "M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z", true],
-  ["stop", "Stop Nesting", "M6 6h12v12H6z", false],
+  ["stop", "Stop Nesting", "M6 6h12v12H6z", true],      // (Round BETA8-1 / F: built; pressed only while nesting)
   ["settings", "Nest Settings", "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2", true],
   ["unnest", "Remove All Nesting Patterns", "M4 4h7v7H4zM13 13h7v7h-7zM14 4l6 6M20 4l-6 6", true],
   ["unnestAdd", "Remove Add'l Nesting Patterns", "M4 4h7v7H4zM14 7h6", false],
@@ -21755,6 +23003,7 @@ function layoutToolsBuild() {
     if (k === "manual") { b.id = "lay-manual"; if (S.layManual && b.classList) b.classList.add("on"); }
     if (k === "paper") { b.id = "lay-paper"; if (b.setAttribute) b.setAttribute("aria-pressed", S.layPaper ? "true" : "false"); if (S.layPaper && b.classList) b.classList.add("on"); }
     if (!built) b.disabled = true;
+    else if (k === "stop" && !NEST_RUN.on) { b.disabled = true; b.title = "Stop Nesting (nothing is nesting now)"; }
     else b.onclick = (e) => { if (e && e.stopPropagation) e.stopPropagation(); if (k === "paper") { S.layPaper = !S.layPaper; layoutToolsBuild(); return drawLayout(); } if (k === "tape") return layTape(!(S.layTape && S.layTape.on)); if (k === "manual") return layManual(!S.layManual); if (k === "settings") return layoutNestSettings(); if (k === "plotter") return plotterDialog(); layoutCmd(k); };
     bar.appendChild(b);
     if (k === "snap" || k === "tape") { const sp = document.createElement("div"); sp.className = "sep"; bar.appendChild(sp); }
@@ -21894,17 +23143,30 @@ function fitMenu(el, x, y, row, above) {
   else { left = side(x, x, w, W); top = above ? (y - 6 - h >= m ? y - 6 - h : side(y, y, h, H)) : side(y, y, h, H); }
   el.style.left = left + "px"; el.style.top = top + "px";
 }
-function listMenu(items, x, y, above, bar) {
+function listMenu(items, x, y, above, bar, tab) {
   hideDlg(); closeFlyouts(); closeSubs(0);
-  menuRows(menu, items, 0, (rows) => listMenu(rows, x, y, above, bar));
+  // (Round BETA8-1 / L) a menu with tabs (items.tabs: the pattern menu, patternTabs()) shows the one chosen, All the rows as they are
+  const tabs = !bar && items.tabs, k = tabs && tab && tabs[tab] ? tab : "all";
+  menuRows(menu, k === "all" ? items : tabs[k], 0, (rows) => listMenu(rows, x, y, above, bar));
+  if (tabs) menuTabs(menu, items, x, y, above, k);
   if (!bar && menuRowCount(items) >= MENU_SEARCH_MIN) menuSearch(menu, items, x, y, above);
   menu.style.display = "block";
   fitMenu(menu, x, y, null, above);
 }
+// the pills of a menu with tabs, at its top (under the search field, which goes in above them); the chosen one marked by its fill and
+// a thicker edge, and aria-pressed (never by colour alone)
+function menuTabs(el, items, x, y, above, k) {
+  const bar = document.createElement("div");
+  bar.className = "mtabs";
+  bar.innerHTML = MENU_TABS.map(([t, n]) => '<button type="button" class="mtab' + (t === k ? " on" : "") + '" data-tab="' + t + '" aria-pressed="' + (t === k) + '">' + n + '</button>').join("");
+  el.insertBefore(bar, el.firstChild);
+  if (bar.querySelectorAll) bar.querySelectorAll("button[data-tab]").forEach(b => b.onclick = (e) => { if (e && e.stopPropagation) e.stopPropagation(); listMenu(items, x, y, above, false, b.dataset.tab); });
+  return bar;
+}
 /* (Round r20 / 10, the manual's right-click menu search: REC W1, W18) a right-click menu of MENU_SEARCH_MIN rows or more has a search
    field at its top: what is typed keeps only the rows whose names hold it, those of its submenus too (written "Submenu ▸ Row"),
-   in one flat list; Enter runs the first row that is not greyed, Esc closes the menu. The tabs the reference has above it (All,
-   Edit, Pattern, Line, Arrange) are not built: which row is in which tab is not known (guess r20/37). */
+   in one flat list; Enter runs the first row that is not greyed, Esc closes the menu. The tabs the reference has under it (All,
+   Edit, Pattern, Line, Arrange) are the pattern menu's, built in Round BETA8-1 / L from W1's frames (menuTabs(), patternTabs()). */
 const MENU_SEARCH_MIN = 10;
 const menuRowCount = (items) => items.filter(it => it && !it.sep && !it.hd).length;
 function menuFlat(items, pre, out, depth) {
@@ -21928,6 +23190,7 @@ function menuSearch(el, items, x, y, above, q) {
     const t = inp.value.trim().toLowerCase();
     const rows = t ? menuFlat(items).filter(it => String(it.n).toLowerCase().includes(t)) : items;
     menuRows(el, t && !rows.length ? [{ hd: "Nothing called \u201c" + esc(inp.value.trim()) + "\u201d" }] : rows, 0, (r) => listMenu(r, x, y, above));
+    if (items.tabs) menuTabs(el, items, x, y, above, "all");      // (Round BETA8-1 / L) the search looks through the whole menu: All
     menuSearch(el, items, x, y, above, inp.value);
     fitMenu(el, x, y, null, above);
   };
@@ -21942,8 +23205,10 @@ function menuSearch(el, items, x, y, above, q) {
   if (q !== undefined && inp.focus) { inp.focus(); if (inp.setSelectionRange) inp.setSelectionRange(inp.value.length, inp.value.length); }
 }
 // a right-click menu's row for a command the reference menus have and this program has not built yet: shown greyed, and
-// marked so in words, never hidden (Round G1). A click says so.
-const ctxNb = (n, k) => ({ n, k: k || "", off: true, nb: true, note: "not built yet", f: () => toast(n + " is not built yet") });
+// marked so in words (Round G1). A click says so. (Round BETA8-PREP / A: it follows Show Tools That Are Not Built Yet as every other
+// not-built row does: with the switch off it is null, which every menu leaves out, and a submenu left empty goes with it; the beta.8
+// sweep found 13 such rows in the 3D pattern and background menus and the 2D pattern menu with default settings.)
+const ctxNb = (n, k) => S.ui && S.ui.unbuilt ? { n, k: k || "", off: true, nb: true, note: "not built yet", f: () => toast(n + " is not built yet") } : null;
 /* This program's own commands that the reference menus do not have, and that nothing else reaches: kept together under one
    row, More ▸, at the end of a right-click menu (Round G1). Nothing there is from the references; they are still to be checked. */
 const ctxMore = (rows) => { const r = rows.filter(Boolean); return r.length ? [{ sep: 1 }, { n: "More", menu: () => r }] : []; };
@@ -21952,7 +23217,9 @@ function selectorItems(group) {
   const again = () => selectorItems(group), name = VIEW_GROUPS.find(g => g[0] === group)[1];
   if (group === "render") return [{ hd: name }, ...RENDER.flatMap(([k, n]) => [{ n, k: keyOf("render:" + k), on: ((S.ui.render || "front") === k), f: () => setRender(k), keep: again },
     ...(k === "transparent" ? [{ n: "Show Mesh", on: !!S.ui.mesh2, f: () => setMesh2(!S.ui.mesh2), keep: again }] : [])])].filter(Boolean);
-  return [{ hd: name }, ...VIEW.filter(v => v[2] === group).map(([k, n]) => ({ n: group === "lock" ? n : "Show " + n, k: keyOf("show:" + k), on: !!S.show[k], f: () => setView(k, !S.show[k]), keep: again }))];
+  return [{ hd: name }, ...VIEW.filter(v => v[2] === group).map(([k, n]) => ({ n: group === "lock" ? n : "Show " + n, k: keyOf("show:" + k), on: !!S.show[k], f: () => setView(k, !S.show[k]), keep: again })),
+    // (Round FIX-2 / B, the maintainer's brief) the avatar's outline in the 2D window's own display button too (it was only in Settings ▸ Display and More ▸)
+    ...(group === "garment" ? [{ sep: 1 }, { n: "Avatar Outline", menu: avOutRows }] : [])];
 }
 // one switch of the 3D window's display lists (VIEW3D): on unless it was switched off
 const show3 = (k) => (S.ui.show3d || {})[k] !== false;
@@ -22007,11 +23274,16 @@ function buildSelectors() {
     for (const [id, ic, go] of [["quality3d", "M12 3l8 4.500v9L12 21l-8-4.500v-9zM12 12l8-4.500M12 12v9M12 12L4 7.500", () => setQuality3(!S.ui.quality3)], ["schem3d", "M8 4l-5 3 2 4 2-1v10h10V10l2 1 2-4-5-3a4 4 0 0 1-8 0M7 14h10M12 9v11", () => setSchem3(!S.ui.schem3)]]) {
       const qb = document.createElement("button"); qb.id = id; qb.innerHTML = svgIcon(ic); qb.onclick = (e) => { if (e && e.stopPropagation) e.stopPropagation(); go(); }; h3.appendChild(qb);
     }
+    // (Round FIX-2 / C5, the maintainer's feedback) a divider after the two render switches and before Render: a gap and a rule, so
+    // the groups read apart by place and shape, not colour
+    const rule = () => { const d = document.createElement("div"); d.className = "sel-div"; if (d.setAttribute) d.setAttribute("role", "separator"); h3.appendChild(d); };
+    rule();
     selLook3();
     const items = (g, name) => () => [{ hd: name }, ...VIEW3D[g].map(([k, n]) => ({ n, k: keyOf("show3:" + k), on: show3(k), f: () => setShow3(k, !show3(k)), keep: items(g, name) }))];
     mk(h3, "garment3", "Garment Display", SEL_ICON.garment, items("garment", "Garment Display")); mk(h3, "trim3", "Trim Display", SEL_ICON.trim, items("trim", "Trim Display"));
     mk(h3, "avatar3", "Avatar Display", SEL_ICON.avatar, avatarItems); mk(h3, "render3", "Garment Rendering Style", SEL_ICON.render, render3Items);
     // (Round r19 follow-up, H22) Render… from the 3D view itself
+    rule();
     const rb = document.createElement("button"); rb.id = "render3d"; rb.title = "Render: the Render workspace, in the 2D window's place"; rb.innerHTML = svgIcon("M4 7h3l2-3h6l2 3h3v12H4zM12 10a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM18 4l1-2M20 6l2-1");
     rb.onclick = (e) => { if (e && e.stopPropagation) e.stopPropagation(); renderDialog(); }; h3.appendChild(rb);
   }
@@ -22042,6 +23314,78 @@ function obAdd() {
   push(); const it = libAdd(o.tab); o.sel = it.id; commit();
 }
 function obCopy() { const s = obItem(); if (!s) return; push(); const it = libAdd(s.kind, s.it); obState().sel = it.id; commit(); }
+/* (Round BETA8-1 / H, roadmap 2.C33, the 2D comparison §33: "a '…' menu per item … import, export") Each library item's "…" in the
+   Object Browser: Duplicate, Rename…, Export…, Import…, Delete, one step each but Export. Export writes the item as a file of ours (JSON:
+   { gusset: "library-item", kind, item }, a fabric's texture picture inside it); Import reads such a file into this item: its
+   properties and name are the file's, its id stays, so every pattern, button or zipper using it keeps it (guess beta8-1/15). A file of
+   another kind is refused by name. glTF export is AFTER 1.0. */
+const LIB_FILE = "library-item";
+function libItemText(kind, it) {
+  const item = { ...it }; delete item.id;
+  const out = { gusset: LIB_FILE, v: 1, kind, item };
+  if (kind === "fabric" && it.tex) { const im = (S.images || []).find(x => x.id === it.tex.img); if (im) out.image = { name: im.name, data: im.data, w: im.w, h: im.h }; }
+  return JSON.stringify(out, null, 1);
+}
+function libItemExport(kind, it) {
+  const base = String(it.name || LIB[kind].name).replace(/[\\/:*?\x22<>|]/g, "_");
+  dl(base + "." + kind + ".json", libItemText(kind, it), "application/json", (f) => toast("Exported " + f));
+}
+// a file's text read into the item kind / id: "" when done, else why not
+function libItemImportText(kind, id, text) {
+  let d = null;
+  try { d = JSON.parse(text); } catch (e) {}
+  if (!d || d.gusset !== LIB_FILE || !LIB[d.kind] || !d.item || typeof d.item !== "object") return "That is not a library item file";
+  if (d.kind !== kind) return "That file holds a " + LIB[d.kind].name.toLowerCase() + ", not a " + LIB[kind].name.toLowerCase();
+  const L = libOf(), k = L[kind].findIndex(x => x.id === id);
+  if (k < 0) return "That item is gone";
+  push("Import " + LIB[kind].name);
+  const src = { ...d.item }; delete src.tex;
+  const it = normLibItem(kind, src, id);
+  if (kind === "fabric" && d.image && /^data:image[/]/.test(String(d.image.data))) {
+    const im = addImage(String(d.image.name || "texture"), d.image.data, +d.image.w > 0 ? +d.image.w : 100, +d.image.h > 0 ? +d.image.h : 100);
+    const t = normFabTex({ ...(d.item.tex || {}), img: im.id }); if (t) it.tex = t;
+  }
+  L[kind][k] = it;
+  commit();
+  return "";
+}
+function libItemImport(kind, id) {
+  const inp = document.createElement("input");
+  inp.type = "file"; inp.accept = ".json,application/json";
+  inp.onchange = () => { const f = inp.files && inp.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { const why = libItemImportText(kind, id, String(rd.result)); toast(why || "Imported " + f.name, why ? 6000 : 3000); }; rd.readAsText(f); };
+  inp.click();
+}
+function libItemRename(kind, it) {
+  askText("Rename " + LIB[kind].name, it.name || "", (v) => { v = String(v || "").trim(); if (!v || v === it.name) return; push("Rename " + LIB[kind].name); const x = libOf()[kind].find(y => y.id === it.id); if (x) x.name = v.slice(0, 80); commit(); });
+}
+function libItemDelete(kind, id) {
+  push("Delete " + LIB[kind].name); const why = libDelete(kind, id);
+  if (why) { unpush(); return toast(why); }
+  if (obState().sel === id) obState().sel = null;
+  commit();
+}
+function libItemRows(kind, it) {
+  return [{ hd: esc(it.name) },
+    { n: "Duplicate", f: () => { push("Duplicate " + LIB[kind].name); const c = libAdd(kind, it); obState().tab = kind; obState().sel = c.id; commit(); } },
+    { n: "Rename…", f: () => libItemRename(kind, it) },
+    { n: "Export…", f: () => libItemExport(kind, it) },
+    { n: "Import…", f: () => libItemImport(kind, it.id) },
+    { n: "Delete", f: () => libItemDelete(kind, it.id) }];
+}
+function libItemMenu(kind, it, x, y) { listMenu(libItemRows(kind, it), x, y); }
+/* (Round BETA8-1 / L, W1's Pattern tab, Edit ▸ Context Menu ▸ Materials) Assign to New Fabric: a new fabric of the library, a copy of the
+   first selected pattern's (or the default), given to every selected pattern; it is selected in the Fabric tab; one step (guess beta8-1/21) */
+function assignNewFabric() {
+  const ps = freeSel();
+  if (!ps.length) return toast("Select the patterns to give a new fabric to");
+  push("Assign to New Fabric");
+  const f = fabricOf(ps[0]), it = libAdd("fabric", f ? { ...f, name: undefined } : null);
+  if (f) it.name = LIB.fabric.one + " " + libOf().fabric.length;
+  for (const p of ps) p.fabric = it.id;
+  const o = obState(); o.tab = "fabric"; o.sel = it.id;
+  commit(); toast(it.name + " on " + ps.length + (ps.length === 1 ? " pattern" : " patterns"));
+  return it;
+}
 function obAssign() {
   const s = obItem(); if (!s) return;
   push(); const done = libAssign(s.kind, s.it);
@@ -22074,10 +23418,19 @@ function renderOB() {
   if (lib) {
     const used = o.tab === "fabric" ? new Set(S.pieces.map(p => (fabricOf(p) || {}).id)) : new Set();
     for (const it of libOf()[o.tab]) row(it.id === o.sel ? " on" : "", '<span class="ck">' + (used.has(it.id) ? "\u2713" : "") + '</span><span class="sw" style="background:' + (it.color || "#3a3a3c") + '"></span><span class="nm">' + esc(it.name) + '</span><button class="x" title="Delete">\u00d7</button>',
-      () => obSelect(o.tab, it.id), () => { push(); const why = libDelete(o.tab, it.id); if (why) { unpush(); return toast(why); } if (o.sel === it.id) o.sel = null; commit(); });
+      () => obSelect(o.tab, it.id), () => libItemDelete(o.tab, it.id));
+    // (Round BETA8-1 / H, roadmap 2.C33) each item's "…" menu, before its ×
+    for (let k = 0; k < items.children.length; k++) { const d = items.children[k], it = libOf()[o.tab][k], x = it && d.querySelector && d.querySelector(".x"); if (!x) continue;
+      const kind = o.tab, b = document.createElement("button"); b.className = "dots"; b.title = "Duplicate, Rename, Export, Import, Delete"; b.textContent = "…";
+      b.onclick = (e) => { e.stopPropagation(); const r = b.getBoundingClientRect ? b.getBoundingClientRect() : { left: 200, bottom: 200 }; libItemMenu(kind, it, r.left, r.bottom + 2); };
+      d.insertBefore(b, x); }
     // (Round r20 continued (4)) a button or buttonhole type is dragged onto a placed one (libDrop())
     if (o.tab === "button" || o.tab === "buttonhole") for (let k = 0; k < items.children.length; k++) { const d = items.children[k], it = libOf()[o.tab][k]; if (!it) continue; d.draggable = true; d.title = "Drag onto a placed " + (o.tab === "button" ? "button" : "buttonhole") + " to give it this type"; d.ondragstart = (e) => { try { e.dataTransfer.setData(LIB_DRAG, o.tab + ":" + it.id); e.dataTransfer.effectAllowed = "copy"; } catch (er) {} }; }
     if (!libOf()[o.tab].length) items.innerHTML = '<div class="note">None yet. <b>+ Add</b> makes one.</div>';
+    // (Round BETA8-1 / C3, roadmap 1.T2) the Button tab: ready-made buttons from the catalogue
+    if (o.tab === "button") { const bar = document.createElement("div"); bar.className = "note"; bar.innerHTML = '<button type="button" class="btn" data-bcat="1" title="Ready-made buttons: shirt, blouse, trousers, jacket, coat, jeans, snap">Catalogue\u2026</button>';
+      const b = bar.querySelector && bar.querySelector("[data-bcat]"); if (b) b.onclick = (e) => { const r = b.getBoundingClientRect ? b.getBoundingClientRect() : { left: 200, bottom: 200 }; catalogueMenu(r.left, r.bottom + 2); };
+      items.appendChild(bar); }
     // under the zipper types: every zipper set on the patterns
     if (o.tab === "zipper") for (const sm of S.seams) if (sm.zip) {
       const inf = seamInfo(sm, S.pieces), ty = zipType(sm), bad = inf && Math.abs(inf.diff) > ZIP_TOL;
@@ -22097,9 +23450,9 @@ function renderOB() {
     // every tack (Round r9 / 5): a click selects it in the 3D window with Edit Tack, × deletes it
     for (const t of S.tacks || []) {
       const a = byId(t.a.piece), b = t.b && byId(t.b.piece);
-      row(G3.selTack === t.id ? " on" : "", '<span class="ck">' + (t.b ? "\u2194" : "\u2192") + '</span><span class="sw" style="background:' + (t.b ? "#0072b2" : "#e69f00") + '"></span><span class="nm">Tack ' + t.id + '</span><span class="sub">' +
-        esc((a ? a.name : "?") + (t.b ? " to " + (b ? b.name : "?") : " to the avatar")) + '</span><button class="x" title="Delete">\u00d7</button>',
-        () => { G3.selTack = t.id; setTool3("edit_tack"); showTacks(); view3d.ask(); renderOB(); }, () => deleteTack(t.id));
+      row(G3.selTack === t.id ? " on" : "", '<span class="ck">' + (t.b ? "\u2194" : "\u2192") + '</span><span class="sw" style="background:' + (t.b ? "#0072b2" : "#e69f00") + '"></span><span class="nm">' + esc(tackName(t)) + (t.off ? ' <em class="soff">off</em>' : '') + '</span><span class="sub">' +
+        esc((a ? a.name : "?") + (t.b ? " to " + (b ? b.name : "?") : " to the avatar") + (t.len > 0 ? ", thread " + fmt(t.len) + " mm" : "")) + '</span><button class="x" title="Delete">\u00d7</button>',
+        () => { G3.selTack = t.id; setTool3("edit_tack"); showTacks(); view3d.ask(); renderOB(); ui(); }, () => deleteTack(t.id));
     }
     if (!(S.tacks || []).length) items.innerHTML = '<div class="note">No tacks. In the 3D window, Tack holds two places of the cloth together, Tack on Avatar a place of the cloth on the avatar.</div>';
   } else if (trimKey(o.tab)) trimRows(o.tab, row, items);           // piping, binding, gluing (Round r11)
@@ -22200,7 +23553,17 @@ function pomRows(row, items) {
   });
   if (!S.measures.length) items.innerHTML = '<div class="note">No points of measure. The Point of Measure tool measures between two points of a pattern.</div>';
 }
+/* (Round FIX-3 / D) a Detail row typed: a share in % (1 to 1000) or the friction (0.01 to 2), one step; 100 % and the preset's own friction
+   are not kept */
+function fabDetailSet(it, k, v, label) {
+  if (!Number.isFinite(v) || v <= 0) return toast(label + ": type a number above 0");
+  push("Fabric " + label);
+  if (k === "friction") { const pre = (FABRIC_PHYS[it.physical] || FABRIC_PHYS.Custom).friction, f = Math.max(0.01, Math.min(2, v)); if (Math.abs(f - pre) < 1e-9) delete it.friction; else it.friction = f; }
+  else { const d = { ...(it.dir || {}), [k]: v }, n = normFabDetail(d); if (n) it.dir = n; else delete it.dir; }
+  commit();
+}
 // the Property Editor for a library item: its fields, section by section
+const LIB_FACE = { tab: "front", detail: false };      // (Round FIX-3 / D: detail, the Detail rows unfolded)      // (Round FIX-2 / C10) the fabric's Material tab in front: session state
 function libProps(pr, kind, it) {
   const L = LIB[kind], secs = [];
   for (const f of L.fields) { let s = secs.find(x => x.n === f[0]); if (!s) secs.push(s = { n: f[0], f: [] }); s.f.push(f); }
@@ -22211,22 +23574,94 @@ function libProps(pr, kind, it) {
       : type === "num" ? '<input type="text" inputmode="decimal" data-num="1" step="0.1" id="' + id + '" value="' + v + '">' : '<input type="text" class="w" id="' + id + '" value="' + esc(v) + '">';
     return '<div class="row"><label>' + label + (unit ? ' (' + unit + ')' : '') + '</label>' + input + '</div>';
   };
-  pr.innerHTML = '<h2>' + L.name + '</h2>' + secs.map(s => '<details class="pe" open><summary>' + s.n + '</summary>' + s.f.map(field).join("") + '</details>').join("") +
+  // (Round FIX-2 / C10) a fabric's Material as the reference's: the tabs Front / Back / Side (the one in front underlined and bold)
+  const faceTab = LIB_FACE.tab, fabMat = (s) => {
+    const tabs = '<div class="facetabs" role="tablist">' + [["front", "Front"], ["back", "Back"], ["side", "Side"]].map(([k, n]) => '<button type="button" role="tab" class="ftab' + (k === faceTab ? ' on' : '') + '" aria-selected="' + (k === faceTab) + '" data-face="' + k + '">' + n + '</button>').join("") + '</div>';
+    if (faceTab === "front") return tabs + s.f.filter(f => f[1] !== "back").map(field).join("") + fabTexRows(it);
+    const v = fabFace(it, faceTab), sel = (k, list, cur) => '<select class="w" id="lf-' + k + '">' + list.map(o => '<option' + (o === cur ? ' selected' : '') + '>' + esc(o) + '</option>').join("") + '</select>';
+    return tabs + '<div class="row"><label>Texture Mapping</label>' + sel("mapping", FACE_MAPPINGS, v.mapping) + '</div><div class="row"><label>Type</label>' + sel("type", FACE_TYPES, v.type) + '</div>' +
+      '<div class="row"><label>Color</label><input type="color" id="lf-color" value="' + v.color + '"></div>';
+  };
+  // (Round FIX-3 / D) a fabric's Physical Property ends with its Detail, folded as the reference's (session 5 frames 022-025)
+  const fabDetail = () => { const ph = fabricPhys(it), d = it.dir || {}, row = (id, label, v) => '<div class="row"><label>' + label + '</label><input type="text" inputmode="decimal" data-num="1" id="' + id + '" value="' + v + '"></div>';
+    return '<details class="pe" id="lp-detail"' + (LIB_FACE.detail ? ' open' : '') + '><summary>Detail</summary>' + FAB_DETAIL.map(([k, label]) => row("ld-" + k, label + " (%)", Number.isFinite(d[k]) ? d[k] : 100)).join("") +
+      row("ld-friction", "Friction", +ph.friction.toFixed(3)) + '<div class="note">100 % is the preset as it is. Weft runs across the grain line, warp along it, the right bias up and to the right of it.</div></details>'; };
+  pr.innerHTML = '<h2>' + L.name + '</h2>' + secs.map(s => '<details class="pe" open><summary>' + s.n + '</summary>' + (kind === "fabric" && s.n === "Material" ? fabMat(s) : s.f.map(field).join("") + (kind === "fabric" && s.n === "Physical Property" ? fabDetail() : "")) + '</details>').join("") +
     '<div class="note" style="margin-top:6px">' + (kind === "fabric" ? "The colors show in the 2D window (Front and Back Texture Surface). A preset fills in a typical weight and thickness and sets how the cloth stretches and bends in the 3D window: approximate starting points, not measured fabrics."
       : kind === "topstitch" ? "Assign gives the selected topstitch this preset's name and offset." : kind === "zipper" ? "Assign gives the selected zipper this type. Tape width is each side's tape, for the 3D export."
       : kind === "button" || kind === "buttonhole" ? "The Button and Buttonhole tools place this type; Assign gives it to the placed one selected. Its size and shape show in the 2D and 3D windows."
       : "Kept with the document for the 3D export; nothing of it shows in the 2D window yet.") + '</div>';
+  if (kind === "fabric") {
+    // (Round FIX-3 / D) the Detail rows: one step each; 100 % (or the preset's friction) is not kept
+    const dt = document.getElementById("lp-detail");
+    if (dt) dt.ontoggle = () => { LIB_FACE.detail = !!dt.open; };
+    for (const [k, label] of [...FAB_DETAIL, ["friction", "Friction"]]) {
+      const el = document.getElementById("ld-" + k);
+      if (el) el.onchange = () => fabDetailSet(it, k, numOf(el.value), label);
+    }
+  }
+  if (kind === "fabric" && pr.querySelectorAll) {
+    pr.querySelectorAll(".ftab").forEach(b => { b.onclick = () => { LIB_FACE.tab = b.dataset.face; libProps(pr, kind, it); }; });
+    fabTexWire(it);      // (Round BETA8-1 / C) the Texture rows
+    for (const k of ["mapping", "type", "color"]) { const el = document.getElementById("lf-" + k); if (el && LIB_FACE.tab !== "front") el.onchange = () => {
+      push("Fabric " + (LIB_FACE.tab === "back" ? "Back" : "Side"));
+      if (LIB_FACE.tab === "back" && k === "color") it.back = el.value;
+      else { const fc = it.faces || {}; it.faces = { ...fc, [LIB_FACE.tab]: { ...(fc[LIB_FACE.tab] || {}), [k]: el.value } }; }
+      Object.assign(it, normLibItem(kind, it, it.id)); if (!normFaces(it.faces)) delete it.faces; commit();
+    }; }
+  }
   for (const [, k, , type] of L.fields) {
     const el = document.getElementById('lp-' + k);
     if (el) el.onchange = () => {
       push(); it[k] = type === "check" ? el.checked : type === "num" ? +el.value : el.value;
       // a fabric preset brings its typical weight and thickness with it; both can be typed over afterwards
       if (kind === "fabric" && k === "physical" && it[k] !== "Custom" && FABRIC_PHYS[it[k]]) { it.weight = FABRIC_PHYS[it[k]].weight; it.thickness = FABRIC_PHYS[it[k]].thickness; it.maxStretch = FABRIC_PHYS[it[k]].maxStretch; }
+      // (Round FIX-3 / D) a preset chosen brings its own stiffness and friction too: a value an older file carried, or a friction typed, gives way (guess fix3/6)
+      if (kind === "fabric" && k === "physical") { delete it.stretch; delete it.bend; delete it.friction; }
       Object.assign(it, normLibItem(kind, it, it.id)); commit();
     };
   }
 }
 
+/* (Round BETA8-1 / C, roadmap 2.C24) a fabric's Texture rows on its Material's Front tab: the picture (Choose…, Replace…, Remove) and one
+   repeat's Width and Height in mm. Each change is one step. A picture chosen keeps the repeat's width (100 mm at first) and takes its
+   height from the picture's proportions */
+function fabTexRows(it) {
+  const t = it.tex, im = t && (S.images || []).find(x => x.id === t.img);
+  return '<div class="row"><label>Texture</label>' + (im ? '<img alt="" src="' + im.data + '" style="width:28px;height:28px;object-fit:cover;border:1px solid var(--line, #888);margin-right:4px">' : '') +
+    '<button type="button" class="btn" id="lt-pick" title="A picture of the fabric, repeated across each pattern along its grainline">' + (t ? 'Replace…' : 'Choose…') + '</button>' +
+    (t ? '<button type="button" class="btn" id="lt-del">Remove</button>' : '') + '</div>' +
+    (t ? '<div class="row"><label>Texture Width (mm)</label><input type="text" inputmode="decimal" data-num="1" id="lt-w" value="' + +t.w.toFixed(2) + '"></div>' +
+      '<div class="row"><label>Texture Height (mm)</label><input type="text" inputmode="decimal" data-num="1" id="lt-h" value="' + +t.h.toFixed(2) + '"></div>' +
+      '<div class="note">It lies along each pattern’s grainline: Edit Texture (T) moves and turns it there.</div>' : '');
+}
+function fabTexSet(it, name, data, wpx, hpx) {
+  if (!/^data:image[/]/.test(String(data))) return toast("That file is not a picture");
+  push(it.tex ? "Replace Fabric Texture" : "Fabric Texture");
+  const im = addImage(name || "texture", data, wpx > 0 ? wpx : 100, hpx > 0 ? hpx : 100), w = it.tex ? it.tex.w : 100;
+  it.tex = { img: im.id, w, h: wpx > 0 && hpx > 0 ? +(w*hpx/wpx).toFixed(2) : w };
+  commit();
+}
+function fabTexWire(it) {
+  const pick = document.getElementById("lt-pick"), del = document.getElementById("lt-del");
+  if (pick) pick.onclick = () => {
+    const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*";
+    inp.onchange = () => {
+      const f = inp.files && inp.files[0]; if (!f) return;
+      const rd = new FileReader();
+      rd.onload = () => { const data = String(rd.result), e = new Image(); e.onload = () => fabTexSet(it, f.name, data, e.naturalWidth, e.naturalHeight); e.onerror = () => toast("That picture could not be read"); e.src = data; };
+      rd.onerror = () => toast("That picture could not be read");
+      rd.readAsDataURL(f);
+    };
+    inp.click();
+  };
+  if (del) del.onclick = () => { push("Remove Fabric Texture"); delete it.tex; commit(); };
+  for (const k of ["w", "h"]) { const el = document.getElementById("lt-" + k); if (el) el.onchange = () => {
+    const v = numOf(el.value);
+    if (!(v > 0) || !it.tex) return toast("Texture " + (k === "w" ? "Width" : "Height") + ": type a size above 0 mm");
+    push("Fabric Texture Size"); it.tex = { ...it.tex, [k]: Math.min(5000, v) }; commit();
+  }; }
+}
 /* ---- menus ---- */
 // run the handler of one of the (hidden) project buttons, as if it had been clicked in the middle of the window
 function act(id) {
@@ -22241,10 +23676,52 @@ function newDoc(sure) {
   toast("New document");
   histNewAsk();
 }
+/* ---- (Round FIX-3b / 0, the maintainer's answer to FIX-3's question 1) new patterns at body height ----
+   Since FIX-3 the 2D window's horizontal axis is the 3D floor, so a pattern drawn at the origin stands on the floor. New from
+   Starter Pattern, a new block (File ▸ New Block…) and a block of the library come in over the part of the avatar's outline they
+   belong to: a bodice or top with its top at the neck joint's height, a skirt, trousers or waistband (a block's skirt parts) with
+   its largest piece's top at the waist, a sleeve with its top at the upper arm's joint, beside the shoulder (the first on the
+   avatar's left, +x, the next on its right). A group keeps its pieces' layout as drafted and moves only up or down; its x stays
+   where it was drafted (guesses fix3b/1-3). With no avatar the heights are Marty's (the blocks' own numbers are his). */
+const BODY_AT = { neck: 1615, waist: 1205, arm: 1503, armX: 203 };
+function bodyAt() {
+  const out = { ...BODY_AT }, av = S.av;
+  if (!av || !av.roles) return out;
+  try { const m = avatarMeasures(av); if (m && Number.isFinite(m.waistY)) out.waist = m.waistY; } catch (e) {}
+  const at = (b) => b && b.getWorldPosition ? b.getWorldPosition(new THREE.Vector3()) : null, n = at(av.roles.neck), a = at(av.roles.armL || av.roles.armR);
+  if (n) out.neck = n.y;
+  if (a) { out.arm = a.y; out.armX = Math.abs(a.x); }
+  return out;
+}
+// which part of the body a new pattern belongs over: "arm", "waist" or "chest"
+function bodyPart(p) {
+  if (p.block && /^(f|b|bl|w)$/.test(p.block.part || "") && /skirt/.test(p.block.type || "skirt")) return "waist";
+  const n = String(p.name || "");
+  if (/sleeve|cuff/i.test(n)) return "arm";
+  if (/skirt|waistband|band|trouser|pant|short|legging/i.test(n)) return "waist";
+  return "chest";
+}
+const pieceArea = (p) => { const b = bboxOf([p]); return (b.x1 - b.x0)*(b.y1 - b.y0); };
+function bodyPlace(pieces) {
+  const B = bodyAt(), groups = { chest: [], waist: [], arm: [] };
+  for (const p of pieces) groups[bodyPart(p)].push(p);
+  const move = (ps, dx, dy) => { for (const p of ps) mapPiece(p, (q) => V(q.x + dx, q.y + dy)); };
+  for (const k of ["chest", "waist"]) {
+    const ps = groups[k];
+    if (!ps.length) continue;
+    const big = ps.reduce((m, p) => pieceArea(p) > pieceArea(m) ? p : m, ps[0]);
+    move(ps, 0, -(k === "chest" ? B.neck : B.waist) - bboxOf([big]).y0);
+  }
+  groups.arm.forEach((p, i) => {
+    const b = bboxOf([p]), w = b.x1 - b.x0, side = i % 2 ? -1 : 1;
+    move([p], side*(B.armX + w/2) - (b.x0 + b.x1)/2, -B.arm - b.y0);
+  });
+  return pieces;
+}
 // File → New from Starter Pattern: the front bodice the program used to start with, to try things on
 function starterDoc(sure) {
   if (sure !== true && unsavedWork()) return askUnsaved("start from the starter pattern", () => starterDoc(true));
-  blankDoc(); S.pieces = [starter()]; bakeDarts(S.pieces); showDoc(); commit();
+  blankDoc(); S.pieces = [starter()]; bakeDarts(S.pieces); bodyPlace(S.pieces); showDoc(); commit(); fitAll();
   if (DESK) setFile(null);
   toast("Starter pattern: a front bodice half");
   histNewAsk();
@@ -22395,7 +23872,7 @@ function snap2Dialog(at) {
   dlg.className = "snap2 wide";
   dlg.innerHTML = '<div class="dt">2D Snapshot</div><div class="db"><div class="cols"><div>' +
     '<div class="df"><label>File Format</label><select data-s="fmt">' + opt(fmts, o.fmt) + '</select></div>' +
-    '<div class="df"><label>Preset</label><select disabled><option>1:1</option></select></div>' +
+    (S.ui && S.ui.unbuilt ? '<div class="df"><label>Preset</label><select disabled><option>1:1</option></select></div>' : '') +      // (Round FIX-4b / A, beta.8 gate G8: a list of one, only with the switch on)
     '<div class="df"><label>Resolution</label><input type="text" inputmode="decimal" data-num="1" data-s="ppi" value="' + o.ppi + '"><span class="u">ppi</span></div>' +
     '<div class="df"><label>Scale</label><input type="text" inputmode="decimal" data-num="1" data-pct="1" data-s="scale" value="' + pctText(o.scale) + '"></div>' +
     '<div class="df"><label>Rotation</label><select data-s="rot">' + opt([["none", "Do Not Rotate"], ["90", "90\u00b0"], ["180", "180\u00b0"], ["270", "270\u00b0"]], o.rot) + '</select></div>' +
@@ -22456,7 +23933,7 @@ function snap2Dialog(at) {
    LATER (the not-built inventory).
    ================================================================ */
 // the 3D window's working marks a render leaves out (its groups by name): what is kept is the avatar, the garment, buttons, trims, zippers
-const RENDER_HIDE = ["arr", "arrbv", "collision", "gizmo", "joints", "lights3", "lines", "measure", "names3", "ov3", "pins", "rwaxis", "sewing", "sizelines", "strain", "suit", "tacks", "unsewn"];
+const RENDER_HIDE = ["arr", "arrbv", "collision", "gizmo", "joints", "lights3", "lines", "measure", "names3", "ov3", "pins", "rwaxis", "sewing", "sizelines", "strain", "suit", "tacks", "tacklive", "unsewn"];      // (Round FIX-3 / C: the tack tools' live marks too)
 // (Round r29) the reference's kinds as far as ours has them: its Sphere is our "point" (the data key stays), Rectangle is new; the rows' opening values, kept on a light only when set
 const LIGHT_TYPES = [["rect", "Rectangle"], ["point", "Sphere"], ["dir", "Directional"], ["spot", "Spot"], ["dome", "Dome"]], LIGHT_ROWS = { w: 1000, h: 1000, radius: 60, penumbra: 0, shadowR: 0 };
 function normLight(l, id) {
@@ -24130,10 +25607,15 @@ function snapshot() {
 function shortcutRows(all) {
   const by = new Map();
   for (const r of keyTable()) {
-    if (r.alias || (r.desk && !DESK && !all)) continue;
+    if (r.alias || (r.desk && !DESK && !all) || (r.nb && (all || !S.ui.unbuilt))) continue;      // (Round FIX-4b / A, gate G2: what is not built only with the switch on, and never in the README, which is a fresh start's)
     const key = r.sec + "|" + r.id;
-    if (!by.has(key)) by.set(key, { sec: r.sec, n: r.n + (all && r.desk ? " (desktop app only)" : ""), ks: [] });
-    by.get(key).ks.push(r.as || keyShow(r.k));
+    // (Round BETA8-1 / 0b) the README (all) lists a fresh start's keys, whatever was changed here; the dialog the keys in force, a changed one
+    // marked with the key it had
+    const k = all && r.k0 !== undefined ? r.k0 : r.k;
+    if (!k && !r.as) continue;
+    if (!by.has(key)) by.set(key, { sec: r.sec, n: r.n + (all && r.desk ? " (desktop app only)" : ""), ks: [], was: [] });
+    by.get(key).ks.push(r.as || keyShow(k));
+    if (!all && r.k0 !== undefined) by.get(key).was.push(keyShow(r.k0));
   }
   const vc = viewCtl(), btn = (k) => VIEW_BUTTONS.find(b => b[0] === k)[1];
   const MOUSE = [["Middle button + drag", "Pan the 2D window (in Print Layout also Space + drag)"],
@@ -24145,7 +25627,7 @@ function shortcutRows(all) {
     ["Ctrl + drag a point", "Keep it on a line through where it was"], ["Ctrl + marquee", "Transform Pattern: select every pattern the box touches"], ["Ctrl while dragging a rectangle or ellipse", "Draw it from the center (let go: from the corner again)"], ["Right-click during a drag", "Type the amount"]];
   const out = [];
   for (const sec of KEY_SECTIONS) {
-    const list = [...by.values()].filter(x => x.sec === sec).map(x => [x.ks.join(" / "), x.n]).concat(sec === "While working" ? MOUSE.map(([k, n]) => [MAC ? k.replace(/^Ctrl\b/, "Cmd").replace(/^Alt\b/, "Option") : k, n]) : []);
+    const list = [...by.values()].filter(x => x.sec === sec).map(x => [x.ks.join(" / "), x.n + (x.was.length ? " (changed; its own key: " + x.was.join(" / ") + ")" : "")]).concat(sec === "While working" ? MOUSE.map(([k, n]) => [MAC ? k.replace(/^Ctrl\b/, "Cmd").replace(/^Alt\b/, "Option") : k, n]) : []);
     if (list.length) out.push({ sec, list });
   }
   return out;
@@ -24161,6 +25643,7 @@ function shortcutsMarkdown() {
   }
   return out.join("\n");
 }
+const keysChanged = () => keyTable().some(r => r.k0 !== undefined);
 function shortcutsDialog() {
   hideMenu(); closeFlyouts(); hideDlg();
   const rows = [], html = [];
@@ -24170,11 +25653,14 @@ function shortcutsDialog() {
     rows.push(...list);
   }
   dlg.innerHTML = '<div class="dt">Keyboard Shortcuts</div><div class="db"><div style="max-height:70vh;overflow-y:auto;padding-right:8px"><table style="font-size:11px;border-collapse:collapse">' + html.join("") +
-    '</table></div><div class="da" style="margin-top:8px"><button class="btn" id="dlg-x">Close</button></div></div>';
+    '</table></div><div class="da" style="margin-top:8px">' + (keysChanged() ? '<button class="btn" id="keys-def" title="Every command back to its own key">Reset to Default</button><span class="grow"></span>' : '') + '<button class="btn" id="dlg-x">Close</button></div></div>';
   dlg.className = "wide"; dlg.style.display = "block";
   const r = dlg.getBoundingClientRect();
   dlg.style.left = Math.max(6, (window.innerWidth - r.width)/2) + "px"; dlg.style.top = Math.max(6, (window.innerHeight - r.height)/2) + "px";
   dlg.querySelector("#dlg-x").onclick = hideDlg;
+  // (Round BETA8-1 / 0b) Reset to Default: the keys changed on User Settings' Shortcuts page given back, a preference saved at once
+  const def = dlg.querySelector("#keys-def");
+  if (def) def.onclick = () => { KEYS = null; setPrefs({ keys: {} }); KEYS = null; toast("Every shortcut is back to its own key"); shortcutsDialog(); };
   dlgEsc = (e) => { if (e.key === "Escape") { e.stopPropagation(); hideDlg(); } };
   window.addEventListener("keydown", dlgEsc, true);
   return rows;
@@ -24189,8 +25675,13 @@ function toolRow(name, id) {
   if (!t) return nbRow(name);
   const k = keyOf(id === "simulate" ? "simulate" : id === "arr_points" ? "arr_points" : "tool:" + id) || t.key || "";
   if (t.off && !t.via) return nbRow(name, k, { ic: toolIcon(id) });
+  // (Round FIX-4b / A, beta.8 gate G3) the reference's block-drafting tool is File ▸ New Block… here: its 2D menu row opens it, as its note said to
+  if (id === "pattern_drafter") return { n: name, k, ic: toolIcon(id), f: () => act("blk") };
+  // (gate G4) a tool that is another command here (Fullness (Point) / (Line): the right-click's More ▸) is a row only with the switch on:
+  // with it off the row only said where to look
+  if (t.off && t.via && !S.ui.unbuilt) return null;
   const gi = GROUPS.findIndex(g => g.some(x => x.id === id));
-  const on = t.toggle ? (t.toggle === "sewCheck" ? !!S.sewCheck.on : toggle3(t.toggle)) : t.off ? undefined : t.win === "3D" ? S.tool3 === id : S.tool === id;
+  const on = t.toggle ? (t.toggle === "sewCheck" ? !!S.sewCheck.on : t.toggle === "sewing2" ? !!S.show.sewing : toggle3(t.toggle)) : t.off ? undefined : t.win === "3D" ? S.tool3 === id : S.tool === id;
   return { n: name, k, ic: toolIcon(id), on, f: () => { if (t.win === "3D" && S.ui.layout === "2d" && !(TOOL3[id] && TOOL3[id].both)) setLayout("both"); pick(gi, t); } };
 }
 const subRow = (n, rows, ic) => ({ n, ic, menu: () => rows() });
@@ -24224,24 +25715,28 @@ function setSimQuality(q) {
 }
 const simQualityRows = () => [{ n: "Normal", on: !simHigh(), f: () => setSimQuality("normal") }, { n: "High Accuracy (slower)", on: simHigh(), f: () => setSimQuality("high") }];
 function menu3D() {
-  return [toolRow("Simulate", "simulate"), subRow("Simulation Quality", simQualityRows), { sep: 1 },
+  return [toolRow("Simulate", "simulate"), subRow("Simulation Quality", simQualityRows),
+    // (Round FIX-2 / B) W48's Garment Resolution ▸ (never opened in the recording): the three resolution tools of the 3D toolbar
+    subRow("Garment Resolution", () => [toolRow("Hi-Res Garment", "hi_res"), toolRow("Low-Res Garment", "low_res"), toolRow("Custom Resolution", "custom_res")]), { sep: 1 },
     subRow("Select", () => [toolRow("Select/Move", "select_move"), toolRow("Select Mesh (Brush)", "select_mesh_brush"), toolRow("Select Mesh (Box)", "select_mesh_box"), toolRow("Select Mesh (Lasso)", "select_mesh_lasso")]),
     subRow("Pin", () => [toolRow("Pin (Box)", "pin_box"), toolRow("Pin (Lasso)", "pin_lasso"), { n: "Attach All Pins to Avatar", f: attachPins3 }, { n: "Detach All Pins from Avatar", f: detachPins3 }]),
-    subRow("Ripping", () => [nbRow("Edit Rip"), toolRow("Seamline Rip", "seamline_rip")]),
+    subRow("Ripping", () => [toolRow("Edit Rip", "edit_rip"), toolRow("Seamline Rip", "seamline_rip")]),
     subRow("Styleline", () => [toolRow("Edit Styleline", "edit_style_line"), toolRow("Scale Styleline", "scale_style_line"), nbRow("Move Styleline"), toolRow("Draw Styleline", "add_style_line")]),
     subRow("3D pen", () => [toolRow("Edit 3D Pen (Garment)", "edit_pen_garment"), toolRow("3D Pen (Garment)", "pen_garment"), toolRow("3D Base Pen", "base_pen"), toolRow("Edit 3D Pen (Avatar)", "edit_pen_avatar"),
       toolRow("3D Pen (Avatar)", "pen_avatar"), nbRow("3D Pencil (Avatar)"), toolRow("Flatten", "flatten")]),
     toolRow("Press", "press"),
     subRow("Fold", () => [toolRow("Fold Arrangement", "fold_arrangement"), toolRow("Fold 3D Garment", "fold_garment")]), { sep: 1 },
     subRow("Arrangement", () => [toolRow("Reset 2D Arrangement (All)", "reset_2d_arrangement"), toolRow("Reset 3D Arrangement (All)", "reset_3d_arrangement"), toolRow("Re-drape 3D Arrangement", "redrape"), toolRow("Auto 3D Arrangement", "auto_arrangement")]), { sep: 1 },
-    subRow("Measurement", () => [{ n: "Edit Measure (Garment)", f: () => { const b = (document.getElementById("stage3d") || { getBoundingClientRect: () => ({ left: 200, top: 200, width: 0, height: 0 }) }).getBoundingClientRect(); garMeasMenu({ clientX: b.left + b.width/2, clientY: b.top + 80 }); } }, toolRow("Linear Measure (Garment)", "linear_garment"), toolRow("Circumference Measure (Garment)", "circ_garment")])];
+    subRow("Measurement", () => [{ n: "Edit Measure (Garment)", f: () => { const b = (document.getElementById("stage3d") || { getBoundingClientRect: () => ({ left: 200, top: 200, width: 0, height: 0 }) }).getBoundingClientRect(); garMeasMenu({ clientX: b.left + b.width/2, clientY: b.top + 80 }); } }, toolRow("Linear Measure (Garment)", "linear_garment"), toolRow("Circumference Measure (Garment)", "circ_garment"),
+      // (Round FIX-2 / B) the volume tools, on the 3D toolbar only until now
+      toolRow("Volume Measure (Garment/Bag)", "volume_measure"), toolRow("Edit Volume Measure (Garment/Bag)", "edit_volume_measure")])];
 }
 function menu2D() {
   return [toolRow("Pattern Drafter", "pattern_drafter"), { n: "Pattern Information", on: pinfoOpen(), f: () => pinfoView(pinfoOpen()) },
     subRow("Create", () => [toolRow("Polygon", "polygon"), toolRow("Rectangle", "rectangle"), toolRow("Ellipse", "ellipse"), toolRow("Spiral", "spiral"), toolRow("Internal Polygon/Line", "internal_polygon"),
-      toolRow("Internal Rectangle", "internal_rectangle"), toolRow("Internal Ellipse", "internal_ellipse"), toolRow("Internal Spiral", "internal_spiral"), toolRow("Seamless Blocking", "seamless_blocking"),
-      toolRow("Base Polygon", "base_polygon"), toolRow("Base Rectangle", "base_rectangle"), toolRow("Base Ellipse", "base_ellipse"),
-      toolRow("Seam Allowance", "seam_allowance"), nbRow("Refresh Seam Allowance"), toolRow("Notch", "notch"), toolRow("Punch Mark", "punch_mark")]),
+      toolRow("Internal Rectangle", "internal_rectangle"), toolRow("Internal Ellipse", "internal_ellipse"), toolRow("Internal Spiral", "internal_spiral"), toolRow("Dart", "dart_double"), toolRow("Seamless Blocking", "seamless_blocking"),
+      toolRow("Base Polygon", "base_polygon"), toolRow("Base Rectangle", "base_rectangle"), toolRow("Base Ellipse", "base_ellipse"), toolRow("Base Dart", "base_dart_double"),
+      toolRow("Seam Allowance", "seam_allowance"), { n: "Refresh Seam Allowance", f: refreshSA }, toolRow("Notch", "notch"), toolRow("Punch Mark", "punch_mark")]),
     subRow("Edit", () => [toolRow("Transform Pattern", "transform_pattern"), toolRow("Transform Point/Segment", "transform_point"), toolRow("Edit Pattern", "edit_pattern"), { sep: 1 },
       { n: "Edit Link", f: editLinkDialog }, toolRow("Edit Curvature", "edit_curvature"), toolRow("Edit Curve Point", "edit_curve_point"), toolRow("Add Point/Split Line", "add_point"), toolRow("Smooth Curve", "smooth_curve"),
       toolRow("Fullness (Point)", "fullness"), toolRow("Fullness (Line)", "fullness_line"), { sep: 1 }, { n: "Delete All Baselines", f: deleteAllBaselines }]),
@@ -24258,7 +25753,8 @@ function menu2D() {
     subRow("Tack", () => [toolRow("Edit Tack", "edit_tack"), toolRow("Tack", "tack"), toolRow("Tack on Avatar", "tack_avatar")]), { sep: 1 },
     toolRow("Lacing", "lacing"), nbRow("Edit Lacing"),
     // ours, beside the recording's rows
-    { sep: 1 }, { n: "Zoom to Fit", k: keyOf("zoomSel"), f: focusZoom }];
+    { sep: 1 }, { n: "Avatar Outline", menu: avOutRows },      // (Round FIX-2 / B, the maintainer's brief)
+    { n: "Zoom to Fit", k: keyOf("zoomSel"), f: focusZoom }];
 }
 function menuMaterials() {
   return [toolRow("UV Editor", "edit_uv"),
@@ -24269,9 +25765,9 @@ function menuMaterials() {
     subRow("Binding", () => [toolRow("Select Binding", "select_binding"), toolRow("Binding", "binding")]),
     subRow("Topstitch", () => [toolRow("Edit Topstitch", "edit_topstitch"), toolRow("Segment Topstitch", "segment_topstitch"), toolRow("Free Topstitch", "free_topstitch"), toolRow("Seamline Topstitch", "seamline_topstitch")]),
     subRow("Puckering", () => [toolRow("Edit Puckering", "edit_puckering"), toolRow("Segment Puckering", "segment_puckering"), toolRow("Free Puckering", "free_puckering"), toolRow("Seamline Puckering", "seamline_puckering")]),
-    subRow("Steam", () => [nbRow("Steam"), nbRow("Remove All Steam")]),
-    toolRow("Seam Taping", "seam_taping"),
-    subRow("Gluing", () => [toolRow("Glue Fill", "glue_fill"), toolRow("Sticker", "sticker"), nbRow("Glue Brush"), toolRow("Edit Gluing", "edit_gluing")])];
+    subRow("Steam", () => [toolRow("Steam", "steam"), steamCount() ? { n: "Remove All Steam", f: removeAllSteam } : { n: "Remove All Steam", off: true, note: "none", f: () => toast("There is no steam to remove") }]),      // (Round BETA8-1 / E)
+    { n: "Seam Taping", on: tapeAllOn(), f: () => setTape(!tapeAllOn()) },      // (Round BETA8-1 / E: on the selected lines; the toolbar tool stays hidden)
+    subRow("Gluing", () => [toolRow("Glue Fill", "glue_fill"), toolRow("Sticker", "sticker"), toolRow("Glue Brush", "glue_brush"), toolRow("Edit Gluing", "edit_gluing")])];
 }
 /* ---- the bill of materials (Round D / D6) ----
    Counted from what the document knows (Q15, first version): per fabric its name, its area, and the patterns cut from it;
@@ -24289,7 +25785,11 @@ function bomData() {
   }
   const zippers = S.seams.filter(sm => sm.zip).map(sm => { const i = seamInfo(sm, S.pieces); return { name: sm.zip.name || "Zipper", type: (zipType(sm) || {}).name || "", length: i ? Math.max(i.la, i.lb) : 0 }; });
   const stitches = (S.stitches || []).map(st => { const ln = stitchLine(st, S.pieces); let len = 0; if (ln) for (let k = 1; k < ln.length; k++) len += dist(ln[k - 1], ln[k]); return { name: st.name, preset: st.preset, length: len }; });
-  const buttons = L.button.map(b => ({ name: b.name, placed: 0 }));
+  // (Round FIX-4b / A, beta.8 gate G7) every button and buttonhole type with how many are placed (each always said 0); a placed one
+  // with no type of its own counts as its kind's first, as it is drawn
+  const placedOf = (kind, list) => { const n = new Map(list.map(x => [x.id, 0])); for (const b of S.buttons || []) if (b.kind === (kind === "button" ? "button" : "hole")) { const id = n.has(b.lib) ? b.lib : list[0] && list[0].id; if (n.has(id)) n.set(id, n.get(id) + 1); } return n; };
+  const bn = placedOf("button", L.button), hn = placedOf("buttonhole", L.buttonhole || []);
+  const buttons = [...L.button.map(b => ({ kind: "Button", name: b.name, placed: bn.get(b.id) })), ...(L.buttonhole || []).map(b => ({ kind: "Buttonhole", name: b.name, placed: hn.get(b.id) }))];
   return { fabrics: fabrics.filter(f => f.patterns.length), unused: fabrics.filter(f => !f.patterns.length).map(f => f.name), zippers, stitches, buttons,
     total: { area: fabrics.reduce((a, f) => a + f.area, 0), zipper: zippers.reduce((a, z) => a + z.length, 0), topstitch: stitches.reduce((a, t) => a + t.length, 0) } };
 }
@@ -24308,7 +25808,7 @@ function bomXML() {
   out.push('  </fabrics>', '  <trims>');
   for (const z of b.zippers) out.push('    <zipper name="' + xmlEsc(z.name) + '" type="' + xmlEsc(z.type) + '" length="' + r(z.length) + '"/>');
   for (const t of b.stitches) out.push('    <topstitch name="' + xmlEsc(t.name) + '" preset="' + xmlEsc(t.preset || "") + '" length="' + r(t.length) + '"/>');
-  for (const x of b.buttons) out.push('    <button name="' + xmlEsc(x.name) + '" placed="' + x.placed + '"/>');
+  for (const x of b.buttons) out.push('    <' + (x.kind === "Buttonhole" ? "buttonhole" : "button") + ' name="' + xmlEsc(x.name) + '" placed="' + x.placed + '"/>');      // (Round FIX-4b / A: buttonholes too, gate G7)
   out.push('  </trims>', '  <total area="' + r(b.total.area) + '" zipper="' + r(b.total.zipper) + '" topstitch="' + r(b.total.topstitch) + '"/>', '</bom>');
   return out.join("\n") + "\n";
 }
@@ -24411,9 +25911,9 @@ function bomView(close) {
     '<h3>Trims</h3>' + table(["Trim", "Name", "Kind", "Length / count"], [
       ...b.zippers.map(z => '<tr><td>Zipper</td><td>' + esc(z.name) + '</td><td>' + esc(z.type) + '</td><td>' + len(z.length) + '</td></tr>'),
       ...b.stitches.map(t => '<tr><td>Topstitch</td><td>' + esc(t.name) + '</td><td>' + esc(t.preset) + '</td><td>' + len(t.length) + '</td></tr>'),
-      ...b.buttons.map(x => '<tr><td>Button</td><td>' + esc(x.name) + '</td><td></td><td>' + x.placed + ' placed</td></tr>'),
+      ...b.buttons.map(x => '<tr><td>' + (x.kind || "Button") + '</td><td>' + esc(x.name) + '</td><td></td><td>' + x.placed + ' placed</td></tr>'),
       ...(b.zippers.length + b.stitches.length + b.buttons.length ? [] : ['<tr><td colspan="4">None</td></tr>'])]) +
-    '<div class="hint">' + (b.zippers.length ? "Zippers in all: " + len(b.total.zipper) + ". " : "") + (b.stitches.length ? "Topstitch in all: " + len(b.total.topstitch) + ". " : "") + "Buttons are counted once they can be placed (the Button tool is not built yet)." + '</div></div>';
+    '<div class="hint">' + (b.zippers.length ? "Zippers in all: " + len(b.total.zipper) + ". " : "") + (b.stitches.length ? "Topstitch in all: " + len(b.total.topstitch) + ". " : "") + "Buttons and buttonholes are counted as they are placed on the patterns." + '</div></div>';
   const $ = (id) => el.querySelector ? el.querySelector("#" + id) : null;
   if ($("bom-up")) $("bom-up").onclick = () => bomView();
   if ($("bom-x")) $("bom-x").onclick = () => bomView(true);
@@ -24436,7 +25936,7 @@ function menuDisplay() {
   const panes = () => [document.getElementById("review"), document.getElementById("bom")];
   return [
     subRow("Viewpoint", () => [...["front", "left34", "back", "left", "right", "top", "bottom", "right34"].map(v => ({ n: VK[v], k: keyOf("view:" + v), f: () => { if (S.ui.layout === "2d") setLayout("both"); cam3d(v); } })),
-      { n: "Custom View", menu: customViewRows }, { sep: 1 }, nbRow("1:1 View"), { n: "Focus Zoom", k: keyOf("zoomSel"), f: focusZoom }, { n: "Zoom Extents All", f: fitAll }]),
+      { n: "Custom View", menu: customViewRows }, { sep: 1 }, { n: "1:1 View", f: view1to1 }, { n: "Focus Zoom", k: keyOf("zoomSel"), f: focusZoom }, { n: "Zoom Extents All", f: fitAll }]),
     subRow("3D Garment", () => [show3Row("garment", "Show Garment"), show3Opt("arch3", "Show Archived Pattern"), show3Row("pins3", "Show Pins"), show3Opt("names3", "Show Pattern Name"), show3Row("sewing3", "Show Seamlines"),
       show3Row("internal3", "Show Internal Lines"), show3Row("baseline3", "Show Baselines"), show3Row("gfx3", "Show Graphics"), nbRow("Show 3D Pen (Garment)"), show3Row("threads3", "Show Threads"), show3Row("gmeas3", "Show Garment Measurements"),
       nbRow("Show 2D Measurements"), nbRow("Show Garment Fitting Suit"), { hd: "Ours" }, show3Row("unsewn", "Show Unsewn Edges")]),
@@ -24465,7 +25965,8 @@ function menuDisplay() {
       nbRow("UV Editor"), { n: "Render", f: () => renderDialog() } /* (Round r20 / 11: the Render box of Round r19) */, nbRow("Grading Review (3D)"), nbRow("Colorway Editor"),
       { n: "BOM Editor", on: !!panes()[1], f: () => panes()[1] ? bomView(true) : bomView() }, nbRow("Pattern Drafter"),
       { n: "Library", k: keyOf("library"), f: () => libraryDialog() }, nbRow("Modular Library"),
-      { n: "Object Browser", on: true, off: true, f: () => toast("The Object Browser is always shown here") }, { n: "Property Editor", on: true, off: true, f: () => toast("The Property Editor is always shown here") },
+      { n: "Object Browser", on: !S.ui.obFold, f: () => setPanels({ obFold: !S.ui.obFold }) },      /* (Round FIX-4b / A, beta.8 gate G5: shown or folded, as its ▾ does) */
+      ...(S.ui.unbuilt ? [{ n: "Property Editor", on: true, off: true, f: () => toast("The Property Editor is always shown here") }] : []),
       nbRow("Animation Editor"), { n: "History", k: keyOf("historyPanel"), on: !!S.ui.timeline, f: () => setTimeline(!S.ui.timeline) }, nbRow("USD Layer"), { sep: 1 },
       { n: "Reset to Default Layout", f: resetLayout }])];      // (Round r23 / 2, 4: the layout reset; the toolbars stay where they were moved)
 }
@@ -24488,7 +25989,7 @@ function menuPreferences() {
     { n: "Keep the Old Future Without Asking", on: !!S.prefs.keepFuture, f: () => { setPrefs({ keepFuture: !S.prefs.keepFuture }); toast(S.prefs.keepFuture ? "Going back and making a change keeps the old future as a branch without asking" : "Going back and making a change asks whether to keep the old future"); } },
     { n: "Keep Cloth at Branch Points", on: !!S.prefs.keepBranchCloth, f: () => { setPrefs({ keepBranchCloth: !S.prefs.keepBranchCloth }); toast(S.prefs.keepBranchCloth ? "Save keeps the cloth of every branch point of the history (larger files); Save States always keep theirs" : "Save keeps the cloth of the history's Save States only; a branch point asks for a Re-drape when you go to it"); } },
     { n: "Open Files with Their Display Settings", on: !!S.prefs.openDisplay, f: () => { setPrefs({ openDisplay: !S.prefs.openDisplay }); toast(S.prefs.openDisplay ? "A file opened from now on shows itself as it was saved (but Show Sewing)" : "Files open with this computer's display settings"); } }, { sep: 1 },
-    subRow("Camera Properties", () => [nbRow("Default Camera (Main)")]),
+    subRow("Camera Properties", cameraPropRows),
     { n: "Simulation Properties\u2026", f: () => simSettingsDialog() }, { sep: 1 },
     nbRow("Fit Properties")];
 }
@@ -24547,6 +26048,9 @@ const MENUS = {
   "3d": () => menu3D(),
   "2d": () => menu2D(),
   materials: () => menuMaterials(),
+  // (Round FIX-2 / B) W51's Fabric menu: Texture ▸ the two Edit Texture tools (on the toolbars only until now; CLOFAB is another
+  // program's service and is not shown)
+  fabric: () => [subRow("Texture", () => [toolRow("Edit Texture (2D)", "edit_texture")      /* (Round FIX-4b / A, beta.8 gate G9: it moves the grainline only, named as its toolbar button; the texture itself: UV-1) */, toolRow("Edit Texture (3D)", "edit_texture_3d")])],
   production: () => menuProduction(),
   // (Round r19 follow-up, H22) the reference's Render menu (frame 021 of the housekeeping video: Render, Render via its online service
   // (left out), Quality Render (3D Window), Schematic Render, an AI enhancer (left out)); Lights is ours
@@ -24564,7 +26068,7 @@ const MENUS = {
     { hd: "Toolbars (or drag one by its empty part)" },
     ...toolbarRows(null),
     { n: "Windows Half and Half", f: () => setSplit(0.5, true) }, { sep: 1 }, { n: "Keyboard Shortcuts\u2026", f: shortcutsDialog }],
-  help: () => [{ n: "Keyboard Shortcuts\u2026", f: shortcutsDialog }, { n: "What each tool does: hover it, or pick it and read the bottom line", off: true, f: () => {} }, { n: "Welcome\u2026", f: () => welcomeDialog(false) }, { sep: 1 },
+  help: () => [{ n: "Keyboard Shortcuts\u2026", f: shortcutsDialog }, { n: "Show Tool Hints", on: !!S.prefs.showHints, f: () => setPrefs({ showHints: !S.prefs.showHints }) },      /* (Round FIX-4b / A, beta.8 gate G6: the greyed "What each tool does: …" row did nothing; this is what it meant, the bottom line's hints) */ { n: "Welcome\u2026", f: () => welcomeDialog(false) }, { sep: 1 },
     ...(DESK && DESK.updates ? [{ n: "Check for Updates\u2026", f: () => checkUpdates(true) }] : []),       // (Round r24) the desktop app's only
     { n: "Send Feedback\u2026", f: sendFeedback }, { n: "Save Bug Report\u2026", f: saveBugReport }, { sep: 1 }, { n: "About\u2026", f: aboutDialog }],
 };
@@ -24591,9 +26095,9 @@ function normUI(o) {
   o = o && typeof o === "object" ? o : {};
   const show3d = {};
   if (o.show3d && typeof o.show3d === "object") for (const k of Object.keys(o.show3d)) if (o.show3d[k] === false) show3d[k] = false;
-  return { layout: ["2d", "3d", "both"].includes(o.layout) ? o.layout : "both", arrPts: o.arrPts === true, timeline: o.timeline === true, ...(Number.isFinite(o.histH) && o.histH >= 120 && o.histH <= 4000 ? { histH: Math.round(o.histH) } : {}),      /* (Round H1b / 2: the History panel's height, a preference, kept only once it was dragged) */ unbuilt: o.unbuilt !== false, render: RENDER.some(r => r[0] === o.render) ? o.render : "front", mesh2: o.mesh2 === true,
+  return { layout: ["2d", "3d", "both"].includes(o.layout) ? o.layout : "both", arrPts: o.arrPts === true, timeline: o.timeline === true, ...(Number.isFinite(o.histH) && o.histH >= 120 && o.histH <= 4000 ? { histH: Math.round(o.histH) } : {}),      /* (Round H1b / 2: the History panel's height, a preference, kept only once it was dragged) */ unbuilt: o.unbuilt === true,      /* (Round FIX-4b / A, beta.8 gate G1: off unless chosen; it started on) */ render: RENDER.some(r => r[0] === o.render) ? o.render : "front", mesh2: o.mesh2 === true,
     render3: RENDER3.some(r => r[0] === o.render3) ? o.render3 : "front", wire3: o.wire3 === true, joints3: o.joints3 === true, jointSize: Number.isFinite(o.jointSize) && o.jointSize >= 2 && o.jointSize <= 30 ? Math.round(o.jointSize) : 8, jointMode: o.jointMode === "ik" ? "ik" : "fk", jointLimits: o.jointLimits !== false, ...(Number.isFinite(o.grid3b) && o.grid3b !== 1 ? { grid3b: Math.max(0.2, Math.min(2, o.grid3b)) } : {}), ...(normGrid3(o.grid3s) ? { grid3s: normGrid3(o.grid3s) } : {}), ikEdit: o.ikEdit === "full" ? "full" : "part",
-    ikSym: o.ikSym !== false, avOut: ["front", "back", "side"].includes(o.avOut) ? o.avOut : "off", avOutObj: o.avOutObj === true,      /* (Round UI-1e / C: the avatar's outline in 2D, a view setting) */
+    ikSym: o.ikSym !== false, avOut: ["front", "back", "side", "off"].includes(o.avOut) ? o.avOut : "front", avOutObj: o.avOutObj === true,      /* (Round UI-1e / C: the avatar's outline in 2D, a view setting) */
     quality3: o.quality3 === true, schem3: o.schem3 === true && o.quality3 !== true, bv3: o.bv3 === true, meas3: o.meas3 !== false, suit3: o.suit3 === true, blendFav: Array.isArray(o.blendFav) ? o.blendFav.filter(x => typeof x === "string").slice(0, 200) : [], avW: o.avW === "weight" ? "weight" : "chest", avH: ["hps", "inseam"].includes(o.avH) ? o.avH : "total", avUnit: ["cm", "in"].includes(o.avUnit) ? o.avUnit : "mm", avLinkW: o.avLinkW !== false, avLinkH: o.avLinkH !== false, show3d, strain3: o.strain3 === true, fit3: o.fit3 === true && o.strain3 !== true,
     // (Round r20 continued (4)) the Stress and Pressure Maps, their units and scales: kept only when not the default
     ...(o.stress3 === true && o.strain3 !== true && o.fit3 !== true ? { stress3: true } : {}), ...(o.press3 === true && o.strain3 !== true && o.fit3 !== true && o.stress3 !== true ? { press3: true } : {}),
@@ -24945,6 +26449,17 @@ const view3d = (() => {
     if (box) { o.tx = (box.x0 + box.x1)/2; o.ty = (box.y0 + box.y1)/2; o.tz = (box.z0 + box.z1)/2; o.dist = Math.max(600, Math.max(box.x1 - box.x0, box.y1 - box.y0, box.z1 - box.z0)*1.55); }
     ask();
   }
+  /* (Round BETA8-1 / J, roadmap 3.B11, Viewpoint ▸ 1:1 View) true size: the camera moved along its own line until a millimetre at the
+     point it looks at is a millimetre on the screen (the browser's own inch, 96 CSS pixels; the system's display scaling makes a real
+     screen differ: guess beta8-1/17). The direction and the point stay. Returns the distance, or 0 with no window yet. */
+  function oneToOne() {
+    if (!R || !cam) return 0;
+    const h = R.domElement.getBoundingClientRect().height || 0;
+    if (!(h > 0)) return 0;
+    o.dist = Math.max(10, (25.4/96)*h/(2*Math.tan(cam.fov*Math.PI/360)));
+    ask();
+    return o.dist;
+  }
   /* The mouse on the view. The left button goes to the tool in hand first (a pattern is picked, a pin set); what
      the tool leaves, and every other button, does what the view controls say (viewCtl(), Settings). A press and a
      release of the menu button in one place opens the tool's menu. */
@@ -25137,7 +26652,7 @@ const view3d = (() => {
     Object.assign(o, keep);
     return c;
   }
-  return { start, cam: o, home: HOME, ready: () => !!R, renderer: () => R, render, ask, group, shot, shotShort: () => shotShort, camFor, shooting: () => shooting, mouse: { press, move, release, wheel, drive }, scene: () => build(), ray, project, projector, wpp, before: (f) => { pre.push(f); }, marksOnly: (f) => { marksOnly = f; }, view, camera: () => cam,
+  return { start, cam: o, home: HOME, ready: () => !!R, renderer: () => R, render, ask, oneToOne, group, shot, shotShort: () => shotShort, camFor, shooting: () => shooting, mouse: { press, move, release, wheel, drive }, scene: () => build(), ray, project, projector, wpp, before: (f) => { pre.push(f); }, marksOnly: (f) => { marksOnly = f; }, view, camera: () => cam,
     tool: (t) => { if (tool && tool.off) tool.off(); tool = t || null; if (R) R.domElement.style.cursor = (t && t.cursor) || ""; ask(); }, toolNow: () => tool,
     loop: (f) => { loop = f || null; ask(); }, looping: () => !!loop, canvas: () => R && R.domElement };
 })();
@@ -25158,6 +26673,18 @@ function cam3d(name) {
   view3d.view(name, S.av ? avatarBox(S.av) : { x0: -900, x1: 900, y0: 0, y1: 1800, z0: -300, z1: 300 });
 }
 function home3d() { Object.assign(view3d.cam, view3d.home); if (S.av) view3d.view(null, avatarBox(S.av)); else view3d.ask(); }
+// (Round BETA8-1 / J, roadmap 3.B11) Viewpoint ▸ 1:1 View: the 3D window at true size (view3d.oneToOne())
+function view1to1() {
+  if (S.ui.layout === "2d") setLayout("both");
+  const d = view3d.oneToOne();
+  toast(d ? "1:1 View: true size where the view is centered (" + Math.round(d) + " mm from it; the system's display scaling can make it differ)" : "The 3D window is not ready yet");
+  return d;
+}
+/* (Round BETA8-1 / J) Camera Properties ▸ Default Camera (Main) (the one row the recordings show, bars_2 04:32): the camera's Property
+   Editor (W36: Name, Lens, Field of View, View Orientation, Clipping Plane), which is the Render workspace's Camera pane; it opens there
+   (guess beta8-1/18: the program has one camera) */
+function cameraProps() { RWIN.pane = "camera"; return renderWindow(); }
+const cameraPropRows = () => [{ n: "Default Camera (Main)", h: "Camera Properties", f: cameraProps }];
 /* (Round UI-1b / B, the maintainer's brief) THE VIEW CUBE, in place of UI-1's view shirt (and of the eight view buttons before it; their
    keys and menu rows stay). It works as a view cube in a CAD program does, drawn by this program (no icons, fonts or pictures of anyone
    else's): a light grey cube with its faces named FRONT, BACK, LEFT, RIGHT, TOP, BOTTOM (each name on its face, turned to read upright from
@@ -25178,12 +26705,15 @@ function vcubeNear(on) {
   if (on === VCUBE.near) return;
   VCUBE.near = on;
   const still = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (still || typeof requestAnimationFrame !== "function" || typeof performance === "undefined") { VCUBE.alpha = on ? 1 : 0; view3d.ask(); return; }
+  if (still || typeof requestAnimationFrame !== "function" || typeof performance === "undefined") { VCUBE.alpha = on ? 1 : 0; vhomeFade(); view3d.ask(); return; }
   const a0 = VCUBE.alpha, t0 = performance.now(), id = ++VCUBE.fade;
-  const step = () => { if (id !== VCUBE.fade) return; const t = Math.min(1, (performance.now() - t0)/VCUBE_FADE_MS); VCUBE.alpha = a0 + ((on ? 1 : 0) - a0)*t; view3d.ask(); if (t < 1) requestAnimationFrame(step); };
+  const step = () => { if (id !== VCUBE.fade) return; const t = Math.min(1, (performance.now() - t0)/VCUBE_FADE_MS); VCUBE.alpha = a0 + ((on ? 1 : 0) - a0)*t; vhomeFade(); view3d.ask(); if (t < 1) requestAnimationFrame(step); };
   requestAnimationFrame(step);
 }
 const vcubeCx = () => VCUBE_PX/2 + 2, vcubeCy = () => VCUBE_PX/2 - 4;
+// (Round FIX-2 / C4) Home fades with the arrows (its style's --vnear), and the pointer near Home counts as near the cube
+const VHOME_C = [15, 15];
+function vhomeFade() { const h = document.getElementById("vhome"); if (h && h.style && h.style.setProperty) h.style.setProperty("--vnear", String(VCUBE.alpha || 0)); }
 // the camera's frame: right R, up U, toward the viewer B
 function vcubeBasis(az, el) {
   const B = [Math.cos(el)*Math.sin(az), Math.sin(el), Math.cos(el)*Math.cos(az)], R = [Math.cos(az), 0, -Math.sin(az)];
@@ -25405,7 +26935,7 @@ function vcubeMount() {
   if (!cb || document.getElementById("vcube")) return;
   cb.innerHTML = '<canvas id="vcube" width="' + VCUBE_PX + '" height="' + VCUBE_PX + '" title="Click a face, an edge or a corner of the cube to look from there; drag it to turn the view (keys with the pointer over the 3D window: ' + CAM_VIEWS.map(([k, n]) => n + " " + keyOf("view:" + k)).join(", ") + ')"></canvas><button id="vhome" title="Home (start view)" aria-label="Home (start view)">' + HOUSE_SVG + '</button>';
   const cv = document.getElementById("vcube"), home = document.getElementById("vhome");
-  if (home) home.onclick = vcubeHome;
+  if (home) { home.onclick = vcubeHome; home.onpointerenter = () => vcubeNear(true); home.onpointerleave = (e) => { if (!(e && e.relatedTarget === document.getElementById("vcube"))) vcubeNear(false); }; home.onfocus = () => vcubeNear(true); }
   if (!cv || !cv.addEventListener) return;
   cv.style.width = cv.style.height = VCUBE_PX + "px";
   const at = (e) => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
@@ -25415,7 +26945,7 @@ function vcubeMount() {
   cv.addEventListener("pointermove", (e) => {
     const d = VCUBE.down;
     if (d) { const dx = e.clientX - d.x, dy = e.clientY - d.y; if (!d.moved && Math.abs(dx) + Math.abs(dy) < 3) return; d.moved = true; d.x = e.clientX; d.y = e.clientY; hover(null); view3d.mouse.drive("turn", dx, dy); cv.style.cursor = "grabbing"; return; }
-    const p = at(e); vcubeNear(Math.hypot(p.x - vcubeCx(), p.y - vcubeCy()) <= VCUBE_K*1.75 + 4);
+    const p = at(e); vcubeNear(Math.hypot(p.x - vcubeCx(), p.y - vcubeCy()) <= VCUBE_K*1.75 + 4 || Math.hypot(p.x - VHOME_C[0], p.y - VHOME_C[1]) <= 24);
     hover(pickAt(e));
   });
   cv.addEventListener("pointerup", (e) => { const d = VCUBE.down; VCUBE.down = null; if (!d) return; if (d.moved) { cv.style.cursor = "grab"; return; } vcubeAct(pickAt(e)); });
@@ -25555,19 +27085,21 @@ function avatarTris(av, meshes) {
 }
 /* ---- the avatar's outline in the 2D window (Round UI-1e / C, the maintainer's brief, asked for several times; the reference shows it:
    session 4 frames 237-240, the avatar's grey silhouette behind the patterns in the 2D window) ----
-   With an avatar in the scene, the 2D window can show its outline at true size behind the patterns: seen straight from the front, the
+   With an avatar in the scene, the 2D window shows its outline at true size behind the patterns: seen straight from the front, the
    back or its left side (orthographic, as it stands now: its pose, size and blends), millimetre for millimetre with the patterns.
-   Placed with its centre line (the middle of its box across) on the 2D origin's vertical line and (Round beta.6 / 0, the maintainer's
-   brief; the reference's frames show no origin to read it from) its waist on the origin's horizontal line, for any avatar: the waist
-   as avatarMeasures() finds it (the narrowest girth between 56 and 68 % of the height), else AVOUT_WAIST of the height; then moved up
-   or down by the document's own offset (S.avedit.outline.dy, mm, + down the window: avOutDy()), dragged in Edit Avatar Outline
-   (avOutEditStart(), S.avOutEdit, as Edit Background Image: a drag on it moves it up or down, its right-click Vertical Offset… /
-   Reset Vertical Offset, Esc, Enter or a click off it ends; each change one step, in the file with the avatar edits). S.ui.avOut "off" / "front" / "back" / "side", S.ui.avOutObj the avatar's other parts
-   too (hair, underwear, things its file carries: guess ui1e/7); view settings, in a file's display settings. Drawn under every pattern,
-   a light fill and a thin dashed grey line; never picked, snapped to, printed or exported (print and export draw from the document, not
-   the window). Built from the posed triangles (avatarTris()) as a mask of AVOUT_RES mm cells, then its boundary as one path; kept until
-   the avatar, its height, pose, joints, size, blends or the choice change (looked at once a frame, built again after AVOUT_WAIT ms). */
-const AVOUT_RES = 1, AVOUT_WAIT = 150, AVOUT_WAIST = 0.62, AVOUT_MODES = [["off", "Off"], ["front", "Front"], ["back", "Back"], ["side", "Side (Left)"]];
+   (Round FIX-3 / A, the maintainer's brief and reference picture) **It stands on the 2D window's horizontal axis, which is the 3D
+   floor** (defaultP3()): its lowest point, as posed, on the line, for any avatar, size or pose; seen from the front its x is the 3D
+   x (x = 0 the vertical axis), from the back mirrored, from the side its middle on the vertical axis. A soft light-grey fill a little
+   darker than the window, no line round it, under every pattern; never picked, snapped to, printed or exported (print and export
+   draw from the document, not the window). **On by default** (Front) whenever there is an avatar; Back, Side (Left) and Off stay in
+   Avatar Outline ▸, and a file's own choice comes back with it (avOutFromFile()). The beta.6 rule (the waist on the origin) and its
+   vertical offset, dragged in Edit Avatar Outline, are gone: with the line the floor, an offset would put the outline where the avatar
+   is not. A file's stored offset (S.avedit.outline) is kept as it was, so it saves back the same, and read by nothing.
+   S.ui.avOut "front" / "back" / "side" / "off", S.ui.avOutObj the avatar's other parts too (hair, underwear, things its file carries:
+   guess ui1e/7). Built from the posed triangles (avatarTris()) as a mask of AVOUT_RES mm cells; kept until the avatar, its height,
+   pose, joints, size, blends or the choice change (looked at once a frame, built again after AVOUT_WAIT ms). */
+const AVOUT_RES = 1, AVOUT_WAIT = 150, AVOUT_MODES = [["off", "Off"], ["front", "Front"], ["back", "Back"], ["side", "Side (Left)"]];
+const AVOUT_FILL = [90, 90, 90, 43];      // (Round FIX-3 / A) a neutral grey at 17 %: on the window's #c6c6c6 about #b4b4b4, as the reference's
 const AVOUT = { key: "", built: null, timer: 0, ms: 0 };
 // what the outline depends on, as text
 function avOutKey() {
@@ -25578,16 +27110,18 @@ function avOutKey() {
 }
 // the meshes the outline is made of: the body, and with Include Objects every other part of the avatar that is shown
 function avOutMeshes(av, obj) { const body = avatarSolid(av); return obj ? av.meshes.filter(m => body.includes(m) || (m.visible !== false && !m.userData.hidden)) : body; }
-// the outline built: { mode, res, u0, v0, w, h, mask, segs (cell edges on the boundary, in mm: x0 y0 x1 y1 …), box: { x0, x1, y0, y1 } (2D mm) }
+// the outline built: { mode, res, u0, w, h, mask, base (0: the floor on the 2D axis), box: { x0, x1, y0, y1 } (2D mm), height }
 function avOutBuild(mode, obj) {
   const av = S.av;
   if (!av || mode === "off") return null;
   const t0 = typeof performance !== "undefined" ? performance.now() : 0;
-  const T = avatarTris(av, avOutMeshes(av, obj)), b = avatarBox(av), cx = (b.x0 + b.x1)/2, cz = (b.z0 + b.z1)/2, floor = b.y0;
-  // (Round beta.6 / 0) the waist on the origin: the floor that far below it
-  const am = avatarMeasures(av), base = am && Number.isFinite(am.waistY) ? am.waistY - floor : AVOUT_WAIST*(b.y1 - b.y0);
+  const T = avatarTris(av, avOutMeshes(av, obj)), b = avatarBox(av), cz = (b.z0 + b.z1)/2;
+  // (Round FIX-3 / A) the floor: the lowest point of what is drawn, as posed, so its feet stand on the line whatever the pose
+  let floor = Infinity;
+  for (let i = 1; i < T.length; i += 3) if (T[i] < floor) floor = T[i];
+  if (!Number.isFinite(floor)) return null;
   // the view's across-axis on the 2D window (x to the right): front +x, back -x, the left side -z (the avatar faces +z)
-  const across = mode === "back" ? (x, z) => -(x - cx) : mode === "side" ? (x, z) => -(z - cz) : (x, z) => x - cx;
+  const across = mode === "back" ? (x, z) => -x : mode === "side" ? (x, z) => -(z - cz) : (x, z) => x;
   let u0 = Infinity, u1 = -Infinity, v1 = 0;
   for (let i = 0; i < T.length; i += 3) { const u = across(T[i], T[i+2]), v = T[i+1] - floor; if (u < u0) u0 = u; if (u > u1) u1 = u; if (v > v1) v1 = v; }
   const r = AVOUT_RES, w = Math.ceil((u1 - u0)/r) + 2, h = Math.ceil(v1/r) + 2, mask = new Uint8Array(w*h);
@@ -25603,19 +27137,11 @@ function avOutBuild(mode, obj) {
       if (w0 >= 0 && w1 >= 0 && w0 + w1 <= 1) mask[y*w + x] = 1;
     }
   }
-  // the boundary: every cell side between a filled cell and an empty one, in the 2D window's millimetres (y down, the waist at 0, the
-  // floor at base; the document's offset is added when drawn)
-  const segs = [], X = (c) => u0 + c*r, Y = (c) => base - c*r, at = (x, y) => (x >= 0 && y >= 0 && x < w && y < h ? mask[y*w + x] : 0);
-  let top = -1, lo = w, hi = -1;
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    if (!mask[y*w + x]) continue;
-    if (y > top) top = y; if (x < lo) lo = x; if (x > hi) hi = x;
-    if (!at(x - 1, y)) segs.push(X(x), Y(y), X(x), Y(y + 1));
-    if (!at(x + 1, y)) segs.push(X(x + 1), Y(y), X(x + 1), Y(y + 1));
-    if (!at(x, y - 1)) segs.push(X(x), Y(y), X(x + 1), Y(y));
-    if (!at(x, y + 1)) segs.push(X(x), Y(y + 1), X(x + 1), Y(y + 1));
-  }
-  const out = { mode, obj: !!obj, res: r, u0, w, h, mask, segs: Float32Array.from(segs), box: { x0: X(lo), x1: X(hi + 1), y0: Y(top + 1), y1: base }, base, waist: !!(am && Number.isFinite(am.waistY)), height: (top + 1)*r, path: null, img: null };
+  // its box in the 2D window's millimetres (y down; the floor, row 0's bottom, on the axis)
+  const X = (c) => u0 + c*r, Y = (c) => -c*r;
+  let top = -1, lo = w, hi = -1, n = 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (mask[y*w + x]) { n++; if (y > top) top = y; if (x < lo) lo = x; if (x > hi) hi = x; }
+  const out = { mode, obj: !!obj, res: r, u0, w, h, mask, n, box: { x0: X(lo), x1: X(hi + 1), y0: Y(top + 1), y1: 0 }, base: 0, floor, height: (top + 1)*r, img: null };
   if (t0) out.ms = performance.now() - t0;
   return out;
 }
@@ -25629,81 +27155,29 @@ function avOutNow() {
   }
   return AVOUT.built;
 }
-// drawn under the patterns: the mask as a light fill, its boundary as a thin dashed grey line
+// drawn under the patterns: the mask as a soft fill, no line round it (Round FIX-3 / A)
 function drawAvOutline() {
   const o = avOutNow();
-  if (!o || !o.segs.length) return;
-  const s = S.view.s, z = toS(V(0, avOutDy()));
+  if (!o || !o.n) return;
+  const s = S.view.s, z = toS(V(0, 0));
   ctx.save();
   if (!o.img && typeof document !== "undefined" && document.createElement) {
     const c = document.createElement("canvas"); c.width = o.w; c.height = o.h;
     const g = c.getContext && c.getContext("2d");
     const im = g && g.createImageData ? g.createImageData(o.w, o.h) : null;
-    if (im && im.data) { for (let y = 0; y < o.h; y++) for (let x = 0; x < o.w; x++) if (o.mask[y*o.w + x]) { const k = ((o.h - 1 - y)*o.w + x)*4; im.data[k] = 80; im.data[k+1] = 82; im.data[k+2] = 88; im.data[k+3] = 34; } g.putImageData(im, 0, 0); o.img = c; }
+    if (im && im.data) { const [cr, cg, cb, ca] = AVOUT_FILL; for (let y = 0; y < o.h; y++) for (let x = 0; x < o.w; x++) if (o.mask[y*o.w + x]) { const k = ((o.h - 1 - y)*o.w + x)*4; im.data[k] = cr; im.data[k+1] = cg; im.data[k+2] = cb; im.data[k+3] = ca; } g.putImageData(im, 0, 0); o.img = c; }
   }
-  if (o.img) { ctx.imageSmoothingEnabled = false; ctx.drawImage(o.img, z.x + o.u0*s, z.y + (o.base - o.h*o.res)*s, o.w*o.res*s, o.h*o.res*s); }
-  if (!o.path && typeof Path2D === "function") { const P = new Path2D(), g = o.segs; for (let i = 0; i < g.length; i += 4) { P.moveTo(g[i], g[i+1]); P.lineTo(g[i+2], g[i+3]); } o.path = P; }
-  if (o.path) {
-    ctx.translate(z.x, z.y); ctx.scale(s, s);
-    ctx.strokeStyle = "#6e6e74"; ctx.lineWidth = (S.avOutEdit ? 2 : 1)/s; ctx.setLineDash([5/s, 3/s]);
-    ctx.stroke(o.path);
-  }
+  if (o.img) { ctx.imageSmoothingEnabled = true; ctx.drawImage(o.img, z.x + o.u0*s, z.y - o.h*o.res*s, o.w*o.res*s, o.h*o.res*s); }
   ctx.restore();
 }
-/* (Round beta.6 / 0) the outline's vertical offset, the document's (in its avatar edits, so in undo and the file), and its edit mode */
-const avOutDy = () => { const o = S.avedit && S.avedit.outline; return o && Number.isFinite(o.dy) ? o.dy : 0; };
-function avOutDySet(dy) {
-  dy = Math.max(-3000, Math.min(3000, Math.round(dy*10)/10));
-  if (!Number.isFinite(dy)) return;
-  if (dy) S.avedit.outline = { dy }; else delete S.avedit.outline;
-}
-// the outline's frame in the 2D window (mm, the offset added), or null
-function avOutBox() { const o = avOutNow(); if (!o || !o.segs.length) return null; const d = avOutDy(); return { x0: o.box.x0, x1: o.box.x1, y0: o.box.y0 + d, y1: o.box.y1 + d }; }
-const avOutUnder = (w) => { const b = avOutBox(); return !!b && w.x >= b.x0 && w.x <= b.x1 && w.y >= b.y0 && w.y <= b.y1; };
-function avOutEditStart() {
-  if (!S.av) return toast("Edit Avatar Outline: there is no avatar in the scene (Avatar ▸ Load Avatar)");
-  if ((S.ui.avOut || "off") === "off") setAvOut("front");
-  S.avOutEdit = { on: true }; S.bgMode = null; S.place = null; S.draft = null; S.rotAxis = null;
-  toast("Edit Avatar Outline: drag it up or down; right-click it for Vertical Offset… and Reset. Esc, Enter or a click outside it ends", 6000);
-  ui(); draw();
-}
-function avOutEditEnd() { if (!S.avOutEdit) return false; S.avOutEdit = null; if (S.drag && S.drag.k === "avout") S.drag = null; ui(); draw(); return true; }
-// a press while it is edited: on it, a drag up or down (one step, taken at the first move); off it, editing ends
-function avOutDown(w) {
-  if (!avOutBox()) { avOutEditEnd(); return; }
-  if (avOutUnder(w)) { pushDrag("Move Avatar Outline"); S.drag = { k: "avout", at: w.y, dy0: avOutDy(), moved: false }; return; }
-  avOutEditEnd();
-}
-function avOutMove(d, w) { avOutDySet(d.dy0 + w.y - d.at); d.moved = true; drawSoon(); }
-// typed: the offset in the display unit, previewed, one step on OK
-function avOutOffsetDialog(at) {
-  const was = avOutDy(), u = UNIT_MM[S.unit];
-  numDialog("Avatar Outline Vertical Offset", [{ k: "dy", label: "Vertical Offset (down)", val: +(was/u).toFixed(unitDec()), unit: S.unit }], at || { x: 200, y: 160 }, (o) => {
-    avOutDySet(was); const v = o.dy*u;
-    if (!Number.isFinite(v)) return toast("Type a number");
-    if (Math.abs(v - was) < 0.05) return;
-    push("Avatar Outline Offset"); avOutDySet(v); commit();
-  }, { hint: "0 puts the avatar's waist on the 2D origin's horizontal line; a positive number moves the outline down.",
-       preview: (v) => { if (Number.isFinite(v.dy)) { avOutDySet(v.dy*u); drawSoon(); } return null; },
-       onCancel: () => { avOutDySet(was); draw(); } });
-}
-function avOutReset() { if (!avOutDy()) return toast("The waist is already on the origin"); push("Reset Avatar Outline Offset"); avOutDySet(0); commit(); }
-function avOutMenu(e) {
-  const at = { x: e.clientX, y: e.clientY };
-  listMenu([{ n: "Vertical Offset…", f: () => avOutOffsetDialog(at) }, { n: "Reset Vertical Offset", f: avOutReset, off: !avOutDy() }, { sep: 1 }, { n: "Finish Editing", f: avOutEditEnd }], e.clientX, e.clientY);
-}
-// while it is edited: its frame, the waist line, the words, over the patterns
-function drawAvOutEdit() {
-  if (!S.avOutEdit) return;
-  const b = avOutBox(), o = AVOUT.built;
-  if (!b || !o) return;
-  const p = toS(V(b.x0, b.y0)), q = toS(V(b.x1, b.y1)), wy = toS(V(0, avOutDy())).y;
-  ctx.save();
-  ctx.strokeStyle = "#111"; ctx.lineWidth = 3; ctx.strokeRect(p.x, p.y, q.x - p.x, q.y - p.y); ctx.strokeStyle = C_SEL; ctx.lineWidth = 1.5; ctx.strokeRect(p.x, p.y, q.x - p.x, q.y - p.y);
-  ctx.strokeStyle = "#111"; ctx.lineWidth = 1; ctx.setLineDash([8, 4]); ctx.beginPath(); ctx.moveTo(p.x - 20, wy); ctx.lineTo(q.x + 20, wy); ctx.stroke(); ctx.setLineDash([]);
-  ctx.restore();
-  lbl((o.waist ? "Waist" : "Waist (estimated)") + (avOutDy() ? "  " + (avOutDy() > 0 ? "+" : "") + fmt(avOutDy()) + " " + S.unit : ""), V(q.x + 24, wy - 4));
-  tag("Editing avatar outline — drag up or down, Esc to finish", V(p.x + 12, p.y - 10));
+// the outline's frame in the 2D window (mm), or null
+function avOutBox() { const o = avOutNow(); return o && o.n ? { ...o.box } : null; }
+// (Round FIX-3 / A) a file's own choice, or Front when it has none (on by default whenever there is an avatar); put back whether or
+// not the file's other display settings are (a view setting, but the document's own picture of where its avatar stands)
+function avOutFromFile(d) {
+  const m = d && AVOUT_MODES.some(x => x[0] === d.avOut) ? d.avOut : "front", obj = !!(d && d.avOutObj === true);
+  if (!S.ui || typeof normUI !== "function" || (S.ui.avOut === m && !!S.ui.avOutObj === obj)) return;
+  S.ui = normUI({ ...S.ui, avOut: m, avOutObj: obj }); AVOUT.key = ""; AVOUT.built = null;
 }
 function setAvOut(mode, obj) {
   const m = AVOUT_MODES.some(x => x[0] === mode) ? mode : (S.ui.avOut || "off");
@@ -25712,11 +27186,10 @@ function setAvOut(mode, obj) {
   if (m !== "off" && !S.av) toast("Avatar Outline: there is no avatar in the scene (Avatar ▸ Load Avatar)");
   draw();
 }
-// the rows of Avatar Outline ▸ (the 2D Pattern display list and the empty window's More ▸)
+// the rows of Avatar Outline ▸ (the 2D Pattern display list, 2D ▸ and the empty window's More ▸)
 function avOutRows() {
   const cur = S.ui.avOut || "off";
-  return [...AVOUT_MODES.map(([k, n]) => ({ n, on: cur === k, f: () => setAvOut(k) })), { sep: 1 }, { n: "Include Objects", on: !!S.ui.avOutObj, f: () => setAvOut(cur, !S.ui.avOutObj) },
-    { n: "Edit Avatar Outline", off: !S.av, f: avOutEditStart }];      // (Round beta.6 / 0)
+  return [...AVOUT_MODES.map(([k, n]) => ({ n, on: cur === k, f: () => setAvOut(k) })), { sep: 1 }, { n: "Include Objects", on: !!S.ui.avOutObj, f: () => setAvOut(cur, !S.ui.avOutObj) }];
 }
 /* ---- the mannequins (Round F / 8) ----
    Marty and Jessica are plain mannequins: their body in one smooth, matte grey plastic, no picture on it, and nothing else of
@@ -27885,6 +29358,10 @@ function avatarMenu() {
   I.push({ hd: "Arrangement" }, { n: "Show Arrangement Points", k: keyOf("arr_points"), on: !!S.ui.arrPts, f: () => setArrPoints(!S.ui.arrPts) }, { n: "Reset 3D Arrangement (All)", f: () => resetArrangement3(false) }, { n: "Reset 2D Arrangement (All)", f: () => resetArrangement2(false) }, { n: "Cloth Density\u2026", f: () => densityDialog() },
     { hd: "Simulation" }, { n: SIM.on ? "Stop Simulating" : "Simulate", k: keyOf("simulate"), f: simToggle }, { n: "Simulation Settings\u2026", f: () => simSettingsDialog() });
   I.push({ hd: "Camera (keys with the pointer over the 3D window)" }, ...CAM_VIEWS.map(([k, n]) => ({ n, k: keyOf("view:" + k), f: () => cam3d(k) })));
+  // (Round FIX-2 / B) W51's Avatar ▸ Measurement ▸, with the avatar tapes this program has (they were on the 3D toolbar only); the
+  // reference's Attach to Measure and Linear Measure (Avatar) are not built and are not shown. At the end: Load Avatar stays first
+  I.push({ sep: 1 }, subRow("Measurement", () => [toolRow("Edit Measure (Avatar)", "edit_measure_avatar"), toolRow("Basic Tape Measure (Avatar)", "tape_basic"), toolRow("Surface Tape Measure (Avatar)", "tape_surface"),
+    toolRow("Height Measure (Avatar)", "height_measure"), toolRow("Basic Circumference Measure (Avatar)", "circ_basic"), toolRow("Surface Circumference Measure (Avatar)", "circ_surface")]));
   return I;
 }
 
@@ -27914,8 +29391,13 @@ function avatarMenu() {
 function normCloth(o) {
   o = o && typeof o === "object" ? o : {};
   const num = (v, lo, hi, d) => v !== null && v !== "" && Number.isFinite(+v) && +v >= lo && +v <= hi ? +v : d;
-  return { res: num(o.res, 5, 60, 20), substeps: Math.round(num(o.substeps, 2, 60, 20)), self: o.self !== false, worker: o.worker !== false };
+  const out = { res: num(o.res, 5, 60, 20), substeps: Math.round(num(o.substeps, 2, 60, 20)), self: o.self !== false, worker: o.worker !== false };
+  // (Round BETA8-1 / I, roadmap 3.C8) Hi-Res Properties' Add'l Thickness - Collision, mm, kept only when set (file version stays 36)
+  const add = num(o.addThick, 0, 10, 0); if (add > 0) out.addThick = Math.round(add*10)/10;
+  return out;
 }
+// the extra collision thickness every cloth takes (0 unless Hi-Res Properties set one)
+const clothAddThick = () => (typeof S !== "undefined" && S && S.cloth && S.cloth.addThick > 0 ? S.cloth.addThick : 0);
 function normP3(o) {
   if (!o || typeof o !== "object" || !Array.isArray(o.pos) || o.pos.length !== 3 || !o.pos.every(Number.isFinite) || !Array.isArray(o.q) || o.q.length !== 4 || !o.q.every(Number.isFinite)) return null;
   const l = Math.hypot(o.q[0], o.q[1], o.q[2], o.q[3]);
@@ -28023,13 +29505,16 @@ const pieceSig = (p, res) => JSON.stringify([res, p.pts, p.segs.map(s => [s.id, 
   .concat(holesOf(p).length ? [holesOf(p).map(h => [h.pts, h.segs.map(s => s.curved ? [s.c1, s.c2, s.cps, s.e0, s.e1] : 0)])] : [])
   // (Round r14 / 2, 3) and its fold and elastic lines, which the cloth is meshed along, only when it has any
   .concat((p.internals || []).some(meshLine) ? [["folds", (p.internals || []).filter(meshLine).map(h => [h.pts, h.segs.map(s => s.curved ? [s.c1, s.c2, s.cps, s.e0, s.e1] : 0)])]] : []));
-// where a pattern stands when it first comes into the 3D window: flat, facing forward, in front of the avatar, laid out as in
-// the 2D window about the middle of box b (by default the box round the patterns that have no place yet). o: the 2D place
-// its middle c is, which the placement hangs on from then on
+// where a pattern stands when it first comes into the 3D window: flat, facing forward, in front of the avatar. (Round FIX-3 / A,
+// the maintainer's brief: "that's how the reference does it, that's how I want it") **The 2D window's horizontal axis is the 3D
+// floor and its vertical axis the 3D window's x = 0**: a pattern's middle c at 2D (x, y) stands at 3D x = x, y = -y (the 2D window
+// is y down), so a pattern drawn above the line stands above the floor and one drawn below it under the floor; the avatar's
+// outline in 2D (avOutBuild()) stands on the same line. o: the 2D place its middle c is, which the placement hangs on from then on.
+// (Before FIX-3 the patterns were laid out about the middle of the unplaced ones, S.home3, at 62 % of the avatar's height; b, kept
+// in the call for its callers, is no longer read, and a file's S.home3 is kept as read and used by nothing.)
 function defaultP3(p, c, b) {
-  if (!b) { const all = S.pieces.filter(q => q.on && !q.p3); b = all.length ? bboxOf(all) : { x0: 0, y0: 0, x1: 0, y1: 0 }; }
-  const av = S.av, mid = av ? av.height*0.62 : 1100, front = av && av.box ? av.box.z1 + 320 : 420;
-  return { pos: [c[0] - (b.x0 + b.x1)/2, mid - (c[1] - (b.y0 + b.y1)/2), front], q: [0, 0, 0, 1], r: 0, o: [c[0], c[1]] };
+  const av = S.av, front = av && av.box ? av.box.z1 + 320 : 420;
+  return { pos: [c[0], -c[1], front], q: [0, 0, 0, 1], r: 0, o: [c[0], c[1]] };
 }
 // the middle of a pattern's cloth as pieceMesh3() meshes it (its box's middle), or null if it has no cloth
 function meshC(p) {
@@ -28058,17 +29543,8 @@ function freeze3() {
     else if (!p.p3.o) { const c = meshC(p); if (c) p.p3.o = c; }
   }
   if (!fresh.length) return;
-  // laid out about the document's one 2D place for that (S.home3, kept in the file with the scene), so that a pattern added later
-  // comes in beside the others as it lies beside them in 2D. A document that has none yet takes the middle of the patterns that
-  // have no place (as a file of before Round F was always shown), or of every pattern shown
-  if (!S.home3) {
-    const lay = first ? fresh.filter(q => q.on) : S.pieces.filter(q => q.on), b = lay.length ? bboxOf(lay) : null;
-    if (b) S.home3 = [(b.x0 + b.x1)/2, (b.y0 + b.y1)/2];
-  }
-  for (const p of fresh) {
-    const c = meshC(p), h = S.home3 || c;
-    if (c) p.p3 = defaultP3(p, c, { x0: h[0], y0: h[1], x1: h[0], y1: h[1] });
-  }
+  // (Round FIX-3 / A) each where its 2D place puts it: the 2D axes are the 3D floor and centre line (defaultP3())
+  for (const p of fresh) { const c = meshC(p); if (c) p.p3 = defaultP3(p, c); }
 }
 // the placement a pattern's cloth is built from: its own, pushed outward by its layer so that layers start apart
 function pieceP3(p, c) {
@@ -28086,6 +29562,8 @@ function pieceCanvas(p, m) {
   if (!g) return cvs;
   const style = style3()[0], face = p.flip3 ? "back" : "front";
   g.fillStyle = pieceFill(p, style === "front" && p.flip3 ? "back" : style); g.fillRect(0, 0, cvs.width, cvs.height);
+  // (Round BETA8-1 / C) its fabric's texture on the front, laid along its grainline as in 2D
+  if ((style === "front" || style === "translucent") && !p.flip3) { const W = (q) => V((q.x - m.box.x0)*k, (q.y - m.box.y0)*k), P = flatten(p, 16); drawFabTex(g, p, () => { g.beginPath(); P.forEach((q, j) => { const a = W(q); j ? g.lineTo(a.x, a.y) : g.moveTo(a.x, a.y); }); g.closePath(); }, W, k); }
   // (Round r33b / 2) the sections given a fabric of their own, in its colour (the face that shows)
   if (style === "front" || style === "translucent") for (const sc of sectionLooks(p, p.flip3 ? "back" : "front")) { g.beginPath(); sc.P.forEach((q, j) => { const x = (q.x - m.box.x0)*k, y = (q.y - m.box.y0)*k; j ? g.lineTo(x, y) : g.moveTo(x, y); }); g.closePath(); g.fillStyle = sc.color; g.fill(); }
   // (r20 / 9) the graphics of the face that shows (Flip Normal: the back's), unless Show Graphics is off
@@ -28097,7 +29575,7 @@ function pieceCanvas(p, m) {
   }
   return cvs;
 }
-const paintSig = (p) => JSON.stringify([style3()[0], pieceFill(p, style3()[0]), !!p.flip3, show3("gfx3"), sectionLooks(p, p.flip3 ? "back" : "front").map(x => [x.color, x.P.length, x.P[0]]), (p.graphics || []).map(g => [g.img, g.x, g.y, g.w, g.h, g.angle, g.flip, g.face, g.tile, !!imgEl(g.img)])]);
+const paintSig = (p) => JSON.stringify([texSig(p), style3()[0], pieceFill(p, style3()[0]), !!p.flip3, show3("gfx3"), sectionLooks(p, p.flip3 ? "back" : "front").map(x => [x.color, x.P.length, x.P[0]]), (p.graphics || []).map(g => [g.img, g.x, g.y, g.w, g.h, g.angle, g.flip, g.face, g.tile, !!imgEl(g.img)])]);
 function makeItem(p, res, sig) {
   const m = pieceMesh3(p, res);
   if (!m) return null;
@@ -28710,10 +30188,13 @@ function arrDefaults(av) {
   if (R.pelvis && top) {
     const H = dist(R.pelvis, top);
     bv("body", "Body", R.pelvis, top, "body", H*1.3, 340);
-    for (const [key, name, k] of [["chest", "Chest", 62], ["waist", "Waist", 20], ["hip", "Hip", -12]])
+    // (Round FIX-3 / B: the hip row at the hip joints, as the reference's picture has it between the waist and the crotch; it was -12,
+    // 30 mm above Marty's crotch)
+    for (const [key, name, k] of [["chest", "Chest", 62], ["waist", "Waist", 20], ["hip", "Hip", -2]])
       for (const [dk, dn, x] of [["front", "front", 0], ["back", "back", 50], ["left", "left side", 25], ["right", "right side", 75]]) pts.push({ id: key + "_" + dk, name: name + " " + dn, bv: "body", x, y: k, off: 50, wrap: "up" });
   }
-  if (R.neck && R.head) { bv("neck", "Neck", R.neck, R.head, "level", 150, 130); pts.push({ id: "neck_front", name: "Neck front", bv: "neck", x: 0, y: 30, off: 50, wrap: "up" }, { id: "neck_back", name: "Neck back", bv: "neck", x: 50, y: 30, off: 50, wrap: "up" }); }
+  // (Round FIX-3 / B: the neck's points at its base, as the reference's picture has its neck point; at 30 % the chin hid the front one)
+  if (R.neck && R.head) { bv("neck", "Neck", R.neck, R.head, "level", 150, 130); pts.push({ id: "neck_front", name: "Neck front", bv: "neck", x: 0, y: 0, off: 50, wrap: "up" }, { id: "neck_back", name: "Neck back", bv: "neck", x: 50, y: 0, off: 50, wrap: "up" }); }
   else if (top) { bv("neck", "Neck", top, top, "level", 150, 130); pts.push({ id: "neck_front", name: "Neck front", bv: "neck", x: 0, y: 0, off: 50, wrap: "up" }, { id: "neck_back", name: "Neck back", bv: "neck", x: 50, y: 0, off: 50, wrap: "up" }); }
   for (const s of ["L", "R"]) {
     const sn = s === "L" ? "Left " : "Right ";
@@ -28722,6 +30203,40 @@ function arrDefaults(av) {
       if (!A || !B || dist(A, B) < 1) continue;
       bv(key + s, sn + name, B, A, null, dist(A, B), l, end ? { [end]: false } : null);
       for (const [dk, dn, x] of [["front", "front", 0], ["back", "back", 50], ["outer", "outside", 25], ["inner", "inside", 75]]) pts.push({ id: key + s + "_" + dk, name: sn + name + " " + dn, bv: key + s, x, y: 50, off: 50, wrap: "up" });
+    }
+  }
+  // (Round FIX-2 / C12, the maintainer's brief) chest and back three each: left, centre and right, so a left or right front or back
+  // piece is placed on its own side. The centre ones keep their ids and the first 46 their order (files placed on them stay where
+  // they were); the four new ones at the end, halfway between the centre and the side (guess fix2/12: the recordings do not show the
+  // reference's layout closely)
+  const LR = [["front_left", "front left", 12.5], ["front_right", "front right", 87.5], ["back_left", "back left", 37.5], ["back_right", "back right", 62.5]];
+  if (R.pelvis && top) for (const [dk, dn, x] of LR) pts.push({ id: "chest_" + dk, name: "Chest " + dn, bv: "body", x, y: 62, off: 50, wrap: "up" });
+  /* (Round FIX-3 / B, the maintainer's brief and reference picture of the front; the recordings for the back and the sides) the rest of
+     the reference's layout, after the 50 above (which keep their ids, places and order). Front, top to bottom: the face; the neck; an
+     upper chest row, the chest row, an upper torso row, the waist row and the hip row, each left, centre and right; the crotch; five
+     along each arm (shoulder, upper arm, elbow, forearm, wrist); thigh, knee, shin and ankle on each leg. The back the same but the
+     face (the back of the head) and the crotch (the seat's middle); the sides: the torso's rows but the upper chest (the armpit), and
+     the outside and inside of each arm and leg point. Every row is placed by the body's own joints, not by the picture's pixels (guess
+     fix3/2): the torso's rows as a share of the way from the pelvis joint to the neck joint (Marty: 960 to 1615 mm) as the picture
+     spaces them, upper chest 81 % (under the collar bone), upper torso 41 % (midway between chest and waist), the hip -2 % (moved
+     up from -12), the crotch -13 % (lower, on Marty, is the gap between his legs); the face a
+     quarter of the neck's length above the head joint (the nose), the neck at its base; a shoulder 92 % of the way from the elbow up to the shoulder joint, the elbow and the knee on their joints, the
+     wrist and the ankle 8 % above theirs, as the picture's dots sit on those joints. 116 points on Marty and Jessica. */
+  if (R.pelvis && top) {
+    for (const [key, name, y, sides] of [["upperchest", "Upper chest", 81, false], ["torso", "Upper torso", 41, true]]) {
+      for (const [dk, dn, x] of [["front", "front", 0], ["back", "back", 50], ...LR, ...(sides ? [["left", "left side", 25], ["right", "right side", 75]] : [])])
+        pts.push({ id: key + "_" + dk, name: name + " " + dn, bv: "body", x, y, off: 50, wrap: "up" });
+    }
+    for (const [key, name, y] of [["waist", "Waist", 20], ["hip", "Hip", -2]]) for (const [dk, dn, x] of LR) pts.push({ id: key + "_" + dk, name: name + " " + dn, bv: "body", x, y, off: 50, wrap: "up" });
+    pts.push({ id: "crotch_front", name: "Crotch front", bv: "body", x: 0, y: -13, off: 50, wrap: "up" }, { id: "crotch_back", name: "Seat back", bv: "body", x: 50, y: -13, off: 50, wrap: "up" });
+  }
+  if (bvs.some(b => b.id === "neck")) pts.push({ id: "head_front", name: "Face", bv: "neck", x: 0, y: R.neck && R.head ? 125 : 60, off: 50, wrap: "up" }, { id: "head_back", name: "Head back", bv: "neck", x: 50, y: R.neck && R.head ? 125 : 60, off: 50, wrap: "up" });
+  const SIDES4 = [["front", "front", 0], ["back", "back", 50], ["outer", "outside", 25], ["inner", "inside", 75]];
+  for (const s of ["L", "R"]) {
+    const sn = s === "L" ? "Left " : "Right ";
+    for (const [key, name, bv, y] of [["shoulder", "shoulder", "arm", 92], ["elbow", "elbow", "arm", 0], ["wrist", "wrist", "forearm", 8], ["knee", "knee", "thigh", 0], ["ankle", "ankle", "shin", 8]]) {
+      if (!bvs.some(b => b.id === bv + s)) continue;
+      for (const [dk, dn, x] of SIDES4) pts.push({ id: key + s + "_" + dk, name: sn + name + " " + dn, bv: bv + s, x, y, off: 50, wrap: "up" });
     }
   }
   return { bvs, pts };
@@ -28815,14 +30330,17 @@ function showArrPoints() {
   for (const c of g.children.slice()) g.remove(c);
   const tab = arrTabOpen();
   if ((!S.ui.arrPts && !tab) || !S.av) { arrShowBVs(); view3d.ask(); return; }
-  if (!G3.dot) { G3.dot = new THREE.SphereGeometry(11, 14, 10); G3.dotMat = new THREE.MeshBasicMaterial({ color: 0x1f6fe0 }); G3.dotHot = new THREE.MeshBasicMaterial({ color: 0xfff23a }); }
+  // (Round FIX-3 / B, the reference picture) a flat disc facing out from the body, so a point on a side is seen as a thin mark from the
+  // front; an unseen ball round it is what the pointer picks (arrHit()), so a disc seen edge-on is as easy to click as one seen flat
+  if (!G3.dot) { G3.dot = new THREE.CylinderGeometry(12, 12, 2.5, 24); G3.dotPick = new THREE.SphereGeometry(13, 10, 8); G3.dotMat = new THREE.MeshBasicMaterial({ color: 0x1f6fe0, side: THREE.DoubleSide }); G3.dotHot = new THREE.MeshBasicMaterial({ color: 0xfff23a, side: THREE.DoubleSide }); }
   // (Round r18 / 6) the point selected in the Arrangement tab: larger, orange, ringed in dark; its partner on the other side: larger, light blue, ringed in white
   if (!G3.dotSel) { G3.dotSel = new THREE.MeshBasicMaterial({ color: 0xe69f00 }); G3.dotPair = new THREE.MeshBasicMaterial({ color: 0x56b4e9 }); G3.ring = new THREE.TorusGeometry(19, 2.6, 6, 24); G3.ringDark = new THREE.MeshBasicMaterial({ color: 0x1c1c1e }); G3.ringLight = new THREE.MeshBasicMaterial({ color: 0xffffff }); }
   const sel = tab ? G3.arrPt : null, pair = sel ? arrPartner(sel) : null;
   for (const pt of arrList()) {
     const d = pt.rho + 30, at = [pt.a[0] + pt.out[0]*d, pt.a[1] + pt.out[1]*d, pt.a[2] + pt.out[2]*d], role = pt.id === sel ? "sel" : pt.id === pair ? "pair" : "";
     const m = new THREE.Mesh(G3.dot, role === "sel" ? G3.dotSel : role === "pair" ? G3.dotPair : G3.dotMat);
-    m.position.set(...at); m.userData.pt = pt; if (role) m.scale.setScalar(1.45);
+    m.position.set(...at); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(...pt.out)); m.userData.pt = pt; if (role) m.scale.setScalar(1.45);
+    const pk = new THREE.Mesh(G3.dotPick, G3.dotMat); pk.visible = false; pk.userData.pt = pt; pk.userData.pick = true; m.add(pk);
     g.add(m);
     if (role) { const r = new THREE.Mesh(G3.ring, role === "sel" ? G3.ringDark : G3.ringLight); r.position.set(...at); r.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(...pt.out)); r.userData.ring = true; g.add(r); }
   }
@@ -28868,7 +30386,7 @@ function setArrPoints(on) {
 function arrHit(r) {
   const g = view3d.group("arr");
   if (!r || !g || !g.children.length) return null;
-  const h = r.rc.intersectObjects(g.children.filter(c => !c.userData.ring), false)[0];
+  const h = r.rc.intersectObjects(g.children.filter(c => !c.userData.ring), true)[0];      // (Round FIX-3 / B: the disc or the unseen ball round it)
   return h ? h.object.userData.pt : null;
 }
 
@@ -28884,6 +30402,7 @@ function setTool3(id) {
   S.tool3 = id;
   GROUPS.forEach(g => { if (g.some(x => x.id === id)) g.active = id; });
   view3d.tool(TOOL3[id]); refreshRail();
+  if (typeof brushPanel === "function") brushPanel(id === "select_mesh_brush" || id === "glue_brush" || id === "steam");      /* (BETA8-1 / D: Glue Brush too) */      // (Round FIX-4 / B) the Brush panel while the brush is in hand
   const t = TOOLS[id], h = document.getElementById("s-hint");
   if (h && t) h.textContent = macKeys(t.n + (t.key ? " (" + t.key + ")" : "") + " — " + (HINT[id] || t.tip));
   if (S.ui.layout === "2d") setLayout("both");
@@ -29026,7 +30545,15 @@ const GIZ_AX = [
 const gizDrag = () => { const d = (TOOL3.select_move || {}).d; return d && d.giz ? d : null; };
 // the handles there are: [{ id, kind, ax }]. (Round r18 / 2) On a joint only the three rings: a joint is turned, not moved
 // (Round r23 / 5) on a light the arrows and the square only: a light always faces the garment
-const gizHandles = () => [...(gizJoint() ? [] : [{ id: "free", kind: "free", ax: null }, ...GIZ_AX.map(ax => ({ id: "move:" + ax.k, kind: "move", ax }))]), ...(gizLight() ? [] : GIZ_AX.map(ax => ({ id: "turn:" + ax.k, kind: "turn", ax })))];
+const gizHandles = () => [...(gizJoint() ? [] : [{ id: "free", kind: "free", ax: null }, ...GIZ_AX.map(ax => ({ id: "move:" + ax.k, kind: "move", ax }))]), ...(gizLight() ? [] : GIZ_AX.map(ax => ({ id: "turn:" + ax.k, kind: "turn", ax }))),
+  ...(gizJoint() || gizLight() ? [] : [{ id: "tack", kind: "tack", ax: null }])];      // (Round FIX-3 / G) the tack, last: the others keep their places in the list
+/* (Round FIX-3 / G, S16 02:21-02:46: "this is the tag thing and then I can put it on a different pattern and then it tags on it") The gizmo's
+   tack: a dot at its middle (where the reference draws its blue dot); the square that moves in the plane of the screen sits in the
+   corner between the X and Y arrows (GIZ_SQ, as the reference's yellow square). Dragged over another pattern's cloth, the selected
+   patterns are turned so their face at the gizmo matches that cloth's surface under the pointer, facing the camera, and laid on it
+   SUPERIMPOSE_GAP in front; over nothing they follow the pointer in the plane of the screen. One step, "Tack in 3D". */
+const GIZ_SQ = 0.3, GIZ_TACK_PX = 7;
+const gizSqAt = (g) => new THREE.Vector3(g.O.x + (g.B[0][0] + g.B[1][0])*GIZ_SQ*g.s, g.O.y + (g.B[0][1] + g.B[1][1])*GIZ_SQ*g.s, g.O.z + (g.B[0][2] + g.B[1][2])*GIZ_SQ*g.s);
 // a point of an axis's ring, at angle f round it (0 at the ring's own mark is a quarter of a right angle on: see gizBuild())
 const gizRingPt = (g, ax, f) => { const c = Math.cos(f)*g.s*GIZ.ring, sn = Math.sin(f)*g.s*GIZ.ring, a = gizAx(g, ax); return new THREE.Vector3(g.O.x + a.u[0]*c + a.w[0]*sn, g.O.y + a.u[1]*c + a.w[1]*sn, g.O.z + a.u[2]*c + a.w[2]*sn); };
 // the place on a ring nearest to the pointer: { d (pixels), f (the angle round the ring) }
@@ -29092,8 +30619,11 @@ function distToSeg2(m, a, b) {
 function gizHit(e) {
   const g = gizGeom();
   if (!g) return null;
-  const m = { x: e.clientX, y: e.clientY };
-  if (Math.hypot(m.x - g.o2.x, m.y - g.o2.y) <= GIZ.pick + 2) return gizHandles()[0];
+  const m = { x: e.clientX, y: e.clientY }, hs = gizHandles(), tk = hs.find(h => h.kind === "tack");
+  // (Round FIX-3 / G) the tack at the middle, the square in its corner (on a joint or a light: the square at the middle, as before)
+  if (tk && Math.hypot(m.x - g.o2.x, m.y - g.o2.y) <= GIZ_TACK_PX + 2) return tk;
+  const sq = tk ? view3d.project(gizSqAt(g)) : g.o2;
+  if (sq && Math.hypot(m.x - sq.x, m.y - sq.y) <= GIZ.pick + 2) return hs[0];
   // an arrow before a ring: the rings cross every arrow near its end, and there the arrow is what is meant
   for (const kind of ["move", "turn"]) {
     let best = null;
@@ -29179,6 +30709,11 @@ function gizBuild() {
   edge.scale.set(0.3, 0.3, 1); sq.scale.set(0.22, 0.22, 1);
   grp.add(edge, sq);
   parts.free = { g: sq, edge };
+  // (Round FIX-3 / G) the tack: a blue dot with a dark ring at the middle
+  const tEdge = over(new THREE.Sprite(new THREE.SpriteMaterial({ color: 0x1c1c1e })), 25), tDot = over(new THREE.Sprite(new THREE.SpriteMaterial({ color: 0x1f6fe0 })), 26);
+  tEdge.scale.set(0.16, 0.16, 1); tDot.scale.set(0.11, 0.11, 1);
+  grp.add(tEdge, tDot);
+  parts.tack = { g: tDot, edge: tEdge, dot: true };
   grp.visible = false;
   return (G3.gizObj = { grp, parts });
 }
@@ -29194,7 +30729,10 @@ function gizFrame() {
   for (const id of Object.keys(o.parts)) {
     const pt = o.parts[id], on = id === hot, ring = id.indexOf("turn:") === 0;
     if (pt.thick) pt.thick.visible = on;
-    if (pt.edge) { pt.edge.scale.setScalar(on ? 0.4 : 0.3); pt.g.scale.setScalar(on ? 0.3 : 0.22); pt.g.visible = pt.edge.visible = !jt; }
+    if (pt.edge && pt.dot) { pt.edge.scale.setScalar(on ? 0.22 : 0.16); pt.g.scale.setScalar(on ? 0.16 : 0.11); pt.g.visible = pt.edge.visible = !jt && !lt && (!d || on); }
+    else if (pt.edge) { pt.edge.scale.setScalar(on ? 0.4 : 0.3); pt.g.scale.setScalar(on ? 0.3 : 0.22); pt.g.visible = pt.edge.visible = !jt;
+      // (Round FIX-3 / G) in its corner beside the tack; on a joint or a light, where there is no tack, at the middle
+      const c = jt || lt ? 0 : GIZ_SQ; pt.g.position.set(c, c, 0); pt.edge.position.set(c, c, 0); }
     if (pt.g.isGroup) pt.g.visible = (!d || on) && (ring ? !lt : !jt);          // while one handle is dragged the others stand back; on a joint (Round r18 / 2) the rings alone, on a light (r23 / 5) no rings
   }
 }
@@ -29475,6 +31013,7 @@ function gizStart(h, e, r) {
     was: ids.map(id => { const p = byId(id), it = G3.items.get(id); return { id, X0: it.X.slice(), p3: p.p3 ? clone(p.p3) : null, base: p.p3 ? clone(p.p3) : defaultP3(p, it.mesh.c), placed: it.placed, own: it.own }; }) };
   if (h.kind === "move") { const v = gizAx(g, h.ax).v; d.a = new THREE.Vector3(v[0], v[1], v[2]); d.t0 = axisParam(r, d.O, d.a) || 0; }
   else if (h.kind === "free") d.q0 = dragPlane(r, d.O) || d.O.clone();
+  else if (h.kind === "tack") { d.q0 = dragPlane(r, d.O) || d.O.clone(); d.n0 = gizFace(G3.giz.pid, G3.giz.v); }
   else gizRingTake(d, g, h, e);
   return d;
 }
@@ -29503,6 +31042,32 @@ function jointGizStart(b, h, e) {
   gizRingTake(d, g, h, e);
   return d;
 }
+// (Round FIX-3 / G) a cloth's face at one of its points: the mean of its triangles' normals there, turned to face the camera
+function gizFace(pid, v) {
+  const it = G3.items.get(pid);
+  if (!it) return [0, 0, 1];
+  const T = it.mesh.tri, X = it.X, n = [0, 0, 0];
+  for (let t = 0; t < T.length; t += 3) {
+    if (T[t] !== v && T[t+1] !== v && T[t+2] !== v) continue;
+    const a = 3*T[t], b = 3*T[t+1], c = 3*T[t+2], ux = X[b] - X[a], uy = X[b+1] - X[a+1], uz = X[b+2] - X[a+2], vx = X[c] - X[a], vy = X[c+1] - X[a+1], vz = X[c+2] - X[a+2];
+    n[0] += uy*vz - uz*vy; n[1] += uz*vx - ux*vz; n[2] += ux*vy - uy*vx;
+  }
+  return gizFacing(n, [X[3*v], X[3*v+1], X[3*v+2]]);
+}
+function gizFacing(n, at) {
+  const l = Math.hypot(n[0], n[1], n[2]);
+  if (!(l > 1e-12)) return [0, 0, 1];
+  const u = n.map(c => c/l), cam = view3d.camera && view3d.camera(), cp = cam && cam.position;
+  if (cp && (cp.x - at[0])*u[0] + (cp.y - at[1])*u[1] + (cp.z - at[2])*u[2] < 0) return u.map(c => -c);
+  return u;
+}
+// the turn that takes unit a onto unit b (the shortest), as [x, y, z, w]
+function qFromTo(a, b) {
+  const d = a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+  if (d < -0.999999) { const ax = Math.abs(a[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0], c = [a[1]*ax[2] - a[2]*ax[1], a[2]*ax[0] - a[0]*ax[2], a[0]*ax[1] - a[1]*ax[0]], l = Math.hypot(...c); return [c[0]/l, c[1]/l, c[2]/l, 0]; }
+  const c = [a[1]*b[2] - a[2]*b[1], a[2]*b[0] - a[0]*b[2], a[0]*b[1] - a[1]*b[0]], q = [c[0], c[1], c[2], 1 + d], l = Math.hypot(...q);
+  return q.map(v => v/l);
+}
 // the patterns of a drag as they were when it began, moved by val: { by: THREE.Vector3 } or turned: { deg }. Always from the start, so nothing drifts.
 function gizApply(d, val) {
   if (d.light) {
@@ -29526,7 +31091,14 @@ function gizApply(d, val) {
     const p = byId(st.id), it = G3.items.get(st.id);
     if (!p || !it || it.X.length !== st.X0.length) continue;
     const X = it.X, X0 = st.X0;
-    if (val.by) {
+    if (val.q) {
+      // (Round FIX-3 / G) a tack: turned by q about the gizmo, then moved by
+      const q = val.q, O = d.O, b = val.by, o = [0, 0, 0];
+      for (let i = 0; i < X.length; i += 3) { SIM3D.qRot(q, X0[i] - O.x, X0[i+1] - O.y, X0[i+2] - O.z, o); X[i] = O.x + o[0] + b.x; X[i+1] = O.y + o[1] + b.y; X[i+2] = O.z + o[2] + b.z; }
+      SIM3D.qRot(q, st.base.pos[0] - O.x, st.base.pos[1] - O.y, st.base.pos[2] - O.z, o);
+      const nq = SIM3D.qMul(q, st.base.q), l = Math.hypot(nq[0], nq[1], nq[2], nq[3]) || 1;
+      p.p3 = { ...st.base, pos: [O.x + o[0] + b.x, O.y + o[1] + b.y, O.z + o[2] + b.z], q: nq.map(v => v/l) };
+    } else if (val.by) {
       const b = val.by;
       for (let i = 0; i < X.length; i += 3) { X[i] = X0[i] + b.x; X[i+1] = X0[i+1] + b.y; X[i+2] = X0[i+2] + b.z; }
       p.p3 = { ...st.base, pos: [st.base.pos[0] + b.x, st.base.pos[1] + b.y, st.base.pos[2] + b.z] };
@@ -29548,6 +31120,7 @@ function gizSaid(d) {
   if (!v) return { text: "", n: 0 };
   if (d.h.kind === "move") { const n = v.by.dot(d.a); return { n, text: "Moved " + (n < 0 ? "−" : "") + Math.abs(n).toFixed(1) + " mm along " + d.h.ax.n }; }
   if (d.h.kind === "free") return { n: v.by.length(), text: "Moved " + v.by.length().toFixed(1) + " mm" };
+  if (d.h.kind === "tack") return { n: 0, text: v.on ? "Laid on " + v.on : "Moved " + v.by.length().toFixed(1) + " mm: over a pattern it is laid on it" };
   return { n: v.deg, text: "Turned " + (v.deg < 0 ? "−" : "") + Math.abs(v.deg).toFixed(1) + "° about " + d.h.ax.n };
 }
 function gizMove(d, e) {
@@ -29556,6 +31129,16 @@ function gizMove(d, e) {
   let val = null;
   if (d.h.kind === "move") { const t = axisParam(r, d.O, d.a); if (t === null) return; val = { by: d.a.clone().multiplyScalar(t - d.t0) }; }
   else if (d.h.kind === "free") { const q = dragPlane(r, d.O); if (!q) return; val = { by: q.sub(d.q0) }; }
+  else if (d.h.kind === "tack") {
+    // (Round FIX-3 / G) over another pattern's cloth: laid on it; over nothing: in the plane of the screen
+    const mine = new Set(d.was.map(w => w.id)), objs = [...G3.items.values()].filter(it => it.obj.visible && !mine.has(it.pid)).map(it => it.obj), h = r.rc.intersectObjects(objs, false)[0];
+    if (h) {
+      const it = G3.items.get(h.object.userData.pid), T = it.mesh.tri, X = it.X, f = 3*h.faceIndex, a = 3*T[f], b = 3*T[f+1], c = 3*T[f+2];
+      const n = gizFacing([(X[b+1] - X[a+1])*(X[c+2] - X[a+2]) - (X[b+2] - X[a+2])*(X[c+1] - X[a+1]), (X[b+2] - X[a+2])*(X[c] - X[a]) - (X[b] - X[a])*(X[c+2] - X[a+2]), (X[b] - X[a])*(X[c+1] - X[a+1]) - (X[b+1] - X[a+1])*(X[c] - X[a])], [h.point.x, h.point.y, h.point.z]);
+      const to = h.point.clone().add(new THREE.Vector3(n[0], n[1], n[2]).multiplyScalar(SUPERIMPOSE_GAP));
+      val = { q: qFromTo(d.n0 || [0, 0, 1], n), by: to.sub(d.O), on: (byId(it.pid) || {}).name || "the pattern" };
+    } else { const q = dragPlane(r, d.O); if (!q) return; val = { q: [0, 0, 0, 1], by: q.sub(d.q0) }; }
+  }
   else { const deg = ((e.clientX - d.x0)*d.tpx.x + (e.clientY - d.y0)*d.tpx.y)*d.k; val = { deg: e.shiftKey ? Math.round(deg/15)*15 : deg }; }
   if (!d.moved && Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 3) return;          // a click, not a drag
   d.moved = true;
@@ -29590,11 +31173,12 @@ function gizEnd(d, keep) {
     garmentLines(); view3d.ask();
     return;
   }
-  pushState(d.undo, d.h.kind === "turn" ? "Turn in 3D" : "Move in 3D");
+  pushState(d.undo, d.h.kind === "turn" ? "Turn in 3D" : d.h.kind === "tack" ? "Tack in 3D" : "Move in 3D");
   commit();
 }
 // a right-click while a handle is dragged: the value is typed. Enter applies it and ends the drag, Esc goes back to dragging.
 function gizType(d, e) {
+  if (d.h.kind === "tack") return;                           // (Round FIX-3 / G) nothing to type: where it lies is where it is laid
   const turn = d.h.kind === "turn", now = gizSaid(d).n;
   d.typing = true;
   numDialog(turn ? "Turn about " + d.h.ax.n : d.h.kind === "move" ? "Move along " + d.h.ax.n : "Move", [{ k: "v", label: turn ? "Angle" : "Distance", val: +now.toFixed(1), unit: turn ? "°" : "mm", step: 1 }], { x: e.clientX, y: e.clientY }, (o) => {
@@ -29647,15 +31231,17 @@ function garmentMenu(e) {
       { n: "Flip", menu: () => [{ n: "Horizontally", h: "Flip Horizontally", k: keyOf("turnHalf"), f: () => turnPieces3([0, 1, 0], 180) }, { n: "Vertically", h: "Flip Vertically", k: keyOf("flipOver"), f: () => turnPieces3([1, 0, 0], 180) }, ctxNb("Wrap Direction")] },
       { n: "Reverse-Arrange", menu: () => [ctxNb("Horizontally"), ctxNb("Vertically")] }, { sep: 1 },
       { n: "Focus Zoom", k: keyOf("zoomSel"), f: focusZoom3 }, { n: "Zoom Extents All", f: home3d }, { sep: 1 },
-      ctxNb("Export To USD Layer"), ctxNb("Refresh Textures"),
+      ctxNb("Export To USD Layer"), { n: "Refresh Textures", f: refreshTextures },
+      // (Round FIX-2 / B) as on the 2D pattern menu
+      { sep: 1 }, { n: "Create History Group…", f: () => hgCreate(S.sel.includes(h.p.id) ? S.sel.slice() : [h.p.id]) },
       ...ctxMore([{ n: "3D Placement…", f: () => placementDialog(h.p, at) }, { n: "Lay Flat (no curve)", f: () => flatPieces3() }, ...more]));
   } else {
     I.push(...CAM_VIEWS.map(([k, n]) => ({ n, k: keyOf("view:" + k), f: () => cam3d(k) })), { n: "Custom View", menu: customViewRows }, { sep: 1 },
       { n: "Gizmo", menu: gizSpaceRows }, { sep: 1 },
       { n: "Format 3D Background\u2026", h: "Format 3D Background", f: () => bg3Dialog() }, { sep: 1 },
       { n: "Paste", k: keyOf("paste"), f: () => paste(false) }, { n: "Mirror Paste", k: keyOf("mirror"), f: () => paste(true) }, { sep: 1 },
-      ctxNb("Show/Hide Color"), { sep: 1 }, ctxNb("Refresh Textures"), { sep: 1 },
-      ctxNb("Camera Properties"), { n: "Simulation Properties", f: () => simSettingsDialog(at) }, { n: "Grid Properties\u2026", h: "Grid Properties", f: () => grid3PropsDialog(at) }, { sep: 1 },
+      ctxNb("Show/Hide Color"), { sep: 1 }, { n: "Refresh Textures", f: refreshTextures }, { sep: 1 },
+      { n: "Camera Properties", menu: cameraPropRows }, { n: "Simulation Properties", f: () => simSettingsDialog(at) }, { n: "Grid Properties\u2026", h: "Grid Properties", f: () => grid3PropsDialog(at) }, { sep: 1 },
       { n: "Zoom Extents All", f: home3d },
       ...ctxMore([{ n: "Show Arrangement Points", k: keyOf("arr_points"), on: !!S.ui.arrPts, f: () => setArrPoints(!S.ui.arrPts) },
         { n: SIM.on ? "Stop Simulating" : "Simulate", k: keyOf("simulate"), f: simToggle },
@@ -29789,16 +31375,34 @@ function densityDialog(at) {
    Thickness - Collision, Skin Offset and Simulation Quality have nothing behind them yet: they are shown greyed, marked
    "not built yet", only while Show Tools That Are Not Built Yet is on, as the menus' rows are (Q13). Reset puts 8 mm back. */
 const HIRES = 8;
+/* (Round BETA8-1 / I, roadmap 3.C8) Add'l Thickness - Collision and Simulation Quality are real rows now: the thickness is added
+   to every cloth's distance off the body and to the patterns' Collision Thickness (clothAddThick(): fabricPhys(), the solver's
+   selfMin; S.cloth.addThick, in the file, 0 to 10 mm, kept only when set, guess beta8-1/16); Simulation Quality is the preference
+   3D \u25b8 Simulation Quality sets (Normal / High Accuracy, setSimQuality(), which asks first). Tolerance (the reference's mesh
+   varying between two sizes: this program meshes evenly) and Skin Offset (SKIN_OFFSET, the maintainer's fixed default) stay behind
+   the switch. The reference's tick boxes are left out: a field left as it opened changes nothing. */
+const ADD_THICK_MAX = 10;
 function hiResDialog(at) {
-  const nb = !!(S.ui && S.ui.unbuilt), NB = " (not built yet)", fields = [
+  const nb = !!(S.ui && S.ui.unbuilt), NB = " (not built yet)", q0 = S.prefs.simQuality === "high" ? "high" : "normal", t0 = clothAddThick(), fields = [
     { k: "res", head: "Garment", label: "Particle Distance", val: HIRES, unit: "mm", step: 1 }];
-  if (nb) fields.push(
-    { k: "tol0", label: "Tolerance" + NB, val: 5, unit: "mm", ro: true }, { k: "tol1", label: "\u2013", val: 20, unit: "mm", ro: true, same: true },
-    { k: "thick", label: "Add'l Thickness - Collision" + NB, val: 1, unit: "mm", ro: true },
-    { k: "skin", head: "Avatar", label: "Skin Offset" + NB, val: 0, unit: "mm", ro: true },
-    { k: "quality", head: "Simulation", label: "Simulation Quality" + NB, val: "normal", ro: true, options: [["normal", "Normal (Default)"], ["animation", "Animation (Stable)"], ["fitting", "Fitting (Accurate Fabric)"], ["custom", "Custom"]] });
-  numDialog("Hi-Res Properties", fields, at || { x: window.innerWidth/2 - 140, y: 120 }, (v) => setDensity(v.res),
-    { reset: { res: HIRES }, hint: "Entering a Particle Distance lower than 7 mm will slow the simulation down. Now: " + S.cloth.res + " mm." + resLockHint() });
+  if (nb) fields.push({ k: "tol0", label: "Tolerance" + NB, val: 5, unit: "mm", ro: true }, { k: "tol1", label: "\u2013", val: 20, unit: "mm", ro: true, same: true });
+  fields.push({ k: "thick", label: "Add'l Thickness - Collision", val: t0, unit: "mm", step: 0.5, min: 0, max: ADD_THICK_MAX });
+  if (nb) fields.push({ k: "skin", head: "Avatar", label: "Skin Offset" + NB, val: 0, unit: "mm", ro: true });
+  fields.push({ k: "quality", head: "Simulation", label: "Simulation Quality", val: q0, options: [["normal", "Normal"], ["high", "High Accuracy"]] });
+  numDialog("Hi-Res Properties", fields, at || { x: window.innerWidth/2 - 140, y: 120 }, (v) => hiResApply(v, t0, q0),
+    { reset: { res: HIRES, thick: 0, quality: "normal" }, hint: "Entering a Particle Distance lower than 7 mm or choosing High Accuracy will slow the simulation down. Now: " + S.cloth.res + " mm." + resLockHint() });
+}
+function hiResApply(v, t0, q0) {
+  const t = v.thick === undefined ? t0 : +v.thick;
+  if (v.quality === undefined) v = { ...v, quality: q0 };
+  if (!(t >= 0 && t <= ADD_THICK_MAX)) return toast("An added collision thickness between 0 and " + ADD_THICK_MAX + " mm");
+  if (Math.abs(t - t0) > 1e-9) {
+    if (typeof simStop === "function" && SIM.on) simStop();
+    S.cloth = normCloth({ ...S.cloth, addThick: t }); store(); garmentChanged();
+  }
+  if (v.res !== S.cloth.res) setDensity(v.res);
+  else if (Math.abs(t - t0) > 1e-9) toast("Add'l Thickness - Collision: " + (t > 0 ? t + " mm" : "none"));
+  if ((v.quality === "high" ? "high" : "normal") !== q0) setSimQuality(v.quality);
 }
 function setDensity(res) {
   if (!(res >= 5 && res <= 60)) return toast("A particle distance between 5 and 60 mm");
@@ -30027,9 +31631,17 @@ function isolate3() {
 const SKIN_OFFSET = 3.0, COLLIDE_THICK = 2.5;
 function fabricPhys(f) {
   const k = FABRIC_PHYS[(f || {}).physical] || FABRIC_PHYS.Custom;
-  return { weight: f && f.weight > 0 ? f.weight : k.weight, thick: SKIN_OFFSET,      // the cloth is kept this far off the skin, and room for the flat triangles to clear a curved body
+  return { weight: f && f.weight > 0 ? f.weight : k.weight, thick: SKIN_OFFSET + clothAddThick(),      // the cloth is kept this far off the skin, and room for the flat triangles to clear a curved body (Round BETA8-1 / I: plus Hi-Res Properties' Add'l Thickness - Collision)
     // (Round H1a / 2) a fabric may carry its preset's stiffness and friction as values of its own: an older file's preset, when the preset has changed since (defaultsFill())
-    stretch: f && f.stretch > 0 ? f.stretch : k.stretch, bend: f && f.bend > 0 ? f.bend : k.bend, friction: f && f.friction > 0 ? f.friction : k.friction, maxStretch: (f && f.maxStretch > 0 ? f.maxStretch : k.maxStretch)/100 };
+    stretch: f && f.stretch > 0 ? f.stretch : k.stretch, bend: f && f.bend > 0 ? f.bend : k.bend, friction: f && f.friction > 0 ? f.friction : k.friction, maxStretch: (f && f.maxStretch > 0 ? f.maxStretch : k.maxStretch)/100,
+    // (Round FIX-3 / D) the Detail rows as the solver's shares (SIM3D.dirOf()), only when the fabric has any
+    ...(f && f.dir ? fabDetailPhys(f.dir) : {}) };
+}
+function fabDetailPhys(d) {
+  const out = {}, dir = {};
+  for (const [k, , sk] of FAB_DETAIL) if (Number.isFinite(d[k]) && d[k] > 0) { if (sk === "damp") out.damp = d[k]/100; else dir[sk] = d[k]/100; }
+  if (Object.keys(dir).length) out.dir = dir;
+  return out;
 }
 const SIM = { on: false, sim: null, order: [], seams: [], sig: "", ms: 0, grab: null, tick: 0 };
 const simRunning = () => SIM.on;
@@ -30090,7 +31702,8 @@ function simSeams(order) {
     if (!A || !B || !(A.len > 0) || !(B.len > 0)) continue;
     const inf = seamInfo(sm, S.pieces);
     // a deactivated seam is listed (its threads are drawn, white and dotted) and skipped by the solver
-    out.push({ id: sm.id, zip: !!sm.zip, k: 1e5, ...((S.glues || []).some(g => g.kind === "line" && g.seam === sm.id) ? { glue: true, bend: GLUE_LINE_BEND } : {}), pairs: SIM3D.seamPairs(A, B, Math.min(sp, ...[...sm.a, ...sm.b].map(x => particleOf(byId(x.piece)))), true), la: A.len, lb: B.len, bad: !sm.off && !!inf && sewCheckBad(inf, { ...S.sewCheck, useLen: S.sewCheck.useLen || !S.sewCheck.useRatio }), col: seamCol(sm),
+    const rips = !sm.off && sm.rips && sm.rips.length ? sm.rips : null;
+    out.push({ id: sm.id, zip: !!sm.zip, k: 1e5, ...((S.glues || []).some(g => g.kind === "line" && g.seam === sm.id) ? { glue: true, bend: GLUE_LINE_BEND } : {}), pairs: ripPairs(SIM3D.seamPairs(A, B, Math.min(sp, ...[...sm.a, ...sm.b].map(x => particleOf(byId(x.piece)))), true), rips), la: A.len, lb: B.len, bad: !sm.off && !!inf && sewCheckBad(inf, { ...S.sewCheck, useLen: S.sewCheck.useLen || !S.sewCheck.useRatio }), col: seamCol(sm),
       ...(sm.off ? { off: true, skip: true } : {}), ...(seamFold(sm) ? { fold: seamFold(sm) } : {}),
       // (Round r14 / 6) a seam touching a pattern deactivated with its sewing is left out
       ...(seamParts(sm).some(x => { const q = byId(x.piece) || {}; return q.off3 === "sewing" || q.arch3; }) ? { skip: true } : {}) });
@@ -30106,24 +31719,28 @@ function simSeams(order) {
   return out;
 }
 // what the solver is built from, as text: when it changes while the simulation runs, the solver is built again
-const simSig = () => JSON.stringify([S.seams, S.tacks, S.pipings, S.bindings, S.glues, (S.buttons || []).map(b => [b.id, b.piece, b.x, b.y, b.fasten, b.lib]), ((S.lib || {}).button || []).map(t => [t.id, t.weight]), S.cloth, S.pieces.map(p => [p.id, p.on, p.fabric, p.layer, p.pins, (p.internals || []).filter(foldSet).map(it => [it.id, foldOf(it)]), elasticSig(p), p.freeze3, p.strong3, p.off3, p.solid3, p.solid3s, p.shrink3, p.arch3, p.flip3, p.blocks ? [p.blocks, blockLinesOf(p).map(l => [l.pts, l.segs])] : 0]), (S.lib || {}).fabric, S.av ? [S.av.name, S.av.scale, S.av.pose, S.av.baseQ ? 1 : 0, S.avSet.cell, S.av.jsig || "", S.av.ssig || "", S.av.bsig || ""] : 0, [...G3.items.values()].map(it => it.uid)]);
+const simSig = () => JSON.stringify([S.seams, S.tacks, S.pipings, S.bindings, S.glues, (S.buttons || []).map(b => [b.id, b.piece, b.x, b.y, b.fasten, b.lib]), ((S.lib || {}).button || []).map(t => [t.id, t.weight]), S.cloth, S.pieces.map(p => [p.id, p.on, p.fabric, p.layer, p.pins, (p.internals || []).filter(foldSet).map(it => [it.id, foldOf(it)]), elasticSig(p), p.freeze3, p.strong3, p.off3, p.solid3, p.solid3s, p.shrink3, p.arch3, p.flip3, p.press3 || 0, p.steam || 0, p.blocks ? [p.blocks, blockLinesOf(p).map(l => [l.pts, l.segs])] : 0]), (S.lib || {}).fabric, S.av ? [S.av.name, S.av.scale, S.av.pose, S.av.baseQ ? 1 : 0, S.avSet.cell, S.av.jsig || "", S.av.ssig || "", S.av.bsig || ""] : 0, [...G3.items.values()].map(it => it.uid)]);
 function simBuild() {
   SIM.order = S.pieces.filter(p => p.on && G3.items.has(p.id)).map(p => p.id);
   SIM.seams = simSeams(SIM.order);
+  const layers = simLayers(SIM.order);
   const pieces = SIM.order.map(id => { const it = G3.items.get(id), p = byId(id), fl = foldsOf(p, it.mesh.res), el = elasticsOf(p, it.mesh), fb = fabricPhys(fabricOf(p));
     // (Round r14 / 6) a strengthened pattern is stiff; a deactivated one is passed through (and held, below); (Round build-1) a
     // solidified one rests in the shape it has and is stiffer still; Simulation Shrinkage scales its rest along and across its grain
     const state = (fb) => p.solid3 ? { ...fb, bend: fb.bend*solidBend(p), stretch: Math.max(fb.stretch, STRONG_STRETCH) } : p.strong3 ? { ...fb, bend: fb.bend*STRONG_BEND, stretch: Math.max(fb.stretch, STRONG_STRETCH) } : fb;
-    const fab = state(fb), zones = sectionZones(p, it.mesh, (g) => state(fabricPhys(g)));
+    const fab = state(fb), zones = shirrZones(p, it.mesh, fab, sectionZones(p, it.mesh, (g) => state(fabricPhys(g))));
+    const stf = steamOf(p, it.mesh);      // (Round BETA8-1 / E) Steam
     const sh3 = p.shrink3 && !p.solid3 ? (() => { const g = grainOf(p); return { g: [g.b.x - g.a.x, g.b.y - g.a.y], warp: (p.shrink3.warp || 100)/100, weft: (p.shrink3.weft || 100)/100 }; })() : null;
-    return { xy: it.mesh.xy, tri: it.mesh.tri, X: it.X, fab, layer: p.layer || 0, fill: p.fill || 0, ...(fl.length ? { folds: fl } : {}), ...(el.length ? { elastics: el } : {}), ...(p.off3 || p.arch3 ? { ghost: true } : {}),
-      ...(p.solid3 ? { shape3: true } : {}), ...(sh3 ? { shrink: sh3 } : {}), ...(zones ? { zones } : {}) }; });
+    // (Round FIX-3 / D) the grain on the flat pattern, for a fabric (or a section's) that is stiffer one way than another
+    const gd = fab.dir || (zones && zones.fabs.some(z => z.dir)) ? (() => { const g = grainOf(p); return [g.b.x - g.a.x, g.b.y - g.a.y]; })() : null;
+    return { xy: it.mesh.xy, tri: it.mesh.tri, X: it.X, fab, layer: layers.get(id) || 0, fill: p.fill || 0, ...(p.press3 ? { press: p.flip3 ? -p.press3 : p.press3 } : {}), ...(gd ? { g: gd } : {}), ...(fl.length ? { folds: fl } : {}), ...(el.length ? { elastics: el } : {}), ...(p.off3 || p.arch3 ? { ghost: true } : {}),
+      ...(p.solid3 ? { shape3: true } : {}), ...(sh3 ? { shrink: sh3 } : {}), ...(stf ? { steam: stf } : {}), ...(zones ? { zones } : {}) }; });
   const pins = [];
   // (Round r14 / 6) a frozen or deactivated pattern: every point held
   SIM.order.forEach((id, pi) => { const it = G3.items.get(id), p = byId(id); for (const v of p.freeze3 || p.off3 || p.arch3 ? Array.from({ length: it.mesh.xy.length >> 1 }, (_, k) => k) : piecePins(p, it)) pins.push({ p: pi, v }); });
   zipBuild(SIM.order);
   const extra = simExtras(SIM.order, pieces), tk = simTacks(SIM.order);
-  const spec = { pieces, seams: [...SIM.seams.filter(sm => !sm.skip), ...extra, ...tk.seams, ...simButtons(SIM.order), ...simGlues(SIM.order)], holds: tk.holds, masses: simButtonMasses(SIM.order), rods: simRods(SIM.order), pins, opt: { substeps: simSubsteps(), self: S.cloth.self, selfMin: COLLIDE_THICK } }, field = S.av ? avatarField(S.av) : null;
+  const spec = { pieces, seams: [...SIM.seams.filter(sm => !sm.skip), ...extra, ...tk.seams, ...simButtons(SIM.order), ...simGlues(SIM.order)], holds: tk.holds, masses: simButtonMasses(SIM.order), rods: simRods(SIM.order), pins, opt: { substeps: simSubsteps(), self: S.cloth.self, selfMin: COLLIDE_THICK + clothAddThick() } }, field = S.av ? avatarField(S.av) : null;
   SIM.sig = simSig(); SIM.fillSig = simFillSig();
   const wk = S.cloth.worker !== false ? simWorker() : null;
   if (!wk) { SIM.sim = SIM3D.clothBuild({ ...spec, field }); SIM.forces = mapForcesWanted(); SIM3D.clothForces(SIM.sim, SIM.forces); return; }
@@ -30345,7 +31962,11 @@ function garmentLines() {
   if (!g) return;
   const show = S.ui.show3d || {}, order = SIM.on ? SIM.order : S.pieces.filter(p => p.on && G3.items.has(p.id)).map(p => p.id);
   const threads = show.threads3 !== false, lines = show.sewing3 !== false;
-  if (!SIM.on) SIM.seams = (threads || lines) && G3.items.size ? simSeams(order) : [];
+  // (Round FIX-3b / A) a seam's 3D Seamline (Plain Seam): a fine dark line along its sides on the cloth, as dark as its Intensity, while
+  // Show Seamlines is off (on, the seam's coloured line is drawn in its place)
+  const doc = new Map(S.seams.map(sm => [sm.id, sm])), plainOf = (id) => { const d = doc.get(id); if (!d || d.off || d.hide) return null; const l = line3Of(d); return l.kind === "plain" && l.i > 0 ? l : null; };
+  const plain = !lines && S.seams.some(sm => plainOf(sm.id));
+  if (!SIM.on) SIM.seams = (threads || lines || plain) && G3.items.size ? simSeams(order) : [];
   // a zipper shows as its tapes instead (a deactivated one has none); a glued seam has no stitches (Round r11 / 5); a seam on a pattern hidden in 3D is not drawn
   const shown = (A) => { const it = G3.items.get(order[A.p]); return !it || it.obj.visible; };
   const want = SIM.seams.filter(sm => (!sm.zip || sm.off) && !sm.glue && sm.pairs.length && shown(sm.pairs[0][0]) && shown(sm.pairs[0][1]));
@@ -30357,9 +31978,10 @@ function garmentLines() {
     if (!o) {
       const geo = new THREE.BufferGeometry();
       geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(6*n), 3));
-      o = new THREE.LineSegments(geo, sm.off ? new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 1.5, gapSize: 5 }) : sm.bad ? new THREE.LineDashedMaterial({ color: 0xe01515, dashSize: 9, gapSize: 6 }) : new THREE.LineBasicMaterial({ color: sm.col }));
+      o = new THREE.LineSegments(geo, sm.off ? new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 1.5, gapSize: 5 }) : sm.bad ? new THREE.LineDashedMaterial({ color: 0xe01515, dashSize: 9, gapSize: 6 }) : sm.plain ? new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: Math.min(1, sm.plain.i/40), depthWrite: false }) : new THREE.LineBasicMaterial({ color: sm.col }));
       o.frustumCulled = false; o.renderOrder = 4; o.material.depthTest = !sm.bad;
-      G3.thread.set(key, o); g.add(o);
+      if (sm.plain) o.userData.plain3 = true;
+      G3.thread.set(key, o); (sm.plain ? view3d.group("seam3d") : g).add(o);      // (FIX-3b / A: a Plain Seam is in the render too)
     }
     seen.add(key);
     return o;
@@ -30373,9 +31995,10 @@ function garmentLines() {
       o.geometry.attributes.position.needsUpdate = true;
       if (sm.bad || sm.off) o.computeLineDistances();
     }
-    if (lines && n > 1) for (const side of [0, 1]) {
+    const l3 = !lines && n > 1 && plainOf(sm.id);
+    if ((lines || l3) && n > 1) for (const side of [0, 1]) {
       // (Round r14 / 8) the seam's side along the cloth: from each sewn place to the next on the same pattern
-      const o = lineObj("s" + side + key, n - 1, sm), P = o.geometry.attributes.position.array;
+      const o = lines ? lineObj("s" + side + key, n - 1, sm) : lineObj("p" + side + key + ":" + l3.i, n - 1, { col: "#000000", plain: l3 }), P = o.geometry.attributes.position.array;
       for (let k = 0; k + 1 < n; k++) {
         const a = sm.pairs[k][side], b = sm.pairs[k + 1][side];
         put(P, 2*k, a); if (a.p === b.p) put(P, 2*k + 1, b); else put(P, 2*k + 1, a);
@@ -30384,7 +32007,7 @@ function garmentLines() {
       if (sm.bad || sm.off) o.computeLineDistances();
     }
   }
-  for (const [key, o] of G3.thread) if (!seen.has(key)) { g.remove(o); o.geometry.dispose(); o.material.dispose(); G3.thread.delete(key); }
+  for (const [key, o] of G3.thread) if (!seen.has(key)) { if (o.parent) o.parent.remove(o); o.geometry.dispose(); o.material.dispose(); G3.thread.delete(key); }
   // unsewn edges
   const ug = view3d.group("unsewn");
   ug.visible = show.unsewn !== false && (show.garment !== false);
@@ -30407,7 +32030,7 @@ function garmentLines() {
     for (const o of ug.children) dashDistances(o);
   }
   g.visible = show.garment !== false;
-  clothLines(); showPins(); showTacks(); showButtons3(); showTrims3(); strainShow();
+  clothLines(); showPins(); if (G3.meshSel && G3.meshSel.size) meshSelShow(); showTacks(); showButtons3(); showTrims3(); strainShow();
   if ((S.garMeas || []).length && (!SIM.on || SIM.tick % 10 === 0)) showMeasures();         // (Round r10 / 4) they follow the cloth; a girth's cut is not cheap
   if (SIM.on) zipRead(); else zipBuild(order);
 }
@@ -32038,9 +33661,10 @@ function simGlues(order) {
   return out;
 }
 const glueLine = (smId) => (S.glues || []).find(g => g.kind === "line" && g.seam === smId);
-function makeGlueArea(h, box) {
-  const A = h.it, a = h.p, pts = [];
-  for (let v = 0; v < A.X.length/3; v++) { const s = view3d.project({ x: A.X[3*v], y: A.X[3*v+1], z: A.X[3*v+2] }); if (s && s.z < 1 && s.x >= box.x0 && s.x <= box.x1 && s.y >= box.y0 && s.y <= box.y1) pts.push(v); }
+// (Round BETA8-1 / D) opt: { pts: the cloth points of a (Glue Brush's painting) in place of the box, poly: the area's outline, name: the step }
+function makeGlueArea(h, box, opt) {
+  const A = h.it, a = h.p, pts = opt && opt.pts ? opt.pts.slice() : [];
+  if (box) for (let v = 0; v < A.X.length/3; v++) { const s = view3d.project({ x: A.X[3*v], y: A.X[3*v+1], z: A.X[3*v+2] }); if (s && s.z < 1 && s.x >= box.x0 && s.x <= box.x1 && s.y >= box.y0 && s.y <= box.y1) pts.push(v); }
   if (pts.length < 3) return toast("Gluing: drag the box over more of the garment");
   // the layer under them: the pattern whose cloth is within GLUE_REACH of most of them, and where
   const near = new Map();
@@ -32056,9 +33680,9 @@ function makeGlueArea(h, box) {
   for (const [id, L] of near) if (L.length > bl.length) { bid = id; bl = L; }
   if (bl.length < 3) return toast("Nothing lies on " + a.name + " there: Gluing bonds two layers lying on each other in 3D");
   const B = G3.items.get(bid), P = bl.map(([v]) => V(A.mesh.xy[2*v], A.mesh.xy[2*v+1])), Q = bl.map(([, u]) => V(B.mesh.xy[2*u], B.mesh.xy[2*u+1])), m = fitAffine(P, Q);
-  const poly = hull2(pts.map(v => V(A.mesh.xy[2*v], A.mesh.xy[2*v+1])));
+  const poly = (opt && opt.poly && opt.poly.length >= 3 && opt.poly) || hull2(pts.map(v => V(A.mesh.xy[2*v], A.mesh.xy[2*v+1])));
   if (!m || poly.length < 3) return toast("Gluing: the area is too thin, drag a larger box");
-  push("Gluing");
+  push((opt && opt.name) || "Gluing");
   const id = trimNext("glue");
   trimList("glue").push({ id, name: "Glue " + id, kind: "area", a: a.id, b: bid, poly: poly.map(q => ({ x: q.x, y: q.y })), m });
   S.selTrim = { kind: "glue", id };
@@ -32282,6 +33906,7 @@ function drawZipTarget() {
   ctx.restore();
 }
 TOOL3.edit_zipper = Object.assign(via2D("edit_zipper"), { both: true });
+TOOL3.seamline_rip = Object.assign(via2D("seamline_rip"), { both: true }); TOOL3.edit_rip = Object.assign(via2D("edit_rip"), { both: true });      // (Round FIX-4 / A)
 TOOL3.edit_gluing = Object.assign(via2D("edit_gluing"), { both: true });
 TOOL3.sticker = Object.assign(via2D("sticker"), { both: true });
 // (Round r20 continued (4)) Glue Fill on the garment: the whole piece clicked, glued to the layer its cloth lies on (makeGlueArea())
@@ -32300,6 +33925,8 @@ HINT.glue_fill = "Click a piece lying on the pattern it is to be glued to (a poc
 HINT.edit_zipper = "Drag an end of a zipper to change its length; then drag the other side's end to the dot, so both sides are as long again (it catches within " + ZIP_SNAP + " px).";
 HINT.edit_gluing = "Click a glue to select it; on the pattern it is glued onto, drag inside it to move it, a corner to scale it, the ring above to turn it (Shift: 15° steps). Right-click: Delete, Rotate, Flip. Its Strength and Thickness are in the Property Editor.";
 HINT.sticker = "Click the piece to stick on, then click where it goes on another pattern: it is glued there. Esc or a right-click gives it up.";
+// (Round FIX-2 / C1) the 2D toolbar's twins say what their tools say
+HINT.glue_fill_2d = HINT.glue_fill; HINT.sticker_2d = HINT.sticker; HINT.edit_gluing_2d = HINT.edit_gluing;
 TOOL3.gluing = {
   cursor: "crosshair",
   down(e) { const h = garmentHit(view3d.ray(e)); if (!h) return false; this.d = { h, x: e.clientX, y: e.clientY, moved: false }; return true; },
@@ -32413,7 +34040,8 @@ function drawGlues2D(sel) {
    to the avatar; the selected tack's squares are larger. Listed in the Object Browser (Tack tab), where × deletes one;
    Edit Tack selects one with a click, Delete or its right-click menu deletes it.
    ================================================================ */
-const TACK_COL = 0x0072b2, TACK_AV_COL = 0xe69f00;          // blue and orange: apart for red/green colour-blind eyes; the line's dashes say which kind as well
+const TACK_COL = 0x0072b2, TACK_AV_COL = 0xe69f00, TACK_OFF_COL = 0x8a8a8a, TACK_LEN_MAX = 500;      // (Round FIX-3 / F) a tack switched off: grey and dotted; the longest thread, mm
+const tackName = (t) => t.name || "Tack " + t.id;          // blue and orange: apart for red/green colour-blind eyes; the line's dashes say which kind as well
 function normTacks(list) {
   const pt = (q) => q && Number.isInteger(q.piece) && Number.isFinite(q.x) && Number.isFinite(q.y) ? { piece: q.piece, x: q.x, y: q.y } : null;
   const av = (q) => q && [q.x, q.y, q.z].every(Number.isFinite) ? { x: q.x, y: q.y, z: q.z, ...(Number.isInteger(q.t) && Array.isArray(q.w) && q.w.length === 3 && q.w.every(Number.isFinite) ? { t: q.t, w: q.w.slice() } : {}) } : null;
@@ -32422,7 +34050,9 @@ function normTacks(list) {
     if (!t || !Number.isInteger(t.id) || seen.has(t.id)) continue;
     const a = pt(t.a), b = pt(t.b), v = av(t.av);
     if (!a || (!b === !v)) continue;                         // one end on the cloth, the other on the cloth or on the avatar
-    seen.add(t.id); out.push({ id: t.id, a, b: b || null, av: v || null, ...(t.pin === true && v ? { pin: true } : {}) });      // (pin: Round r20 / 9, a pin attached to the avatar)
+    seen.add(t.id); out.push({ id: t.id, a, b: b || null, av: v || null, ...(t.pin === true && v ? { pin: true } : {}),      // (pin: Round r20 / 9, a pin attached to the avatar)
+      // (Round FIX-3 / F, W16) its Property Editor's rows, each kept only when set: a name of its own, switched off, a thread's length (mm)
+      ...(typeof t.name === "string" && t.name.trim() ? { name: t.name.trim().slice(0, 80) } : {}), ...(t.off === true ? { off: true } : {}), ...(Number.isFinite(t.len) && t.len > 0 ? { len: Math.min(TACK_LEN_MAX, Math.round(t.len*10)/10) } : {}) });
   }
   return out;
 }
@@ -32473,12 +34103,13 @@ function avatarTriAt(P) {
 function simTacks(order) {
   const seams = [], holds = [];
   for (const t of S.tacks || []) {
+    if (t.off) continue;                                       // (Round FIX-3 / F) Activate off: kept, holds nothing
     const A = tackAnchor(t.a, order);
     if (!A) continue;
-    if (t.b) { const B = tackAnchor(t.b, order); if (B) seams.push({ id: "tack" + t.id, tack: true, k: 1e5, pairs: [[A, B]] }); continue; }
+    if (t.b) { const B = tackAnchor(t.b, order); if (B) seams.push({ id: "tack" + t.id, tack: true, k: 1e5, pairs: [[A, B]], ...(t.len > 0 ? { len: t.len } : {}) }); continue; }
     if (!S.av) continue;
     const P = tackAvPoint(t.av), f = avatarField(S.av), g = [0, 0, 0], d = SIM3D.sdfSample(f, P[0], P[1], P[2], g), th = fabricPhys(fabricOf(byId(t.a.piece))).thick;
-    holds.push({ a: A, to: [P[0] + g[0]*(th - d), P[1] + g[1]*(th - d), P[2] + g[2]*(th - d)] });
+    holds.push({ a: A, to: [P[0] + g[0]*(th - d), P[1] + g[1]*(th - d), P[2] + g[2]*(th - d)], ...(t.len > 0 ? { len: t.len } : {}) });
   }
   return { seams, holds };
 }
@@ -32499,6 +34130,8 @@ function showTacks() {
   if (!g.visible || !(S.tacks || []).length) return;
   if (!G3.tackMats) G3.tackMats = { pt: new THREE.PointsMaterial({ color: TACK_COL, size: 8, sizeAttenuation: false, depthTest: false }), ptAv: new THREE.PointsMaterial({ color: TACK_AV_COL, size: 8, sizeAttenuation: false, depthTest: false }),
     sel: new THREE.PointsMaterial({ color: 0xffffff, size: 13, sizeAttenuation: false, depthTest: false }), ln: new THREE.LineBasicMaterial({ color: TACK_COL, depthTest: false }), lnAv: new THREE.LineDashedMaterial({ color: TACK_AV_COL, dashSize: 6, gapSize: 4, depthTest: false }) };
+  // (Round FIX-3 / F) a tack switched off: its ends smaller and grey, its line grey and dotted (size and dots, not only the grey)
+  if (!G3.tackMats.off) Object.assign(G3.tackMats, { off: new THREE.PointsMaterial({ color: TACK_OFF_COL, size: 5, sizeAttenuation: false, depthTest: false }), lnOff: new THREE.LineDashedMaterial({ color: TACK_OFF_COL, dashSize: 1.5, gapSize: 4, depthTest: false }) });
   const M = G3.tackMats;
   for (const t of S.tacks) {
     const A = tackPos(t.a), B = t.b ? tackPos(t.b) : tackAvPoint(t.av);
@@ -32506,9 +34139,9 @@ function showTacks() {
     G3.tackScreen.push({ id: t.id, A, B });
     const pg = new THREE.BufferGeometry(); pg.setAttribute("position", new THREE.BufferAttribute(new Float32Array([...A, ...B]), 3));
     if (G3.selTack === t.id) { const o = new THREE.Points(pg.clone(), M.sel); o.renderOrder = 9; o.frustumCulled = false; g.add(o); }
-    const pts = new THREE.Points(pg, t.b ? M.pt : M.ptAv); pts.renderOrder = 10; pts.frustumCulled = false; g.add(pts);
+    const pts = new THREE.Points(pg, t.off ? M.off : t.b ? M.pt : M.ptAv); pts.renderOrder = 10; pts.frustumCulled = false; g.add(pts);
     const lg = new THREE.BufferGeometry(); lg.setAttribute("position", new THREE.BufferAttribute(new Float32Array([...A, ...B]), 3));
-    const ln = new THREE.Line(lg, t.b ? M.ln : M.lnAv); ln.renderOrder = 10; ln.frustumCulled = false; if (!t.b) ln.computeLineDistances(); g.add(ln);
+    const ln = new THREE.Line(lg, t.off ? M.lnOff : t.b ? M.ln : M.lnAv); ln.renderOrder = 10; ln.frustumCulled = false; if (!t.b || t.off) ln.computeLineDistances(); g.add(ln);
   }
 }
 function addTack(a, b, av) {
@@ -32535,49 +34168,93 @@ function tackAt(e) {
   return best;
 }
 const tackNote = (msg) => { note3d(msg || ""); };
+/* (Round FIX-3 / C, the maintainer's brief: "the first click shows nothing") What the two tack tools show while they are used, drawn over
+   the scene (G3.tackLive: { hot: [x, y, z] | null, on: "cloth" | "avatar" }, the first place G3.tackFrom): before the first click a dot
+   where the click would land on the cloth; after it, that place as a larger square, a line from it to the pointer and a dot where the
+   second click would land (on the cloth for Tack, on the body for Tack on Avatar); the line solid for cloth to cloth, dashed to the
+   avatar, as a finished tack is drawn; the dot a light middle in a dark ring, the first place a filled square: shape and size, not
+   colour alone. Off the cloth (or the body) the line follows the pointer at the first place's depth. Cleared when the tack is made,
+   given up (Esc, a right-click) or the tool put down. */
+function tackLiveAt(e, avatarEnd) {
+  const r = view3d.ray(e);
+  let hot = null;
+  if (r && avatarEnd) { if (S.av) { const P = avatarHit(r); if (P) hot = [P.x, P.y, P.z]; } }
+  else if (r) { const h = garmentHit(r); if (h) hot = [h.point.x, h.point.y, h.point.z]; }
+  const A = G3.tackFrom ? tackPos(G3.tackFrom) : null;
+  let to = hot;
+  // off the cloth: where the pointer's ray crosses the plane through the first place square to the camera's view
+  if (!to && A && r && r.rc) {
+    const o = r.rc.ray.origin, d = r.rc.ray.direction, cam = view3d.camera && view3d.camera(), n = cam && cam.getWorldDirection ? cam.getWorldDirection(new THREE.Vector3()) : d, dn = d.x*n.x + d.y*n.y + d.z*n.z;
+    const k = Math.abs(dn) > 1e-9 ? ((A[0] - o.x)*n.x + (A[1] - o.y)*n.y + (A[2] - o.z)*n.z)/dn : 0;
+    to = [o.x + d.x*k, o.y + d.y*k, o.z + d.z*k];
+  }
+  G3.tackLive = { hot, on: avatarEnd ? "avatar" : "cloth", to };
+  tackLiveShow();
+}
+function tackLiveEnd() { G3.tackLive = null; tackLiveShow(); }
+function tackLiveShow() {
+  const g = view3d.group && view3d.group("tacklive");
+  if (!g) return;
+  for (const c of g.children.slice()) { g.remove(c); c.geometry.dispose(); }
+  const L = G3.tackLive, A = G3.tackFrom ? tackPos(G3.tackFrom) : null;
+  if (!L && !A) { view3d.ask(); return; }
+  if (!G3.tackLiveMats) G3.tackLiveMats = { ring: new THREE.PointsMaterial({ color: 0x1c1c1e, size: 13, sizeAttenuation: false, depthTest: false }), dot: new THREE.PointsMaterial({ color: 0xffffff, size: 7, sizeAttenuation: false, depthTest: false }),
+    from: new THREE.PointsMaterial({ color: TACK_COL, size: 12, sizeAttenuation: false, depthTest: false }), fromRing: new THREE.PointsMaterial({ color: 0xffffff, size: 16, sizeAttenuation: false, depthTest: false }),
+    ln: new THREE.LineBasicMaterial({ color: TACK_COL, depthTest: false }), lnAv: new THREE.LineDashedMaterial({ color: TACK_AV_COL, dashSize: 6, gapSize: 4, depthTest: false }) };
+  const M = G3.tackLiveMats, pts = (P, mat, order) => { const pg = new THREE.BufferGeometry(); pg.setAttribute("position", new THREE.BufferAttribute(new Float32Array(P), 3)); const o = new THREE.Points(pg, mat); o.renderOrder = order; o.frustumCulled = false; o.userData.tackLive = true; g.add(o); };
+  if (A) { pts(A, M.fromRing, 11); pts(A, M.from, 12); }
+  if (A && L && L.to) {
+    const lg = new THREE.BufferGeometry(); lg.setAttribute("position", new THREE.BufferAttribute(new Float32Array([...A, ...L.to]), 3));
+    const ln = new THREE.Line(lg, L.on === "avatar" ? M.lnAv : M.ln); ln.renderOrder = 11; ln.frustumCulled = false; if (L.on === "avatar") ln.computeLineDistances(); ln.userData.tackLive = true; g.add(ln);
+  }
+  if (L && L.hot) { pts(L.hot, M.ring, 13); pts(L.hot, M.dot, 14); }
+  view3d.ask();
+}
 // Tack: a place on the cloth, then a place on the same or another pattern
 TOOL3.tack = {
   cursor: "crosshair",
+  hover(e) { tackLiveAt(e, false); },
   down(e) {
     const h = garmentHit(view3d.ray(e));
     if (!h) return false;
     const q = hitPatternPoint(h);
-    if (!G3.tackFrom) { G3.tackFrom = q; tackNote("Tack: click the place to tack it to (Esc gives it up)"); return true; }
-    const a = G3.tackFrom; G3.tackFrom = null; tackNote();
+    if (!G3.tackFrom) { G3.tackFrom = q; tackNote("Tack: click the place to tack it to (Esc gives it up)"); tackLiveAt(e, false); return true; }
+    const a = G3.tackFrom; G3.tackFrom = null; tackNote(); tackLiveEnd();
     if (a.piece === q.piece && Math.hypot(a.x - q.x, a.y - q.y) < 1) return true;
     addTack(a, q, null); toast("Tacked: " + byId(a.piece).name + " to " + byId(q.piece).name);
     return true;
   },
-  cancel() { G3.tackFrom = null; tackNote(); }, off() { G3.tackFrom = null; tackNote(); },
-  menu(e) { if (G3.tackFrom) { G3.tackFrom = null; tackNote(); return; } garmentMenu(e); },
+  cancel() { G3.tackFrom = null; tackNote(); tackLiveEnd(); }, off() { G3.tackFrom = null; tackNote(); tackLiveEnd(); },
+  menu(e) { if (G3.tackFrom) { G3.tackFrom = null; tackNote(); tackLiveEnd(); return; } garmentMenu(e); },
 };
 // Tack on Avatar: a place on the cloth, then a place on the avatar
 TOOL3.tack_avatar = {
   cursor: "crosshair",
+  hover(e) { tackLiveAt(e, !!G3.tackFrom); },
   down(e) {
     const r = view3d.ray(e);
     if (!G3.tackFrom) {
       const h = garmentHit(r);
       if (!h) return false;
-      G3.tackFrom = hitPatternPoint(h); tackNote("Tack on Avatar: click the place on the avatar (Esc gives it up)");
+      G3.tackFrom = hitPatternPoint(h); tackNote("Tack on Avatar: click the place on the avatar (Esc gives it up)"); tackLiveAt(e, true);
       return true;
     }
     if (!S.av) { toast("Tack on Avatar needs an avatar: Avatar → Load Avatar…"); return true; }
     const P = avatarHit(r);
     if (!P) return false;
-    const a = G3.tackFrom, at = avatarTriAt([P.x, P.y, P.z]); G3.tackFrom = null; tackNote();
+    const a = G3.tackFrom, at = avatarTriAt([P.x, P.y, P.z]); G3.tackFrom = null; tackNote(); tackLiveEnd();
     addTack(a, null, { x: P.x, y: P.y, z: P.z, ...(at || {}) }); toast("Tacked " + byId(a.piece).name + " to the avatar");
     return true;
   },
-  cancel() { G3.tackFrom = null; tackNote(); }, off() { G3.tackFrom = null; tackNote(); },
-  menu(e) { if (G3.tackFrom) { G3.tackFrom = null; tackNote(); return; } garmentMenu(e); },
+  cancel() { G3.tackFrom = null; tackNote(); tackLiveEnd(); }, off() { G3.tackFrom = null; tackNote(); tackLiveEnd(); },
+  menu(e) { if (G3.tackFrom) { G3.tackFrom = null; tackNote(); tackLiveEnd(); return; } garmentMenu(e); },
 };
 // Edit Tack: a click selects a tack, Delete or the right-click menu deletes it; a drag moves the end nearest the press (Round r10 / 3):
 // an end on the cloth to the place of the cloth under the pointer (through the picking layer: a place on its flat pattern), an end
 // on the avatar to the place of the body under it. One undo step, "Move Tack"
 TOOL3.edit_tack = {
   down(e) {
-    const id = tackAt(e); G3.selTack = id; showTacks(); view3d.ask(); renderOB();
+    const id = tackAt(e); G3.selTack = id; showTacks(); view3d.ask(); renderOB(); ui();      // (Round FIX-3 / F: its Property Editor)
     if (id == null) return false;
     const t = S.tacks.find(x => x.id === id), sc = (G3.tackScreen || []).find(x => x.id === id);
     if (!t || !sc) return true;
@@ -32609,8 +34286,28 @@ TOOL3.edit_tack = {
     G3.selTack = id; showTacks();
     listMenu([{ hd: "Tack " + id }, { n: "Delete Tack", k: keyOf("delete"), f: () => deleteTack(id) }], e.clientX, e.clientY);
   },
-  off() { G3.selTack = null; showTacks(); },
+  off() { G3.selTack = null; showTacks(); ui(); },
 };
+/* (Round FIX-3 / F, W16: Information ▸ Name; Tack ▸ Activate, Thread Length (mm), Tack Strength, the last greyed in the reference too) A
+   tack's Property Editor. Activate off: kept and drawn grey and dotted, it holds nothing in the simulation. Thread Length: the two places
+   (or the place and the avatar) are held no further apart than this, slack within it (0: together, as before). Each change one step. */
+function tackPanel(t) {
+  const a = byId(t.a.piece), b = t.b && byId(t.b.piece);
+  return '<h2>Tack <span>' + esc(tackName(t)) + '</span></h2>' +
+    '<details class="pe" open><summary>Information</summary><div class="row"><label>Name</label><input type="text" class="w" id="tk-name" value="' + esc(tackName(t)) + '"></div>' +
+      '<div class="note" style="margin-bottom:6px">' + esc((a ? a.name : "?") + (t.b ? " to " + (b ? b.name : "?") : " to the avatar")) + '</div></details>' +
+    '<details class="pe" open><summary>Tack</summary>' +
+      '<div class="row"><label for="tk-on" title="Off: the tack is kept, drawn grey and dotted, and holds nothing in the simulation">Activate</label><input type="checkbox" id="tk-on"' + (t.off ? '' : ' checked') + '><span class="sub">' + (t.off ? "Off" : "On") + '</span></div>' +
+      '<div class="row"><label title="How far apart the two places may be: a thread between them, slack within its length. 0: held together">Thread Length (mm)</label><input type="text" inputmode="decimal" data-num="1" id="tk-len" value="' + +(t.len || 0).toFixed(1) + '"></div>' +
+      nbPE(["Tack Strength"]) + '</details>';
+}
+function wireTackPanel(pr, t) {
+  const el = (id) => document.getElementById(id), id = t.id, cur = () => (S.tacks || []).find(x => x.id === id);
+  const set = (name, f) => { if (!cur()) return; push(name); f(cur()); S.tacks = normTacks(S.tacks); commit(); };
+  if (el("tk-name")) el("tk-name").onchange = () => { const v = el("tk-name").value.trim(); if (v === tackName(cur() || t)) return; set("Rename Tack", (x) => { if (v && v !== "Tack " + x.id) x.name = v; else delete x.name; }); };
+  if (el("tk-on")) el("tk-on").onchange = () => set(el("tk-on").checked ? "Activate Tack" : "Deactivate Tack", (x) => { if (el("tk-on").checked) delete x.off; else x.off = true; });
+  if (el("tk-len")) el("tk-len").onchange = () => { const v = numOf(el("tk-len").value); if (!Number.isFinite(v) || v < 0) return toast("Thread Length: type 0 or more"); if (Math.abs(v - ((cur() || {}).len || 0)) < 0.05) return; set("Thread Length", (x) => { if (v > 0) x.len = Math.min(TACK_LEN_MAX, v); else delete x.len; }); };
+}
 // Delete with the pointer over the 3D window and Edit Tack in hand
 function tackDeleteSel() { return S.over3d && S.tool3 === "edit_tack" && G3.selTack != null ? deleteTack(G3.selTack) : false; }
 HINT.tack = "Click a place on the cloth, then the place on the same or another pattern to tack it to. The two are held together in the simulation.";
@@ -33494,6 +35191,30 @@ HINT.edit_volume_measure = "Click a volume's measurement mesh: its target, toler
    and to the simulation while it runs (simFillSync(): the solver is not built again), so the cloth swells as the slider moves.
    The first change is one undo step "Fill" (while simulating, the cloth as it is then is kept with it); further changes in the
    same box go into that step. Cancel or Esc takes the step back; OK, Enter or a click elsewhere keeps it. */
+/* (Round FIX-3b / B, the 2D menu's Refresh Seam Allowance) the reference's command brings allowances up to date after the outline changed;
+   here every allowance is worked out from its outline whenever either changes, so it only draws them again and says how many lines
+   have one (guess fix3b/7). No step. */
+function refreshSA() {
+  let n = 0;
+  for (const p of S.pieces) for (const sg of p.segs) if (sg.sa > 0) n++;
+  drawSoon();
+  toast(n ? "Seam allowances up to date: " + n + (n === 1 ? " line has one" : " lines have one") + " (they follow every change of the outline)" : "No pattern has a seam allowance");
+}
+/* (Round FIX-3b / B, the 2D menu's Set Sublayer; the tool's tip "Say which of two patterns lies on top in 3D") two clicks: the pattern
+   that lies under, then the one it lies under. It keeps under3 (that pattern's id, only when set): in the simulation it stands at
+   least one layer nearer the body (simLayers(); its own Layer is left alone, guess fix3b/5). The first pattern clicked again, after
+   it, takes its sublayer away. One step; the first click only selects. The Property Editor says it ("Sublayer of …"). */
+function sublayerClick(p) {
+  if (!p) { S.subPick = null; draw(); return toast("Click a pattern"); }
+  if (S.subPick === undefined || S.subPick === null || !byId(S.subPick)) { S.subPick = p.id; S.sel = [p.id]; ui(); draw(); return toast("Now click the pattern " + p.name + " lies under"); }
+  const a = byId(S.subPick); S.subPick = null;
+  if (a === p) {
+    if (!a.under3) { draw(); return toast(a.name + " lies under no pattern"); }
+    push("Set Sublayer"); delete a.under3; commit(); return toast(a.name + " is no longer a sublayer");
+  }
+  push("Set Sublayer"); a.under3 = p.id; S.sel = [a.id]; commit();
+  toast(a.name + " lies under " + p.name + " in 3D");
+}
 function fillClick(p, at, locked) {
   if (!p) { if (locked) toast(locked.name + " is locked"); return false; }
   fillDialog(p, at);
@@ -33563,6 +35284,323 @@ TOOL3.pin_lasso = {
   menu(e) { garmentMenu(e); },
 };
 HINT.pin_lasso = "Click the cloth to pin (or unpin) one point; drag round a part of the cloth to pin every point inside.";
+/* ---- (Round FIX-4 / B) SELECT MESH (Brush), (Box), (Lasso) (3d_tools 00:38-00:44: the flyout, a Brush panel with Strength 11, Size 75,
+   Focal 50, a circle on the cloth the brush's size, the painted cloth tinted; the maintainer: "I don't think anybody uses that") ----
+   A part of the cloth selected point by point: G3.meshSel, a Map of a pattern's id to the set of its cloth points (the session's
+   only, like the 3D selection; no step). Box and Lasso take the points inside the box or lasso drawn on the screen, Brush the points
+   within its Size (mm) of where it is dragged on the cloth; Shift adds to the selection, Ctrl takes away; a click off the cloth clears
+   it. Shown as small dots on the cloth in the accent's light tint (smaller than a pin's red dots: told by size too). What the selected
+   part is for (the manual: a finer mesh, Freeze, Solidify): its right-click has Freeze Selected Mesh (each point pinned, as Pin does),
+   Unfreeze Selected Mesh and Clear Selection (guess fix4/4: per point, Freeze is the pinning the solver has; a finer or solid part of a
+   pattern is not built). The Brush panel has Size only: Strength and Focal shape a sculpting brush and nothing here reads them
+   (guess fix4/5). */
+const MESH_BRUSH = { size: 75 };
+function meshSelSet(list, mode) {
+  G3.meshSel = mode === "set" ? new Map() : G3.meshSel || new Map();
+  for (const { p, v } of list) {
+    let set = G3.meshSel.get(p.id);
+    if (!set) { if (mode === "sub") continue; G3.meshSel.set(p.id, set = new Set()); }
+    if (mode === "sub") set.delete(v); else set.add(v);
+  }
+  for (const [id, set] of G3.meshSel) if (!set.size || !G3.items.has(id)) G3.meshSel.delete(id);
+  meshSelShow(); view3d.render && view3d.render();
+}
+const meshMode = (e) => e && (e.ctrlKey || e.metaKey) ? "sub" : e && e.shiftKey ? "add" : "set";
+const meshSelCount = () => { let n = 0; for (const set of (G3.meshSel || new Map()).values()) n += set.size; return n; };
+function meshSelList() { const out = []; for (const [id, set] of G3.meshSel || []) { const p = byId(id); if (p) for (const v of set) out.push({ p, v }); } return out; }
+function meshSelShow() {
+  const g = view3d.group("meshsel");
+  if (!g) return;
+  for (const c of g.children.slice()) { g.remove(c); c.geometry.dispose(); }
+  if (!G3.meshSel || !G3.meshSel.size) return;
+  if (!G3.meshSelMat) G3.meshSelMat = new THREE.PointsMaterial({ color: new THREE.Color(uiAccent("text")), size: 4, sizeAttenuation: false, depthTest: false });
+  for (const [id, set] of G3.meshSel) {
+    const it = G3.items.get(id);
+    if (!it || !it.obj.visible) continue;
+    const P = new Float32Array(3*set.size); let k = 0;
+    for (const v of set) { P[3*k] = it.X[3*v]; P[3*k+1] = it.X[3*v+1]; P[3*k+2] = it.X[3*v+2]; k++; }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(P, 3));
+    const o = new THREE.Points(geo, G3.meshSelMat); o.frustumCulled = false; o.renderOrder = 7; g.add(o);
+  }
+}
+function meshFreeze(on) {
+  const list = meshSelList();
+  if (!list.length) return toast("Select a part of the cloth first");
+  if (on) { pinPoints(list.length === 1 ? [list[0], list[0]] : list); return toast(list.length + " points frozen (pinned)"); }
+  push("Unfreeze Selected Mesh");
+  for (const p of new Set(list.map(x => x.p))) {
+    const it = G3.items.get(p.id), m = it.mesh, vs = list.filter(x => x.p === p).map(x => x.v);
+    p.pins = (p.pins || []).filter(q => !vs.some(v => Math.hypot(q.x - m.xy[2*v], q.y - m.xy[2*v+1]) < m.res*0.6));
+    if (!p.pins.length) delete p.pins;
+  }
+  commit(); toast(list.length + " points unfrozen");
+}
+function meshSelMenu(e) {
+  const n = meshSelCount();
+  listMenu([{ hd: "Selected Mesh" + (n ? " · " + n + " points" : "") }, { n: "Freeze Selected Mesh", off: !n, f: () => meshFreeze(true) }, { n: "Unfreeze Selected Mesh", off: !n, f: () => meshFreeze(false) },
+    { sep: 1 }, { n: "Clear Selection", off: !n, f: () => meshSelSet([], "set") }], e.clientX, e.clientY);
+}
+// the cloth's points inside a test on the screen (x, y in the page's pixels)
+function meshPointsIn(test) {
+  const pr = view3d.projector(), list = [];
+  for (const it of G3.items.values()) {
+    const p = byId(it.pid);
+    if (!p || !it.obj.visible) continue;
+    for (let v = 0; v < it.X.length/3; v++) { const q = pr(it.X[3*v], it.X[3*v+1], it.X[3*v+2]); if (q.z < 1 && test(q.x, q.y)) list.push({ p, v }); }
+  }
+  return list;
+}
+TOOL3.select_mesh_box = {
+  cursor: "crosshair",
+  down(e) { this.d = { x: e.clientX, y: e.clientY, moved: false, mode: meshMode(e) }; return true; },
+  move(e) { return TOOL3.pin_box.move.call(this, e); },
+  up(e) {
+    const d = this.d, box = document.getElementById("box3d");
+    this.d = null;
+    if (box) box.style.display = "none";
+    if (!d) return;
+    if (!d.moved) { if (d.mode === "set") meshSelSet([], "set"); return; }
+    const x0 = Math.min(d.x, e.clientX), x1 = Math.max(d.x, e.clientX), y0 = Math.min(d.y, e.clientY), y1 = Math.max(d.y, e.clientY);
+    meshSelSet(meshPointsIn((x, y) => x >= x0 && x <= x1 && y >= y0 && y <= y1), d.mode);
+  },
+  cancel() { return TOOL3.pin_box.cancel.call(this); },
+  menu(e) { meshSelMenu(e); },
+};
+TOOL3.select_mesh_lasso = {
+  cursor: "crosshair",
+  down(e) { this.d = { pts: [[e.clientX, e.clientY]], mode: meshMode(e) }; return true; },
+  move(e) { return TOOL3.pin_lasso.move.call(this, e); },
+  up() {
+    const d = this.d, sv = document.getElementById("lasso3d");
+    this.d = null;
+    if (sv) sv.style.display = "none";
+    if (!d) return;
+    if (d.pts.length < 4) { if (d.mode === "set") meshSelSet([], "set"); return; }
+    const inPoly = (x, y) => { let c = false; for (let i = 0, j = d.pts.length - 1; i < d.pts.length; j = i++) { const a = d.pts[i], b = d.pts[j]; if ((a[1] > y) !== (b[1] > y) && x < (b[0] - a[0])*(y - a[1])/(b[1] - a[1]) + a[0]) c = !c; } return c; };
+    meshSelSet(meshPointsIn(inPoly), d.mode);
+  },
+  cancel() { return TOOL3.pin_lasso.cancel.call(this); },
+  menu(e) { meshSelMenu(e); },
+};
+TOOL3.select_mesh_brush = {
+  cursor: "crosshair",
+  paint(e, mode) {
+    const h = garmentHit(view3d.ray(e));
+    if (!h) return false;
+    const r = MESH_BRUSH.size, it = h.it, X = it.X, P = h.point, list = [];
+    for (const it2 of G3.items.values()) { const p = byId(it2.pid); if (!p || !it2.obj.visible) continue; for (let v = 0; v < it2.X.length/3; v++) if (Math.hypot(it2.X[3*v] - P.x, it2.X[3*v+1] - P.y, it2.X[3*v+2] - P.z) <= r) list.push({ p, v }); }
+    meshSelSet(list, mode);
+    return true;
+  },
+  down(e) { const mode = meshMode(e); if (!this.paint(e, mode)) { if (mode === "set") meshSelSet([], "set"); return false; } this.d = { mode: mode === "set" ? "add" : mode }; brushPanel(true); return true; },
+  move(e) { if (this.d) this.paint(e, this.d.mode); },
+  up() { this.d = null; },
+  cancel() { this.d = null; },
+  menu(e) { meshSelMenu(e); },
+};
+// the Brush panel (top right of the 3D window, as the recording shows it): Size
+function brushPanel(on) {
+  const st = document.getElementById("stage3d");
+  if (!st) return;
+  let el = document.getElementById("brush3d");
+  if (!on) { if (el) el.style.display = "none"; return; }
+  if (!el) { el = document.createElement("div"); el.id = "brush3d"; st.appendChild && st.appendChild(el); }
+  el.className = "brush3d"; el.style.display = "block";
+  el.innerHTML = '<div class="hd">Brush</div><div class="row"><label for="brush-size" title="How far round the pointer the brush takes the cloth, in mm">Size (mm)</label><input type="range" id="brush-size" min="5" max="400" step="1" value="' + MESH_BRUSH.size + '"><input type="text" inputmode="decimal" data-num="1" class="s" id="brush-sz" value="' + MESH_BRUSH.size + '"></div>';
+  // (Round BETA8-1 / E) Steam's Strength, % (above 0 shrinks, below 0 relaxes)
+  if (S.tool3 === "steam") el.innerHTML += '<div class="row"><label for="brush-st" title="Above 0 the cloth brushed shrinks by that share, below 0 it relaxes (' + -STEAM_MAX + ' to ' + STEAM_MAX + ')">Strength (%)</label><input type="text" inputmode="decimal" data-num="1" class="s" id="brush-st" value="' + STEAM.s + '"></div>';
+  const cst = S.tool3 === "steam" && document.getElementById("brush-st");
+  if (cst) cst.onchange = (e) => { const v = numOf(e.target.value); if (Number.isFinite(v)) STEAM.s = Math.max(-STEAM_MAX, Math.min(STEAM_MAX, Math.round(v*10)/10)); e.target.value = STEAM.s; };
+  const set = (v) => { if (Number.isFinite(v) && v > 0) { MESH_BRUSH.size = Math.max(5, Math.min(400, v)); brushPanel(true); } };
+  const a = document.getElementById("brush-size"), b = document.getElementById("brush-sz");
+  if (a) a.oninput = a.onchange = (e) => set(+e.target.value);
+  if (b) b.onchange = (e) => set(numOf(e.target.value));
+
+}
+/* (Round BETA8-1 / D, roadmap 3.C5: the Gluing flyout's Glue Brush, Materials/UV ▸ Gluing ▸ Glue Brush) GLUE BRUSH: paint over the cloth
+   where it is to be glued to the layer under it. The press picks the pattern painted on (a); while dragging, its cloth points within the
+   Brush panel's Size of the pointer are painted (shown as Select Mesh shows its points; Ctrl takes away); let go, the painted part is a
+   glue area of a, glued to the pattern whose cloth lies on most of it (as Gluing's box makes one, makeGlueArea()): its outline on a's flat
+   pattern is the outline of the triangles painted all round (a stroke keeps its shape, not its hull: guess beta8-1/8), one step "Glue
+   Brush". Painting with nothing under it says so and changes nothing. */
+function paintedOutline(mesh, set) {
+  const T = mesh.tri, edges = new Map(), key = (i, j) => i < j ? i + "," + j : j + "," + i;
+  for (let t = 0; t < T.length; t += 3) {
+    const a = T[t], b = T[t+1], c = T[t+2];
+    if (!set.has(a) || !set.has(b) || !set.has(c)) continue;
+    for (const [i, j] of [[a, b], [b, c], [c, a]]) { const k = key(i, j), e = edges.get(k); if (e) e.n++; else edges.set(k, { i, j, n: 1 }); }
+  }
+  const next = new Map();
+  for (const e of edges.values()) if (e.n === 1) { if (!next.has(e.i)) next.set(e.i, []); if (!next.has(e.j)) next.set(e.j, []); next.get(e.i).push(e.j); next.get(e.j).push(e.i); }
+  const seen = new Set(), loops = [];
+  for (const s of next.keys()) {
+    if (seen.has(s)) continue;
+    const loop = [s]; seen.add(s);
+    let prev = -1, cur = s;
+    for (;;) {
+      const nb = (next.get(cur) || []).find(v => v !== prev && !seen.has(v));
+      if (nb === undefined) break;
+      loop.push(nb); seen.add(nb); prev = cur; cur = nb;
+    }
+    if (loop.length >= 3) loops.push(loop.map(v => V(mesh.xy[2*v], mesh.xy[2*v+1])));
+  }
+  loops.sort((u, v) => polyArea(v) - polyArea(u));
+  return loops[0] || null;
+}
+TOOL3.glue_brush = {
+  cursor: "crosshair",
+  paint(e, mode) {
+    const h = garmentHit(view3d.ray(e));
+    if (!h || h.p.id !== this.d.pid) return false;
+    const it = G3.items.get(this.d.pid), r = MESH_BRUSH.size, P = h.point, list = [];
+    for (let v = 0; v < it.X.length/3; v++) if (Math.hypot(it.X[3*v] - P.x, it.X[3*v+1] - P.y, it.X[3*v+2] - P.z) <= r) list.push({ p: h.p, v });
+    meshSelSet(list, mode);
+    return true;
+  },
+  down(e) {
+    const h = garmentHit(view3d.ray(e));
+    if (!h) return false;
+    this.d = { pid: h.p.id, h, mode: meshMode(e) === "sub" ? "sub" : "add" };
+    meshSelSet([], "set"); brushPanel(true);
+    this.paint(e, this.d.mode);
+    return true;
+  },
+  move(e) { if (this.d) this.paint(e, this.d.mode); },
+  up() {
+    const d = this.d;
+    this.d = null;
+    if (!d) return;
+    const set = (G3.meshSel && G3.meshSel.get(d.pid)) || new Set(), it = G3.items.get(d.pid);
+    meshSelSet([], "set");
+    if (!it || set.size < 3) return toast("Glue Brush: paint over more of the cloth");
+    makeGlueArea(d.h, null, { pts: [...set], poly: paintedOutline(it.mesh, set), name: "Glue Brush" });
+  },
+  cancel() { this.d = null; meshSelSet([], "set"); },
+  menu(e) { garmentMenu(e); },
+};
+HINT.glue_brush = "Paint over the cloth where it is to be glued to the layer under it (Size in the Brush panel; Ctrl takes away); let go: the painted part is glued.";
+/* (Round BETA8-1 / E, roadmap 3.A18 and 3.B6: Materials/UV ▸ Steam ▸ Steam / Remove All Steam, the empty 2D window's Remove All Steam
+   and Refresh Textures) STEAM: a brush over the cloth that shrinks it where it is brushed (a Strength above 0) or relaxes it (below 0), as
+   steam shrinks or eases a fabric. Each stroke leaves spots on the pattern brushed (p.steam = [{ x, y, r, s }]: a place on the flat
+   pattern, the brush's Size as its radius, its Strength in %; kept only when there are some), one step "Steam" a stroke. In the solver
+   each cloth point inside spots has a factor, 1 - s/100 of the strongest spot it lies in (a stroke steams by its Strength, however its spots overlap; brushing again with the same Strength adds nothing), held within STEAM_LIM (steamOf(), the solver's
+   pieces[k].steam: an edge's rest length times the mean of its two ends'), eased in as Simulation Shrinkage is; so the next simulation
+   (or the running one, which is built again) draws the cloth in there. Drawn in 2D as dotted circles with "Steam ±s %" once a pattern
+   (not by colour alone). The Brush panel has Strength while Steam is in hand (guess beta8-1/10: the reference's Steam is a brush with a
+   Strength; that it shrinks for a positive one and relaxes for a negative one, and the range ±50 %, are ours). Remove All Steam takes
+   every spot away, one step. */
+function normSteam(list) {
+  if (!Array.isArray(list)) return null;
+  const out = list.filter(q => q && [q.x, q.y, q.r, q.s].every(Number.isFinite) && q.r > 0 && q.s !== 0)
+    .map(q => ({ x: +q.x, y: +q.y, r: Math.min(1000, +q.r), s: Math.max(-STEAM_MAX, Math.min(STEAM_MAX, +q.s)) }));
+  return out.length ? out : null;
+}
+// a pattern's cloth points' factors (null when it has no steam)
+function steamOf(p, mesh) {
+  const sp = normSteam(p.steam);
+  if (!sp) return null;
+  const n = mesh.xy.length >> 1, F = new Float32Array(n).fill(1);
+  for (let v = 0; v < n; v++) {
+    const x = mesh.xy[2*v], y = mesh.xy[2*v+1];
+    let best = 0;
+    for (const q of sp) if (Math.hypot(x - q.x, y - q.y) <= q.r && Math.abs(q.s) > Math.abs(best)) best = q.s;
+    F[v] = Math.max(STEAM_LIM[0], Math.min(STEAM_LIM[1], 1 - best/100));
+  }
+  return F;
+}
+TOOL3.steam = {
+  cursor: "crosshair",
+  // the brush on the cloth: the nearest cloth point's place on its flat pattern
+  at(e) {
+    const h = garmentHit(view3d.ray(e));
+    if (!h) return null;
+    const it = h.it, P = h.point;
+    let best = -1, bd = Infinity;
+    for (let v = 0; v < it.X.length/3; v++) { const d = Math.hypot(it.X[3*v] - P.x, it.X[3*v+1] - P.y, it.X[3*v+2] - P.z); if (d < bd) { bd = d; best = v; } }
+    return best < 0 ? null : { h, q: V(it.mesh.xy[2*best], it.mesh.xy[2*best+1]) };
+  },
+  paint(e) {
+    const a = this.at(e), d = this.d;
+    if (!a) return false;
+    const r = MESH_BRUSH.size, last = d.last.get(a.h.p.id);
+    if (last && Math.hypot(last.x - a.q.x, last.y - a.q.y) < r/3) return true;
+    if (!d.pushed) { push("Steam"); d.pushed = true; }
+    const p = a.h.p;
+    p.steam = [...(p.steam || []), { x: +a.q.x.toFixed(2), y: +a.q.y.toFixed(2), r, s: STEAM.s }];
+    d.last.set(p.id, a.q);
+    // what is brushed shows as Select Mesh shows its points, while the stroke goes on
+    const list = [];
+    for (let v = 0; v < a.h.it.X.length/3; v++) if (Math.hypot(a.h.it.mesh.xy[2*v] - a.q.x, a.h.it.mesh.xy[2*v+1] - a.q.y) <= r) list.push({ p, v });
+    meshSelSet(list, "add");
+    return true;
+  },
+  down(e) {
+    if (!STEAM.s) return toast("Steam: its Strength is 0 (the Brush panel)"), false;
+    this.d = { last: new Map(), pushed: false };
+    meshSelSet([], "set"); brushPanel(true);
+    if (!this.paint(e)) { this.d = null; return false; }
+    return true;
+  },
+  move(e) { if (this.d) this.paint(e); },
+  up() { const d = this.d; this.d = null; meshSelSet([], "set"); if (d && d.pushed) { commit(); toast("Steamed: " + (STEAM.s > 0 ? "shrinks " + STEAM.s : "relaxes " + (-STEAM.s)) + " % where brushed (Simulate to see it)"); } },
+  cancel() { const d = this.d; this.d = null; meshSelSet([], "set"); if (d && d.pushed) { commit(); } },
+  menu(e) { garmentMenu(e); },
+};
+HINT.steam = "Brush over the cloth to steam it: a Strength above 0 shrinks it there, below 0 relaxes it (Size and Strength in the Brush panel); Materials/UV ▸ Steam ▸ Remove All Steam takes it away.";
+const steamCount = () => S.pieces.reduce((n, p) => n + ((normSteam(p.steam) || []).length ? 1 : 0), 0);
+function removeAllSteam() {
+  if (!steamCount()) return toast("There is no steam to remove");
+  push("Remove All Steam");
+  for (const p of S.pieces) delete p.steam;
+  commit(); toast("All steam removed");
+}
+// the steamed places in the 2D window: a dotted circle a spot, "Steam ±s %" once a pattern
+function drawSteam2D() {
+  for (const p of S.pieces) {
+    const sp = p.on && normSteam(p.steam);
+    if (!sp) continue;
+    ctx.save(); ctx.strokeStyle = "#56b4e9"; ctx.lineWidth = 1.2; ctx.setLineDash([1.5, 3]);
+    for (const q of sp) { const c = toS(V(q.x, q.y)); ctx.beginPath(); ctx.arc(c.x, c.y, q.r*S.view.z, 0, 2*Math.PI); ctx.stroke(); }
+    const c = toS(V(sp[0].x, sp[0].y)), s = sp[0].s, txt = "Steam " + (s > 0 ? "−" : "+") + Math.abs(s) + " %";
+    ctx.setLineDash([]); ctx.font = "10px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const w = ctx.measureText(txt).width + 6;
+    ctx.fillStyle = "rgba(255,255,255,0.85)"; ctx.fillRect(c.x - w/2, c.y - 7, w, 14); ctx.fillStyle = "#1f4e6b"; ctx.fillText(txt, c.x, c.y);
+    ctx.restore();
+  }
+}
+// Refresh Textures: every picture on the cloth drawn afresh (the fabric's texture, graphics, colours), e.g. after a picture file was changed
+function refreshTextures() {
+  for (const it of G3.items.values()) it.painted = null;
+  if (typeof garmentSync === "function" && view3d.ready && view3d.ready()) garmentSync();
+  draw(); toast("Textures refreshed");
+}
+/* (Round BETA8-1 / E, roadmap 3.A18, W20's Selected Line row "Seam Taping [ ] Off") SEAM TAPING: a tape along a line that keeps it from
+   stretching, as a stay tape does on a neckline or shoulder (sg.tape = true, kept only when set). In the solver it is a cord along the
+   line at its own length (an elastic of ratio 100) TAPE_STRENGTH times as stiff as an elastic's default (elasticsOf()), so the cloth
+   beside it cannot pull the line longer. A line has either an elastic or a tape: switching one on takes the other away (guess
+   beta8-1/11). Set from the Property Editor's Selected Line (Seam Taping) and Materials/UV ▸ Seam Taping on the selected lines; drawn in
+   2D as a double line over the line with "Tape" at its middle. One step a change. The Seam Taping toolbar tool stays hidden (`later`):
+   the reference's tool clicks lines in 3D, here the selected lines are taped. */
+function setTape(on) {
+  const lines = selLines().filter(elasticLine);
+  if (!lines.length) return toast("Select the lines to tape first (Edit Pattern)"), false;
+  if (lines.some(x => isLocked(x.p))) return toast("A selected line's pattern is locked"), false;
+  push("Seam Taping");
+  for (const x of lines) { const sg = x.sh.segs[x.i]; if (on) { sg.tape = true; delete sg.elastic; delete sg.shirr; } else delete sg.tape; }
+  commit();
+  return true;
+}
+const tapeAllOn = () => { const L = selLines().filter(elasticLine); return L.length > 0 && L.every(x => x.sh.segs[x.i].tape); };
+function removeSteamSel() {
+  const ps = S.sel.map(byId).filter(p => p && normSteam(p.steam));
+  if (!ps.length) return toast("The selected patterns have no steam");
+  push("Remove Steam on Selected Pattern");
+  for (const p of ps) delete p.steam;
+  commit();
+}
+HINT.select_mesh_box = "Drag a box over the cloth to select its points; Shift adds, Ctrl takes away; right-click: Freeze Selected Mesh…";
+HINT.select_mesh_lasso = "Drag round a part of the cloth to select its points; Shift adds, Ctrl takes away; right-click: Freeze Selected Mesh…";
+HINT.select_mesh_brush = "Paint over the cloth to select its points (Size in the Brush panel); Ctrl takes away; right-click: Freeze Selected Mesh…";
 const needAvatar = () => S.av ? true : (toast("Measuring needs an avatar: Avatar → Load Avatar…"), false);
 TOOL3.tape_basic = {
   cursor: "crosshair",
@@ -33709,6 +35747,7 @@ function cardHeld() {
 }
 function showDoc() {
   browserHeldNote();
+  grainsInside();                                            // (Round FIX-2 / C9) an older file's grain line outside its pattern comes inside on opening
   S.sel = S.pieces.length ? [S.pieces[0].id] : []; S.selSeam = null; S.selPt = S.selSeg = S.selInt = -1;
   sync();                                                    // what follows what agrees from the start, so the first edit on either side is seen as one
   freeze3();                                                 // every state of a document has its patterns' places in 3D, its first too

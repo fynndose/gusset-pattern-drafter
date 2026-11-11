@@ -354,7 +354,7 @@ test("r20 / 4: a version 23 file (written by the build before the bump: two patt
     app.ev("openFile")("annotations-sewn-history.pdraft", bytes, null, true);
     return app.wait(() => S.pieces.length === 2, "the file opened").then(() => {
       const J = app.ev("canonJSON"), now = app.ev("docObj")();
-      /* (Round H1a / 2: from version 31 every document says its render settings and the defaults it was written with, as its version) */ const strip = (d) => { const c = JSON.parse(JSON.stringify(d)); delete c.v; delete c.render; delete c.defaults; delete c.scene; delete c.drape; delete c.states3; delete c.states3Bin; delete c.history; return J(c); };
+      /* (Round H1a / 2: from version 31 every document says its render settings and the defaults it was written with, as its version) */ const strip = (d) => { const c = JSON.parse(JSON.stringify(d)); delete c.v; delete c.render; delete c.defaults; delete c.display /* (Round FIX-2 / C8: the session's view, written at saving, starts with names and grain lines hidden) */; delete c.scene; delete c.drape; delete c.states3; delete c.states3Bin; delete c.history; return J(c); };
       out.v = [was.v, now.v]; out.same = strip(was) === strip(now);
       out.undo = S.un.map(x => x.n);
       return new Promise((res) => { app.setDownload((n, b) => res(b)); app.saveDoc(false); })

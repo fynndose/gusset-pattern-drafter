@@ -142,7 +142,7 @@ async function run(win) {
       assert.deepStrictEqual(m.items[0].submenu.items.filter(i => i.type !== "separator").map(i => i.label), ["About " + app.name, "Settings…", "Services", "Hide " + app.name, "Hide Others", "Show All", "Quit " + app.name]);
     } else { assert.strictEqual(Menu.getApplicationMenu(), null); assert.strictEqual(win.isMenuBarVisible(), false, "no menu bar of the window's own"); }
     assert.strictEqual(win.getTitle(), "Gusset – Pattern Drafter (Beta)");      // (Round r24 follow-up: the name in full, "(Beta)" after it)
-    assert.deepStrictEqual(await js("[...document.querySelectorAll('#menubar .mb')].map(b => b.textContent.trim())"), ["File", "Edit", "3D", "2D", "Materials/UV", "Avatar", "Production", "Render", "Settings", "Help"], "the page's one menu bar");      // (Render since the r19 follow-up, H22)
+    assert.deepStrictEqual(await js("[...document.querySelectorAll('#menubar .mb')].map(b => b.textContent.trim())"), ["File", "Edit", "3D", "2D", "Materials/UV", "Avatar", "Fabric" /* (Round FIX-2 / B) */, "Production", "Render", "Settings", "Help"], "the page's one menu bar");      // (Render since the r19 follow-up, H22)
     assert.deepStrictEqual(await js("[typeof desktop.save, typeof require, typeof process]"), ["function", "undefined", "undefined"]);
     // the File menu of the desktop app has Save As and Recent Files
     assert.strictEqual(await js("(() => { document.querySelector('#menubar .mb[data-m=file]').click(); const m = document.getElementById('menu'), t = [...m.querySelectorAll('.mi')].map(x => x.textContent); m.style.display = 'none'; return t.some(x => /Recent Files/.test(x)) && t.some(x => /Save As/.test(x)); })()"), true, "Save As and Recent are in the File menu");
@@ -338,7 +338,7 @@ async function run(win) {
       "return { name: a.name, preset: a.preset, h: Math.round(a.height*10)/10, bones: a.bones.size, set: d.S.avSet.name, status: document.getElementById('s-av').textContent, points: d.arrList().length, " +
       "sliders: document.querySelectorAll('#posepanel input[type=range]').length, meshes: a.meshes.length, shown: a.meshes.filter(m => m.visible !== false).length, solid: solid.map(m => m.name), tris: a.colTris || 0 }; })()");
     const marty = await until("Marty", async () => { const st = await state(); return st && st.name === "Marty" && st; }, 30000);
-    assert.deepStrictEqual([marty.preset, marty.set, marty.h, marty.bones, marty.points], ["marty", "Marty", 1875.5, 53, 46]);
+    assert.deepStrictEqual([marty.preset, marty.set, marty.h, marty.bones, marty.points], ["marty", "Marty", 1875.5, 53, 116] /* (Round FIX-3 / B: the reference's layout, 116 points: 36 front, 36 back, 44 on the sides) */ /* (Round FIX-2 / C12: four more arrangement points on chest and back) */);
     assert.ok(/^AVATAR 187\d MM$/.test(marty.status), marty.status);
     assert.ok(marty.sliders >= 54, "three sliders a main bone: " + marty.sliders);
     // (Round r15: Marty and Jessica are plain mannequins; the file's other meshes are hidden)
@@ -346,7 +346,7 @@ async function run(win) {
     // the Female card
     await card("female");
     const jess = await until("Jessica", async () => { const st = await state(); return st && st.name === "Jessica" && st; }, 30000);
-    assert.deepStrictEqual([jess.preset, jess.set, jess.h, jess.bones, jess.points], ["jessica", "Jessica", 1755.8, 53, 46]);
+    assert.deepStrictEqual([jess.preset, jess.set, jess.h, jess.bones, jess.points], ["jessica", "Jessica", 1755.8, 53, 116] /* (Round FIX-3 / B: the reference's layout, 116 points: 36 front, 36 back, 44 on the sides) */ /* (Round FIX-2 / C12: four more arrangement points on chest and back) */);
     assert.ok(jess.sliders >= 54); assert.deepStrictEqual([jess.meshes, jess.shown, jess.solid], [3, 1, ["Jessica_body"]]);
     // and back to Marty for what follows
     await card("male");
@@ -395,32 +395,40 @@ async function run(win) {
   });
   await check3d("the gizmo with the real mouse: a click on a pattern in the 3D window puts it there; an arrow is dragged and the distance written beside the pointer; the right button pressed as well opens the box, Enter applies the typed distance as one undo step; on a ring Esc goes back to turning", async () => {
     // (Round r15 / 8: Gizmo ▸ opens at Screen Coordinate; this check turns about the world's Z, so World Coordinate is chosen first)
-    await js("drafterDebug().run('setPrefs', { gizSpace: 'world' }); drafterDebug().setLayout('both'); drafterDebug().run('cam3d', 'front'); drafterDebug().setTool3('select_move'); 0"); await sleep(300);
+    // (Round FIX-3 / E: every step below waits for what it did to show (untilState()), never for a fixed time; it failed once on timing in FIX-2)
+    await js("drafterDebug().run('setPrefs', { gizSpace: 'world' }); drafterDebug().setLayout('both'); drafterDebug().run('cam3d', 'front'); drafterDebug().setTool3('select_move'); 0");
     await until("a pattern's cloth", () => js("drafterDebug().G3.items.size > 0"));
+    // (Round FIX-3 / A: the 2D axis is the floor, so the document's patterns, drawn below it, stand under the floor; the view is put on them)
+    await js("(() => { const d = drafterDebug(); d.view3d.view('front', d.run('garmentBox3')); return 0; })()");
+    // the 3D window laid out and drawn at its size after the layout change: two frames in a row with the same canvas size
+    await until("the 3D window settled", async () => { const a = await js("(() => { const c = drafterDebug().view3d.canvas(); return c ? c.width + 'x' + c.height : ''; })()"); await sleep(60); const b = await js("(() => { const c = drafterDebug().view3d.canvas(); return c ? c.width + 'x' + c.height : ''; })()"); return a && a === b && a !== "0x0"; });
     // the click selects the pattern the ray at that whole pixel meets (Round r19); since r20 the document's two patterns lie apart in 3D,
     // so that is the first one, whose middle is clicked
     const at = await js("(() => { const d = drafterDebug(), it = [...d.G3.items.values()][0], X = it.X, n = X.length/3; let x = 0, y = 0, z = 0; for (let i = 0; i < X.length; i += 3) { x += X[i]; y += X[i+1]; z += X[i+2]; } const q = d.view3d.project({ x: x/n, y: y/n, z: z/n }), cx = Math.round(q.x), cy = Math.round(q.y), h = d.run('garmentHit', d.view3d.ray({ clientX: cx, clientY: cy })); return [cx, cy, h ? h.p.id : it.pid, it.pid]; })()");
     assert.strictEqual(at[2], at[3], "the ray at the first pattern's middle meets that pattern (no other lies on it in 3D)");
     const mouse = async (type, x, y, button, held) => { wc.sendInputEvent({ type, x, y, ...(button ? { button, clickCount: 1 } : {}), ...(held ? { modifiers: held.map(b => b + "ButtonDown") } : {}) }); await pace(70); };
     await mouse("mouseMove", at[0], at[1]); await mouse("mouseDown", at[0], at[1], "left"); await mouse("mouseUp", at[0], at[1], "left");
+    await until("the click's selection and gizmo", () => js("drafterDebug().S.sel.join() === " + JSON.stringify(String(at[2])) + " && (drafterDebug().G3.giz || {}).pid === " + at[2]));
     assert.deepStrictEqual(await js("[drafterDebug().S.sel.join(), (drafterDebug().G3.giz || {}).pid]"), [String(at[2]), at[2]], "the click selected the pattern and put the gizmo on it");
     const state = () => js("(() => { const d = drafterDebug(), p = d.byId(" + at[2] + "), it = d.G3.items.get(p.id), b = p.p3 || d.run('defaultP3', p, it.mesh.c), g = document.getElementById('giz3d'), dl = document.getElementById('dlg'), h = d.run('histSteps'); " +
       "return { pos: b.pos, q: b.q, read: g.style.display === 'block' ? g.textContent : '', dlg: dl.style.display === 'block' ? (dl.querySelector('.dt') || {}).textContent : '', drag: !!d.TOOL3.select_move.d, typing: !!(d.TOOL3.select_move.d || {}).typing, last: h.at ? h.steps[h.at - 1].n : '', n: h.at }; })()");
     const handle = (k, a, b) => js("(() => { const d = drafterDebug(), g = d.run('gizGeom'), h = d.run('gizHandles')[" + k + "], P = (q) => { const s = d.view3d.project(q); return [Math.round(s.x), Math.round(s.y)]; }; " +
       "const p = h.kind === 'move' ? [d.run('gizTip', g, h.ax, " + a + "), d.run('gizTip', g, h.ax, " + b + ")] : [d.run('gizRingPt', g, h.ax, " + a + "), d.run('gizRingPt', g, h.ax, " + b + ")]; " +
       "return [...P(p[0]), ...P(p[1]), (d.run('gizHit', { clientX: P(p[0])[0], clientY: P(p[0])[1] }) || {}).id]; })()");
+    const untilState = (what, ok) => until(what, async () => { const st = await state(); return ok(st) ? st : null; });
     // the X arrow
     const s0 = await state(), ar = await handle(1, 0.5, 0.95);
     assert.strictEqual(ar[4], "move:x");
     await mouse("mouseMove", ar[0], ar[1]); await mouse("mouseDown", ar[0], ar[1], "left"); await mouse("mouseMove", ar[2], ar[3], "left", ["left"]);
-    const s1 = await state();
+    const s1 = await untilState("the arrow's drag written beside the pointer", (st) => st.drag && /^Moved/.test(st.read) && st.pos[0] > s0.pos[0] + 5);
     assert.ok(/^Moved \d+\.\d mm along X$/.test(s1.read), "written beside the pointer: " + s1.read); assert.ok(s1.pos[0] > s0.pos[0] + 5 && s1.pos[1] === s0.pos[1] && s1.pos[2] === s0.pos[2], "along X only");
     await mouse("mouseDown", ar[2], ar[3], "right", ["left"]);                    // the right button as well, the left still down
     const s2 = await until("the box for the distance", async () => { const st = await state(); return st.dlg && st; });
     assert.strictEqual(s2.dlg, "Move along X"); assert.strictEqual(s2.typing, true);
     await js("(() => { const i = document.querySelector('#dlg input'); i.focus(); i.value = '120'; })(); 0"); await key("Enter");
+    await untilState("the typed distance applied and the box closed", (st) => !st.dlg && Math.abs(st.pos[0] - s0.pos[0] - 120) < 1e-6);
     await mouse("mouseUp", ar[2], ar[3], "right", ["left"]); await mouse("mouseUp", ar[2], ar[3], "left");
-    const s3 = await state();
+    const s3 = await untilState("the drag over, one step", (st) => !st.drag && st.n === s0.n + 1);
     assert.ok(Math.abs(s3.pos[0] - s0.pos[0] - 120) < 1e-6, "exactly the 120 mm typed, from where it stood: " + (s3.pos[0] - s0.pos[0]));
     assert.deepStrictEqual([s3.dlg, s3.drag, s3.read, s3.last, s3.n], ["", false, "", "Move in 3D", s0.n + 1], "the drag is over, one undo step");
     assert.notStrictEqual(await js("document.getElementById('menu').style.display"), "block", "the right button opened no menu");
@@ -428,20 +436,20 @@ async function run(win) {
     const rg = await handle(6, 1.0, 1.4);
     assert.strictEqual(rg[4], "turn:z");
     await mouse("mouseMove", rg[0], rg[1]); await mouse("mouseDown", rg[0], rg[1], "left"); await mouse("mouseMove", rg[2], rg[3], "left", ["left"]);
-    const t1 = await state();
+    const t1 = await untilState("the ring's angle beside the pointer", (st) => st.drag && /^Turned/.test(st.read));
     assert.ok(/^Turned −?\d+\.\d° about Z$/.test(t1.read), "the angle beside the pointer: " + t1.read);
     await mouse("mouseDown", rg[2], rg[3], "right", ["left"]);
     const t2 = await until("the box for the angle", async () => { const st = await state(); return st.dlg && st; });
     assert.strictEqual(t2.dlg, "Turn about Z");
     await js("document.querySelector('#dlg input').focus(); 0"); await key("Escape");
-    const t3 = await state();
+    const t3 = await untilState("the box closed by Esc", (st) => !st.dlg && !st.typing);
     assert.deepStrictEqual([t3.dlg, t3.drag, t3.typing, t3.n], ["", true, false, s3.n], "Esc closed the box and the ring is still in hand");
     await mouse("mouseUp", rg[2], rg[3], "right", ["left"]); await mouse("mouseMove", rg[2] + 6, rg[3] + 6, "left", ["left"]); await mouse("mouseUp", rg[2] + 6, rg[3] + 6, "left");
-    const t4 = await state();
+    const t4 = await untilState("the turn kept, one step", (st) => !st.drag && st.n === s3.n + 1);
     assert.deepStrictEqual([t4.drag, t4.last, t4.n], [false, "Turn in 3D", s3.n + 1]); assert.ok(Math.abs(t4.q[2]) > 0.01 && Math.abs(t4.q[0]) < 1e-9 && Math.abs(t4.q[1]) < 1e-9, "turned about Z only: " + t4.q);
     // undo twice: back where it stood
-    await key("Z", "control"); await key("Z", "control");
-    const u = await state();
+    await key("Z", "control"); await untilState("the first undo", (st) => st.n === s3.n); await key("Z", "control");
+    const u = await untilState("the second undo", (st) => st.n === s0.n);
     assert.ok(Math.abs(u.pos[0] - s0.pos[0]) < 1e-6 && Math.abs(u.q[2]) < 1e-9, "two undo steps bring it back");
   });
   await check3d("layout: the splitter is dragged, the toolbars dock at the top, right and left, a toolbar is dragged by its empty part, and scrollbars are dark", async () => {

@@ -98,7 +98,7 @@ Help ▸ Keyboard Shortcuts… lists the same keys in the program. On a Mac, Cmd
 | Q | Select/Move |
 | R | Internal Ellipse |
 | S | Rectangle |
-| T | Edit Texture (Grainline) |
+| T | Edit Texture (2D) |
 | V | Edit Curve Point |
 | W | Pin (Box) |
 | X | Add Point / Split Line |
@@ -202,6 +202,7 @@ Help ▸ Keyboard Shortcuts… lists the same keys in the program. On a Mac, Cmd
 | 0 | Bottom view |
 | Shift+F | Show Arrangement Points |
 | Shift+H | Turn the selected patterns half round |
+| A | Select/Move (the 3D window's) |
 | Shift+V | Flip the selected patterns over (inside out) |
 | Ctrl+[ | Superimpose (Over) (selected) |
 | Ctrl+] | Superimpose (Under) (selected) |
@@ -235,13 +236,6 @@ Help ▸ Keyboard Shortcuts… lists the same keys in the program. On a Mac, Cmd
 | Ctrl + marquee | Transform Pattern: select every pattern the box touches |
 | Ctrl while dragging a rectangle or ellipse | Draw it from the center (let go: from the corner again) |
 | Right-click during a drag | Type the amount |
-
-### Kept for what is not built yet
-
-| Key | What it does |
-|---|---|
-| O | Colorway (not built yet) |
-| Shift+P | Show Scene and Props (not built yet) |
 
 <!-- keys:end -->
 

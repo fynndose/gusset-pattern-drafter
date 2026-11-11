@@ -232,6 +232,13 @@ ipcMain.handle("file:export", async (e, suggested, data) => {
 });
 // (Round r29) the Render workspace's Show in Saved Folder: the file an export last wrote, no other path
 ipcMain.handle("file:show-saved", () => { if (lastExport) shell.showItemInFolder(lastExport); return !!lastExport; });
+// (Round BETA8-1 / K) the library's Show in Explorer: only an absolute path to a .pdraft file that is there; nothing is read or opened
+ipcMain.handle("file:show", (e, p) => {
+  if (typeof p !== "string" || !path.isAbsolute(p) || !/\.pdraft$/i.test(p)) return false;
+  try { if (!fs.statSync(p).isFile()) return false; } catch (err) { return false; }
+  shell.showItemInFolder(p);
+  return true;
+});
 // the page's print file (sheets sized in mm, an @page rule) made into a PDF of the same size by Chromium's own PDF writer
 async function htmlToPdf(html) {
   const file = path.join(app.getPath("temp"), "pdraft-pdf-" + Date.now() + ".html");
@@ -354,6 +361,21 @@ function pageUp(w, late) {
 }
 
 /* ---- the window ---- */
+/* (Round BETA8-1 / C2, roadmap 1.H18: the Plotter box's Port) The page plots to a serial port through the browser's Web Serial: asked for
+   a port, Chromium lets the shell choose; the shell hands the list to the page, which shows it, and the one picked (or none) comes back.
+   Only serial ports are allowed to the page; nothing else about devices or permissions changes. */
+let serialPick = null;
+function serialSetup(w) {
+  const ses = w.webContents.session;
+  ses.on("select-serial-port", (event, list, wc, callback) => {
+    event.preventDefault();
+    if (serialPick) serialPick("");
+    serialPick = callback;
+    wc.send("serial-ports", (list || []).map(p => ({ id: p.portId, name: String(p.displayName || p.portName || p.portId) })));
+  });
+  ses.setDevicePermissionHandler((d) => d.deviceType === "serial");
+}
+ipcMain.handle("serial:pick", (e, id) => { const cb = serialPick; serialPick = null; if (cb) cb(typeof id === "string" ? id : ""); return !!cb; });
 function createWindow() {
   win = new BrowserWindow({
     width: 1440, height: 900, minWidth: 720, minHeight: 480, backgroundColor: "#2b2b2d", title: APP_NAME + TITLE_TAIL,
@@ -367,6 +389,7 @@ function createWindow() {
   // the page is the whole app: it never navigates away or opens windows (a file dropped on it would otherwise replace it)
   win.webContents.on("will-navigate", (e) => e.preventDefault());
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  serialSetup(win);                                                // (Round BETA8-1 / C2) the Plotter box's serial port
   // the page blocks closing when its autosave failed; a browser asks, Electron would just refuse to close
   win.webContents.on("will-prevent-unload", (e) => {
     const leave = dialog.showMessageBoxSync(win, { type: "warning", buttons: ["Close anyway", "Stay"], defaultId: 1, cancelId: 1,

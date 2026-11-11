@@ -169,8 +169,8 @@ test("arrangement points are worked out from the avatar: body, neck, arms and le
   const av = avatarSetup(rig().root, "t.fbx");
   av.pose = posePreset(av, 45, 8); poseApply(av);
   const pts = arrPoints(av), by = Object.fromEntries(pts.map(p => [p.id, p]));
-  assert.strictEqual(pts.length, 46); assert.strictEqual(Object.keys(by).length, 46, "unique ids");
-  assert.strictEqual(pts.filter(p => p.group === "Left").length, 16); assert.strictEqual(pts.filter(p => p.group === "Right").length, 16);
+  assert.strictEqual(pts.length, 116); assert.strictEqual(Object.keys(by).length, 116, "unique ids"); /* (Round FIX-3 / B: the reference's layout, 116) */ // (Round FIX-2 / C12: four more on chest and back, left and right of the centre ones: 50)
+  assert.strictEqual(pts.filter(p => p.group === "Left").length, 36); assert.strictEqual(pts.filter(p => p.group === "Right").length, 36); /* (Round FIX-3 / B: shoulder, elbow, wrist, knee and ankle, four each, added on each side) */
   const cf = by.chest_front, f = avatarField(av);
   near(cf.out[2], 1, 1e-9); near(cf.up[1], 1, 1e-9); near(cf.side[0], 1, 1e-9, "seen from in front, the pattern's right is the avatar's left: not mirrored");
   near(by.chest_back.side[0], -1, 1e-9); near(by.chest_left.out[0], 1, 1e-9); near(by.chest_right.out[0], -1, 1e-9);
@@ -183,11 +183,14 @@ test("arrangement points are worked out from the avatar: body, neck, arms and le
   assert.ok(ua.out[0] > 0.6 && ua.out[1] > 0.6, "outside of the left arm"); near(fa.out[2], 1, 1e-6);
   assert.ok(th.up[1] > 0.95 && th.out[2] > 0.99 && th.a[0] < -60); assert.ok(sh.out[0] > 0.9, "the inside of the right shin looks towards the left leg");
   near(by.armL_front.rho, 42, 12); near(th.rho, 75, 14);
-  for (const p of pts) { near(Math.hypot(...p.up), 1, 1e-9); near(p.up[0]*p.out[0] + p.up[1]*p.out[1] + p.up[2]*p.out[2], 0, 1e-9, p.id + " out is square to its axis"); assert.ok(p.rho > 10, p.id + " reaches the body"); assert.ok(C.sdfAt(f, p.a[0] + p.out[0]*(p.rho + 30), p.a[1] + p.out[1]*(p.rho + 30), p.a[2] + p.out[2]*(p.rho + 30)) > 5, p.id + " is shown outside the body"); }
+  // (Round FIX-3 / B) the rig's boxes leave no body where the reference's layout puts the crotch (between the leg boxes), and the face, the neck and the
+  // hip row lie on its joints, where one box meets the next; on Marty and Jessica every one of the 116 is on the skin (fix3.test.js, FIX-3 / B)
+  const boxGap = (p) => /^(crotch_|head_|neck_|hip_front$)/.test(p.id);
+  for (const p of pts) { near(Math.hypot(...p.up), 1, 1e-9); near(p.up[0]*p.out[0] + p.up[1]*p.out[1] + p.up[2]*p.out[2], 0, 1e-9, p.id + " out is square to its axis"); if (boxGap(p)) continue; assert.ok(p.rho > 10, p.id + " reaches the body"); assert.ok(C.sdfAt(f, p.a[0] + p.out[0]*(p.rho + 30), p.a[1] + p.out[1]*(p.rho + 30), p.a[2] + p.out[2]*(p.rho + 30)) > 5, p.id + " is shown outside the body"); }
   // a rig with no known bones has none
   assert.strictEqual(arrPoints(avatarSetup(rig({ names: Object.fromEntries(RIG_ROLES.map((k, i) => [k, "b" + i])) }).root, "odd")).length, 0);
   // without arm bones: the body and the legs only
-  assert.strictEqual(arrPoints(avatarSetup(rig({ names: { ...RIG_NAMES, armL: "x1", armR: "x2", forearmL: "x3", forearmR: "x4" } }).root, "noarms")).length, 14 + 16);
+  assert.strictEqual(arrPoints(avatarSetup(rig({ names: { ...RIG_NAMES, armL: "x1", armR: "x2", forearmL: "x3", forearmR: "x4" } }).root, "noarms")).length, 14 + 4 + 16 + 26 + 16); /* (Round FIX-3 / B: the body's 26 more, upper chest, upper torso, waist and hip sides, crotch, head; knees and ankles) */      // (Round FIX-2 / C12: the body's 14 and its four new chest points)
 });
 
 test("placing a pattern at an arrangement point wraps it round the body, clear of it, facing out; a wide pattern gets a wider curve", () => {
@@ -220,7 +223,8 @@ test("the cloth follows the document: meshed again only when a shape changes, ar
   assert.strictEqual(G3.items.size, 2); assert.strictEqual(view3d.group("garment").children.length, 4, "a mesh and an outline each");
   const ia = G3.items.get(a.id), ib = G3.items.get(b.id), cx = (X) => { let s = 0; for (let i = 0; i < X.length; i += 3) s += X[i]; return s/(X.length/3); };
   near(cx(ib.X) - cx(ia.X), 400, 1e-3, "not arranged: laid out as in the 2D window"); near(ia.X[2], 420, 1e-6, "flat, in front");
-  near(defaultP3(a, ia.mesh.c).pos[0], -200, 1e-9);
+  // (Round FIX-3 / A, the maintainer's brief: the 2D axes are the floor and the centre line, so a pattern's 3D x is its 2D x; it was laid out about the middle of the unplaced ones, -200)
+  near(defaultP3(a, ia.mesh.c).pos[0], ia.mesh.c[0], 1e-9); near(defaultP3(a, ia.mesh.c).pos[1], -ia.mesh.c[1], 1e-9);
   // arranged: the same cloth, somewhere else
   a.p3 = { pos: [0, 1200, 300], q: [0, 0, 0, 1], r: 200 };
   garmentSync();

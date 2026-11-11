@@ -37,7 +37,7 @@ const DOC = `
 test("the page's layout: a menu bar, selectors in the 2D window, the toolbar after the drawing area, Object Browser over Property Editor", () => {
   const html = pageHTML();
   for (const id of ["menubar", "sel2d", "sel3d", "ob", "ob-tabs", "ob-add", "ob-copy", "ob-assign", "ob-items", "ob-grading", "list", "pe", "props", "mode"]) assert.ok(html.includes('id="' + id + '"'), id);
-  assert.deepStrictEqual([...html.matchAll(/class="mb" data-m="([^"]+)"/g)].map(m => m[1]), ["file", "edit", "3d", "2d", "materials", "avatar", "production", "render", "settings", "help"]);      // (the r19 follow-up: Render, where the reference has it, after Production)
+  assert.deepStrictEqual([...html.matchAll(/class="mb" data-m="([^"]+)"/g)].map(m => m[1]), ["file", "edit", "3d", "2d", "materials", "avatar", "fabric", "production", "render", "settings", "help"]);      // (the r19 follow-up: Render, where the reference has it, after Production; Round FIX-2 / B: Fabric, after Avatar as in W32)
   assert.ok(html.indexOf('id="stage"') < html.indexOf('id="rail"'), "the 2D toolbar comes after the drawing area: it sits at its right");
   assert.ok(/#rail \{[^}]*grid-template-columns: 31px 31px/.test(html), "in two columns");
   assert.ok(html.indexOf('id="ob"') < html.indexOf('id="pe"'), "the Object Browser is above the Property Editor");
@@ -87,7 +87,7 @@ test("the selectors in the booted app: each lists its switches, a choice is save
   const o = r.result;
   assert.deepStrictEqual(o.heads, ["Sewing", "2D Pattern", "2D Information", "2D Pattern Rendering Style", "Pattern Lock"]);
   assert.deepStrictEqual(o.groups[0], ["Show Sewing", "Show 2D Sewing Lengths" /* (Round r20 / 3) */, "Show Topstitch", "Show Puckering"]);
-  assert.deepStrictEqual(o.groups[1], ["Show Baseline", "Show Seam Allowance", "Show Grading", "Show Reference Line", "Show Symmetric/Instance Lines", "Show Link Lines", "Show Pins"]);
+  assert.deepStrictEqual(o.groups[1], ["Show Baseline", "Show Seam Allowance", "Show Grading", "Show Reference Line", "Show Symmetric/Instance Lines", "Show Link Lines", "Show Pins", "Avatar Outline" /* (Round FIX-2 / B: the avatar's outline in the 2D window's own button, the maintainer's brief) */]);
   assert.deepStrictEqual(o.groups[2], ["Show Pattern Name", "Show Annotations", "Show Line Length", "Show Angle", "Show Grainline", "Show 2D Measurements", "Show Ruler", "Show Guideline"]);
   assert.deepStrictEqual(o.groups[3], ["Front Texture Surface", "Monochrome Surface", "Translucent Surface", "Transparent Surface", "Show Mesh", "Back Texture Surface", "Random Color Surface"], "the reference's list, every row built (Round r17b / 2; greyed as not built since Round D / D1, Q13)");
   // (Round build-1: Lock All Internal Lines, Lock All Baselines (on from the start) and Lock All Guidelines are built)
@@ -233,7 +233,7 @@ test("the menus: File, Edit, 2D, Avatar, Settings, Help; their commands run the 
     out.file = names(flatF(app.MENUS.file())); out.edit = names(app.MENUS.edit()); out.settings = names(app.MENUS.settings()); out.avatar = names(app.MENUS.avatar());
     // the 2D menu is in submenus since Round D / D2 (W49): read it flat
     const flat = (items) => items.filter(Boolean).flatMap(x => x.menu ? flat(x.menu()) : [x]);
-    const two = flat(app.MENUS["2d"]()); out.two = [app.MENUS["2d"]().filter(x => x && x.menu).map(x => x.n), names(two).length, names(two).includes("Fullness (Point)"), names(two).includes("Set Sublayer")];      /* (Round r33b / 2: Seamless Blocking is built; Set Sublayer is the example of a tool not built) */
+    const two = flat(app.MENUS["2d"]()); out.two = [app.MENUS["2d"]().filter(x => x && x.menu).map(x => x.n), names(two).length, names(two).includes("Fullness (Point)"), names(two).includes("Auto Fitting")];      /* (Round r33b / 2: Seamless Blocking is built; Round FIX-3b / B: Set Sublayer too, so Auto Fitting is the example of a tool not built) */
     // File
     let file = null; app.setDownload((n, t) => { file = n; });
     run(app.MENUS.file(), "Save Project"); out.save = file;
@@ -260,8 +260,9 @@ test("the menus: File, Edit, 2D, Avatar, Settings, Help; their commands run the 
   for (const n of ["Undo", "Redo", "Copy", "Paste", "Mirror Paste", "Delete", "Select All", "Invert Selection"]) assert.ok(o.edit.includes(n), "Edit has " + n);
   for (const n of ["Millimeters", "Centimeters", "Inches", "Keyboard Shortcuts…"]) assert.ok(o.settings.includes(n), "Settings has " + n);
   assert.ok(o.settings.some(n => /^User Settings/.test(n)), "User Settings opens the settings dialog (Round D / D7, as W31)");
-  assert.ok(/^Load Avatar/.test(o.avatar[0])); assert.strictEqual(o.avatar.length, 15, "Load Avatar, four arrangement commands, two for the simulation and the eight camera views while no avatar is loaded");
-  assert.ok(o.two[0].includes("Sewing") && o.two[0].includes("Create"), JSON.stringify(o.two[0])); assert.ok(o.two[1] >= 35, "every tool that works: " + o.two[1]); assert.strictEqual(o.two[2], true); assert.strictEqual(o.two[3], false, "tools that are not built are left out (Set Sublayer: Spiral was the example until Round r10 / 5 built it, Seamless Blocking until Round r33b / 2)");
+  // (Round FIX-2 / B) Measurement ▸ at the end (W51's avatar tapes): one row more
+  assert.ok(/^Load Avatar/.test(o.avatar[0]) && o.avatar[o.avatar.length - 1] === "Measurement"); assert.strictEqual(o.avatar.length, 16, "Load Avatar, four arrangement commands, two for the simulation, the eight camera views while no avatar is loaded, and Measurement");
+  assert.ok(o.two[0].includes("Sewing") && o.two[0].includes("Create"), JSON.stringify(o.two[0])); assert.ok(o.two[1] >= 35, "every tool that works: " + o.two[1]); assert.strictEqual(o.two[2], true); assert.strictEqual(o.two[3], false, "tools that are not built are left out (Auto Fitting since Round FIX-3b; Set Sublayer until then: Spiral was the example until Round r10 / 5 built it, Seamless Blocking until Round r33b / 2)");
   assert.strictEqual(o.save, "pattern.pdraft"); assert.ok(/\.svg$/.test(o.svg)); assert.strictEqual(o.notch, "Notch Settings");
   assert.deepStrictEqual(o.all, [2, "transform_pattern"]); assert.strictEqual(o.pasted, 4); assert.strictEqual(o.undone, 2); assert.deepStrictEqual(o.undoOff, [false, true]);
   assert.deepStrictEqual(o.tool, ["punch_mark", true]); assert.deepStrictEqual(o.unit, ["cm", true]);

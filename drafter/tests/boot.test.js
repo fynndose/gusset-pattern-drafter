@@ -502,7 +502,7 @@ test("Phase 8 in the booted app: the View menu flips and saves switches, a saved
   const o = r.result;
   assert.deepStrictEqual(o.items.map(t => t.replace(/^[✓  ]+/, "")), ["Sewing", "2D Sewing Lengths" /* (Round r20 / 3) */, "Topstitch", "Puckering", "Baseline", "Seam Allowance", "Grading", "Reference Line", "Symmetric/Instance Lines", "Link Lines", "Pins",
     "Pattern Name", "Annotations", "Line Length", "Angle", "Grainline", "2D Measurements", "Ruler", "Guideline", "Lock All Pattern Outlines", "Lock All Internal Lines", "Lock All Baselines", "Lock All Guidelines", "Show All", "Reset to Defaults"]);      // (Round build-1: Lock All Internal Lines, Lock All Baselines (on from the start) and Lock All Guidelines are built)
-  assert.deepStrictEqual(o.show, { angle: true, grainline: false });
+  assert.deepStrictEqual(o.show, { angle: true, grainline: true });      // (Round FIX-2 / C8: the grain line starts hidden, so the click shows it)
   // (Round r17a / 3: Show Sewing is off whenever the program starts: one tick fewer than the sixteen before)
   assert.strictEqual(o.ticks, 16, "sixteen of the twenty-two switches are on (grainline off, pattern lock off, Show Grading off since Round I2, Sewing off since Round r17a; since build-1 / 3 Lock All Baselines on, the other two locks off)");
   assert.deepStrictEqual(o.ref, [true]);
@@ -679,10 +679,11 @@ test("Phase 11 in the booted app: a print job from the settings, DXF export thro
     return out;` });
   assertUp(r, "script");
   const o = r.result;
-  assert.deepStrictEqual(o.printDefault, ["a4", "actual", 9, 7]);
+  // (Round BETA8-1 / C2, roadmap 1.H18: Punch mark, Graphic line, Shrinkage line, Buffer spacing; Buttons / buttonholes, Nesting information, Fabric outline)
+  assert.deepStrictEqual(o.printDefault, ["a4", "actual", 13, 10]);
   assert.deepStrictEqual(o.job.slice(0, 2), [2, 2]); assert.strictEqual(o.job[2], o.job[3], "a page per sheet"); assert.strictEqual(o.job[4], true);
   assert.deepStrictEqual(o.roll, [914.4, 1]); assert.deepStrictEqual(o.fit, [1, true]); assert.strictEqual(o.none, null);
-  assert.deepStrictEqual(o.exportDlg, ["Export DXF", ["scale", "rotate"], ["format", "units"], ["straight", "optimise", "nobase", "nograde", "dup", "selected"]]);
+  assert.deepStrictEqual(o.exportDlg, ["Export DXF", ["scale", "rotate"], ["format", "units", "codec"], ["straight", "optimise", "nobase", "nograde", "nosa", "dup", "selected"]]);      // (Round FIX-3 / H: the Text Codec and Export without seam allowance, S15 03:21-03:43)
   assert.deepStrictEqual(o.file, ["pattern.dxf", true, true, "1 pattern written as DXF-AAMA, inches"]);
   assert.deepStrictEqual(o.importDlg, ["Import DXF", ["append", "auto", "swap", "tosa", "optimise", "notches", "internals", "anno", "distribute"]]);
   assert.deepStrictEqual(o.imported.slice(0, 5), [2, "Front bodice", 6, [10, 10, 10, 10, 10, 0], [true, false, true, false, true, false]]);

@@ -76,17 +76,17 @@ test("D2: the 3D, 2D and Materials/UV menus list every tool as W48 to W50 do, in
     subOf(app.MENUS["2d"](), "Edit").find(x => x.n === "Delete All Baselines").f(); out.bases = [A.bases.length, S.undo.length];
     return out;` }).result;
   // (Round r33 / 7) Simulation Quality under Simulate
-  assert.deepStrictEqual(o.top3, ["Simulate", "Simulation Quality >", "---", "Select >", "Pin >", "Ripping >", "Styleline >", "3D pen >", "Press (not built yet)", "Fold >", "---", "Arrangement >", "---", "Measurement >"]);
+  assert.deepStrictEqual(o.top3, ["Simulate", "Simulation Quality >", "Garment Resolution >" /* (Round FIX-2 / B: W48 has it; the three resolution tools) */, "---", "Select >", "Pin >", "Ripping >", "Styleline >", "3D pen >", "Press (not built yet)", "Fold >", "---", "Arrangement >", "---", "Measurement >"]);
   assert.deepStrictEqual(o.top2.slice(0, 7), ["Pattern Drafter", "Pattern Information", "Create >", "Edit >", "Trace", "Lock >", "Pleats >"]);
-  assert.deepStrictEqual(o.topM, ["UV Editor (not built yet)", "Graphics >", "Button >", "Zipper >", "Piping >", "Binding >", "Topstitch >", "Puckering >", "Steam >", "Seam Taping (not built yet)", "Gluing >"]);
-  assert.deepStrictEqual(o.select, [["Select/Move", "Q", true, false], ["Select Mesh (Brush) (not built yet)", "", true, true], ["Select Mesh (Box) (not built yet)", "", true, true], ["Select Mesh (Lasso) (not built yet)", "", true, true]]);
+  assert.deepStrictEqual(o.topM, ["UV Editor (not built yet)", "Graphics >", "Button >", "Zipper >", "Piping >", "Binding >", "Topstitch >", "Puckering >", "Steam >", "Seam Taping" /* (Round BETA8-1 / E: built, on the selected lines) */, "Gluing >"]);
+  /* (Round FIX-4 / B: the three Select Mesh tools built) */ assert.deepStrictEqual(o.select, [["Select/Move", "Q", true, false], ["Select Mesh (Brush)", "", true, false], ["Select Mesh (Box)", "", true, false], ["Select Mesh (Lasso)", "", true, false]]);
   assert.deepStrictEqual(o.edit.slice(0, 3), [["Transform Pattern", "A"], ["Transform Point/Segment", ""], ["Edit Pattern", "Z"]]);
   assert.ok(o.edit.some(e => e[0] === "Fullness (Point)") && o.edit.some(e => e[0] === "Add Point/Split Line" && e[1] === "X"));
   assert.deepStrictEqual(o.topstitch, [["Edit Topstitch", "J"], ["Segment Topstitch", "K"], ["Free Topstitch", "L"], ["Seamline Topstitch", ";"]]);      // (Seamline Topstitch built in Round r14 / 4)
   assert.strictEqual(o.picked, "rectangle");
-  assert.deepStrictEqual(o.selectOff, ["Select/Move"]);
+  assert.deepStrictEqual(o.selectOff, ["Select/Move", "Select Mesh (Brush)", "Select Mesh (Box)", "Select Mesh (Lasso)"]);      // (Round FIX-4 / B: built, so shown with the switch off too)
   // (Round r10 / 3: Styleline and 3D pen hold built tools now, Edit Style Line and the pens, so they stay)
-  assert.ok(!o.shownOff.some(n => /Ripping|Press/.test(n)), "submenus with nothing built are left out: " + o.shownOff);
+  assert.ok(!o.shownOff.some(n => /Press/.test(n)), "submenus with nothing built are left out: " + o.shownOff);      // (Round FIX-4 / A: Ripping holds Edit Rip and Seamline Rip, built)
   assert.ok(o.shownOff.some(n => /^Select/.test(n)) && o.shownOff.some(n => /^Arrangement/.test(n)) && o.shownOff.some(n => /^Styleline/.test(n)) && o.shownOff.some(n => /^3D pen/.test(n)));
   assert.deepStrictEqual(o.bases, [0, 1]);
 });

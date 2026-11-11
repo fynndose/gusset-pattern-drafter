@@ -62,7 +62,8 @@ test("r33 / 2: Edit ▸ Context Menu ▸ reaches Solidify, Extend/Trim & Add Poi
   for (const n of ["Hide Avatar", "Reset Joints"]) assert.ok(!o.nb.av.includes(n), n + " is wired");
   assert.ok(!o.nb.top.includes("Display") && o.display, "Display is a submenu");
   assert.deepStrictEqual(o.solid, [true, "Solidify"]);
-  assert.deepStrictEqual(o.et, [true, "right-click a line"]);
+  // (Round BETA8-1 / 0, the beta.8 gate G10: with a line selected the row is that line's own; with nothing selected it says what to select)
+  assert.deepStrictEqual(o.et, [true, "select a line"]);
   assert.deepStrictEqual(o.clone, ["Clone with Linked Editing", "Layer Clone", "Clone as Internal Shape", "Clone as Reference Line"]);
   assert.strictEqual(o.ref, 1);
   assert.strictEqual(o.tool, "trace");
@@ -181,10 +182,12 @@ test("r33 / 4: grading starts with no size group; Edit Grading moves selected po
   assert.deepStrictEqual(o.graded, [215, -4], "L drawn at its offsets");
   assert.strictEqual(o.ptCleared, 1, "the selection is kept from Edit Grading to Edit Curve Grading too");
   assert.strictEqual(o.cpSel, 0, "the curve point picked");
-  // (with one grade point the whole outline moves by it, so the curve point starts at the corner's offsets: XS 8, L -4, XL -8)
-  assert.deepStrictEqual(o.cp, [-12, 6, 12], "the curve point down a step a size from the base");
-  assert.strictEqual(o.cpDrawn, 12, "XL draws its curve point where the offsets say");
-  assert.strictEqual(o.undone, -8, "undo takes the press back");
+  // (Round FIX-2 / C6, the maintainer's brief: a corner's grade never moves the whole pattern. Until then one grade point moved the
+  // whole outline, so the curve point started at the corner's offsets (XS 8, L -4, XL -8) and ended at -12, 6, 12; now every corner is a
+  // grade point once a tool grades the shape, the left side stays, and the curve point starts at 0)
+  assert.deepStrictEqual(o.cp, [-20, 10, 20], "the curve point down a step a size from the base");
+  assert.strictEqual(o.cpDrawn, 20, "XL draws its curve point where the offsets say");      // (Round FIX-2 / C6: 12 before, as above)
+  assert.strictEqual(o.undone, 0, "undo takes the press back");      // (Round FIX-2 / C6: back to where it started, 0; -8 before, as above)
 });
 
 /* ---------- batch 5: layout and controls ---------- */

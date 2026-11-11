@@ -454,7 +454,9 @@ test("r14 / 8: Show Threads and Show Seamlines are two switches: the threads bet
     out.list = app.ev("VIEW3D").garment.map(v => v[1]).slice(0, 3);
     return out;` }).result;
   assert.strictEqual(o.both, "sssstt", "two seams: a thread object each and a line along each of their two sides");
-  assert.strictEqual(o.noThreads, "ssss"); assert.strictEqual(o.noLines, "tt");
+  assert.strictEqual(o.noThreads, "ssss");
+  // (Round FIX-3b / A) with Show Seamlines off each seam's 3D Seamline (Plain Seam) is drawn along its two sides instead (its own objects, "p")
+  assert.strictEqual(o.noLines, "pppptt");
   assert.deepStrictEqual(o.row, [["Show Seamlines", false, false], ["Show Threads", true, false]]);
   assert.deepStrictEqual(o.list, ["Show Garment", "Show Seamlines", "Show Threads"]);
 });

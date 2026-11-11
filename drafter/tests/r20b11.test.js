@@ -47,7 +47,7 @@ test("74: a button type dragged from the Object Browser onto a placed button giv
     drop("button", t1.id, at(20, 20)); out.beside = [S.buttons.find(x => x.id === b).lib === t2.id, said()];
     app.undo(); out.undone = S.buttons.find(x => x.id === b).lib === t1.id;
     // the rows of the Object Browser's button tab are draggable
-    app.ev("obSelect")("button", null); const rows = Array.from(app.el("ob-items").children);
+    app.ev("obSelect")("button", null); const rows = Array.from(app.el("ob-items").children).filter(r => /obi/.test(r.className || ""));      // (Round BETA8-1 / C3: the Catalogue… button under the types is no type)
     out.rows = [rows.length, rows.every(r => r.draggable === true)];
     return out;` }).result;
   assert.deepStrictEqual(o.one, [true, 1, "Assign Button Type"], JSON.stringify(o));

@@ -34,8 +34,9 @@ const DOC = `
   S.seams.push({ id: 1, a: [part(S.pieces[0], 3)], b: [part(S.pieces[1], 1)] });
   app.commit(); S.undo.length = 0;
   const at = (x, y) => app.toS({ x, y });
-  // (Round r20 / 10: a long menu has a search field at its top, not a row: left out here)
-  const words = (el) => el.children.filter(c => c.className !== "msearch").map(c => c.className === "sep" ? "—" : c.className === "hd" ? "# " + (c.textContent || c.innerHTML) : c.innerHTML.replace(/<span class="k">(.*?)<.span>/, (m, k) => k ? " [" + k + "]" : "").replace(/<[^>]*>/g, ""));
+  // (Round r20 / 10: a long menu has a search field at its top, not a row: left out here; Round BETA8-1 / L, on purpose: so are the
+  // pattern menu's tabs under it, which beta8 / L checks)
+  const words = (el) => el.children.filter(c => c.className !== "msearch" && c.className !== "mtabs").map(c => c.className === "sep" ? "—" : c.className === "hd" ? "# " + (c.textContent || c.innerHTML) : c.innerHTML.replace(/<span class="k">(.*?)<.span>/, (m, k) => k ? " [" + k + "]" : "").replace(/<[^>]*>/g, ""));
   const rows = (x, y, tool) => { const s = at(x, y), was = S.tool; if (tool) app.setTool(tool); app.menu.children.length = 0; app.showMenu({ clientX: s.x, clientY: s.y }); if (tool) app.setTool(was); return words(app.menu); };
   const sub = (name) => { app.menu.children.find(c => c.innerHTML.includes("<span>" + name + "</span>")).onclick({ stopPropagation() {} }); const subs = app.ev("menuSubs"); return words(subs[subs.length - 1]); };
 `;
@@ -61,7 +62,7 @@ test("G1 one outline line (W56), two lines (the screenshot), a point and a curve
     "Merge", "Unfold", "Unfold Pattern Outline Only", "Unfold Symmetric Editing (with Sewing)", "Duplicate as Mirrored Internal Line", "Add Guideline along Points", "—", "Align [▸]", "Match Up [▸]", "Roll Up", "—",
     "Trace as Point of Measure", "Link Lines [U]", "—", "More [▸]"], "the screenshot line_selection_data_field");
   assert.ok(o.two.length < 32 && !o.two.some(t => /Symmetric Pattern|Order|Notch|Seam S/.test(t)), "no pattern's or seam's commands on a line's menu");
-  assert.deepStrictEqual(o.point, ["Delete Point [Delete]", "Lock", "Add Notch", "Add Dart", "Add Dart with Fullness" + NB, "Add Perpendicular Internal Line [▸]", "—", "Convert to Curve Point [▸]", "Perpendicular Pattern Corner" + NB, "—", "More [▸]"], "W57 (Add Dart built in Round F / 7)");
+  assert.deepStrictEqual(o.point, ["Delete Point [Delete]", "Lock", "Add Notch", "Add Dart", "Add Dart with Fullness", "Add Perpendicular Internal Line [▸]", "—", "Convert to Curve Point [▸]", "Perpendicular Pattern Corner", "—", "More [▸]"], "W57 (Add Dart built in Round F / 7; Add Dart with Fullness and Perpendicular Pattern Corner in Round FIX-3b / C)");
   assert.deepStrictEqual(o.pointMore, ["Smooth Curve", "Seam Allowance Corner [▸]", "Segment Length…", "Moving Distance…", "Grading [▸]", "Add Guideline along Points", "Fullness (Point)…"]);
   assert.deepStrictEqual(o.cp, ["Delete Point [Delete]", "Add Notch", "Delete All Curve Points", "Convert to Segment Point [▸]", "Split Curve…", "—", "More [▸]"], "W57's curve point, and Split Curve (the maintainer's checks, E2)");
   assert.ok(o.curveLine.includes("Delete All Curve Points") && o.curveLine.includes("More [▸]"));
@@ -86,7 +87,7 @@ test("G1 a pattern's menu is W1: inside a pattern with Edit Pattern, anywhere on
   assert.deepStrictEqual(r.errors, []);
   const o = r.result, NB = " [not built yet]";
   const W1 = ["Select All [▸]", "—", "Delete [Delete]", "Copy [Ctrl+C]", "Paste [Ctrl+V]", "Mirror Paste [Ctrl+R]", "—", "Invert Selection [Ctrl+Shift+I]", "Lock", "—", "Replaced by", "—", "Clone with Linked Editing [▸]", "Apply Linked Editing [▸]", "—",
-    "Layer Clone [▸]", "—", "Offset Pattern Outline", "Offset as Internal Line", "Offset as Seamless Block Line [right-click a line]" /* (Round r34 / 3: built, on a line: the pattern's menu has no line to offset) */, "—", "Clone as Internal Shape", "Clone as Reference Line", "—", "3D Pattern [▸]", "—", "Order [▸]", "Rotate [▸]", "Flip [▸]", "—",
+    "Layer Clone [▸]", "—", "Offset Pattern Outline", "Offset as Internal Line", "Offset as Seamless Block Line [right-click a line]" /* (Round r34 / 3: built, on a line: the pattern's menu has no line to offset) */, "—", "Clone as Internal Shape", "Clone as Reference Line", "—", "Create History Group…" /* (Round FIX-2 / B: out of More, the maintainer's brief) */, "—", "3D Pattern [▸]", "—", "Order [▸]", "Rotate [▸]", "Flip [▸]", "—",
     "Zoom to Selected [F]", "—", "Export To USD Layer" + NB, "—", "More [▸]"];
   assert.deepStrictEqual(o.body, W1, "W1, inside the pattern with Edit Pattern");
   assert.deepStrictEqual(o.onLine, W1, "Transform Pattern takes the pattern, also on its line");
@@ -102,7 +103,7 @@ test("G1 a pattern's menu is W1: inside a pattern with Edit Pattern, anywhere on
   assert.deepStrictEqual(o.Order, ["Bring Forward [Ctrl+]]", "Bring to Front [Ctrl+Shift+]]", "Send Backward [Ctrl+[]", "Send to Back [Ctrl+Shift+[]"]);
   assert.deepStrictEqual(o.Flip, ["Horizontally", "Horizontally (Each)", "Vertically", "Vertically (Each)"]);
   assert.ok(o.Rotate[0] === "Reset Along Grain Direction" && o.Rotate.includes("Parallel to…"), o.Rotate.join(" | "));      // (Parallel to… built in Round r17b / 1)
-  assert.deepStrictEqual(o.more, ["Mirror Paste (Position Only)", "Replace (by the Copied Pattern)", "Add Annotation…", "Create History Group…" /* (Round H1d / B: this program's own, so under More) */, "Scale…", "Move…", "Rotate…", "Proportional Grading…"]);
+  assert.deepStrictEqual(o.more, ["Mirror Paste (Position Only)", "Replace (by the Copied Pattern)", "Add Annotation…" /* (Round FIX-2 / B: Create History Group… moved out of More onto the menu itself, the maintainer's brief) */, "Scale…", "Move…", "Rotate…", "Proportional Grading…"]);
   assert.deepStrictEqual(o.flip, [400, 0], "the two swapped places, mirrored about the box round both");
   assert.deepStrictEqual(o.each, [20, 400], "each in its own place (A reaches to 320 with its curve: its box is 0 to 320)");
   assert.strictEqual(o.flipStep, "Flip Horizontally"); assert.strictEqual(o.cloneStep, "Layer Clone (Under)");
@@ -120,7 +121,7 @@ test("G1 Edit Sewing's menu on a sewing line is W75; Add Notch on a point puts t
   assert.deepStrictEqual(r.errors, []);
   const o = r.result, NB = " [not built yet]";
   assert.deepStrictEqual(o.sew, ["Select All with Same Property [▸]", "Apply Turned Sewing Line Type" /* (built in Round r17b / 1) */, "Reverse Sewing [Ctrl+B]", "Delete Sewing [Delete]", "—", "Merge [select another first]" /* (built in Round r20 / 3) */, "—",
-    "Add Point to Pattern on Start [a point is there]", "Add Point to Pattern on End [a point is there]", "—", "Add Seamline Topstitch", "Add Seamline Rip" + NB, "—", "Deactivate Sewing (Selected)", "—",
+    "Add Point to Pattern on Start [a point is there]", "Add Point to Pattern on End [a point is there]", "—", "Add Seamline Topstitch", "Add Seamline Rip" /* (built in Round FIX-4 / A) */, "—", "Deactivate Sewing (Selected)", "—",
     "Hide Sewing (Selected)", "Show Sewing (All) [none hidden]", "—", "Link Line" /* (Round r34 / 5: built) */, "—", "More [▸]"], "W75");      // (Hide / Show Sewing built in Round r13 / 8; Add Seamline Topstitch in Round r14 / 4)
   assert.deepStrictEqual(o.sewMore, ["Check Sewing Length", "Check Sewing Length Settings…"].map((n, k) => k ? n : "  " + n));
   assert.deepStrictEqual(o.notch, [[0], "Add Notch"]);
@@ -144,10 +145,10 @@ test("G1 the 3D window's menus: a pattern's is W18, the background's W17, with t
   assert.deepStrictEqual(o.pat, ["Copy [Ctrl+C]", "Paste [Ctrl+V]", "Mirror Paste [Ctrl+R]", "—", "Deactivate (Pattern Only) [Ctrl+J]", "Deactivate (Pattern & Sewing)", "—",
     "Freeze [Ctrl+K]", "Strengthen [Ctrl+H]", "Solidify [Ctrl+E]" /* (Round build-1 / 5: built) */, "Flip Normal", "—", "Archive" /* (Flip Normal and Archive built in Round r20 / 9) */, "Hide 3D Pattern [Shift+Q]", "—",
     "Convert [▸]", "Mesh Type [▸]", "—", "Symmetric Arrangement" + NB, "Smart Arrangement" + NB, "Superimpose [▸]", "—", "Reset 2D Arrangement (Selected)", "Reset 3D Arrangement (Selected) [Ctrl+F]", "Move to Ground Center" /* (built in Round r20 / 9) */, "—",
-    "Flip [▸]", "Reverse-Arrange [▸]", "—", "Focus Zoom [F]" /* (built in Round r20 / 9) */, "Zoom Extents All", "—", "Export To USD Layer" + NB, "Refresh Textures" + NB, "—", "More [▸]"], "W18");
+    "Flip [▸]", "Reverse-Arrange [▸]", "—", "Focus Zoom [F]" /* (built in Round r20 / 9) */, "Zoom Extents All", "—", "Export To USD Layer" + NB, "Refresh Textures" /* (Round BETA8-1 / E, 3.B6: built) */, "—", "Create History Group…" /* (Round FIX-2 / B, as on the 2D pattern menu) */, "—", "More [▸]"], "W18");
   assert.deepStrictEqual(o.patMore, ["3D Placement…", "Lay Flat (no curve)"]);
   assert.deepStrictEqual(o.bg.slice(0, 11), ["Front [2]", "3/4 Left [3]", "Back [8]", "Left [6]", "Right [4]", "3/4 Right [1]", "Top [5]", "Bottom [0]", "Custom View [▸]" /* (Round r34 / 6: the Render workspace's custom views; it was not built) */, "—", "Gizmo [▸]"], "W17");
-  assert.ok(["Format 3D Background…" /* (built in Round r20 / 11) */, "Paste [Ctrl+V]", "Mirror Paste [Ctrl+R]", "Show/Hide Color" + NB, "Refresh Textures" + NB, "Camera Properties" + NB, "Simulation Properties", "Grid Properties…" /* (built in Round r20 continued (4)) */, "Zoom Extents All"].every(n => o.bg.includes(n)), o.bg.join(" | "));
+  assert.ok(["Format 3D Background…" /* (built in Round r20 / 11) */, "Paste [Ctrl+V]", "Mirror Paste [Ctrl+R]", "Show/Hide Color" + NB, "Refresh Textures" /* (Round BETA8-1 / E: built) */, "Camera Properties [▸]" /* (Round BETA8-1 / J, 3.B11: built, its one row Default Camera (Main)) */, "Simulation Properties", "Grid Properties…" /* (built in Round r20 continued (4)) */, "Zoom Extents All"].every(n => o.bg.includes(n)), o.bg.join(" | "));
   assert.ok(o.bgMore.some(n => /Simulate/.test(n)) && o.bgMore.includes("Cloth Density…") && o.bgMore.includes("Reset 3D Arrangement (All)"), o.bgMore.join(" | "));
 });
 

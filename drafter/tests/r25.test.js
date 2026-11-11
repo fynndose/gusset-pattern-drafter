@@ -272,13 +272,19 @@ test("r25 / 3 a version 24 file (written by the build before the bump) opens unc
     return app.wait(() => S.pieces.length === was.pieces.length && S.pieces.length > 0, "the file opened").then(() => {
       const J = app.ev("canonJSON"), now = app.ev("docObj")();
       /* (Round H1a / 2: from version 31 every document says its render settings and the defaults it was written with, as its version) */ const strip = (d) => { const c = JSON.parse(JSON.stringify(d)); delete c.v; delete c.render; delete c.defaults; delete c.scene; delete c.drape; delete c.states3; delete c.states3Bin; delete c.history; return J(c); };
-      out.v = [was.v, now.v]; out.same = strip(was) === strip(now); out.steps = S.un.length;
+      // (Round FIX-2 / C9, the maintainer's brief: an older file's grain line outside its pattern comes inside on opening) the same document
+      // but its grain lines, which now all lie inside their outlines; which patterns' grains moved is said
+      const noGrain = (d) => { const c = JSON.parse(J(d)); for (const q of c.pieces || []) delete q.grain; delete c.display; return c; };      // (and the display settings: the session's view, which since FIX-2 / C8 starts with names and grain lines hidden)
+      out.v = [was.v, now.v]; out.same = strip(noGrain(was)) === strip(noGrain(now)); out.steps = S.un.length;
+      const fit = app.ev("grainFit"); out.inside = S.pieces.every(p => !p.grain || fit(p, p.grain) === p.grain);
+      out.moved = S.pieces.filter(p => { const w = was.pieces.find(q => q.id === p.id); return w && w.grain && J(w.grain) !== J(p.grain); }).map(p => p.name);
       return new Promise((res) => { app.setDownload((n, b) => res(b)); app.saveDoc(false); })
         .then((again) => new Promise((res) => app.ev("zipUnpack")(again, (e, p) => res(p)))).then((parts) => app.ev("pdraftDoc")(parts))
         .then((d) => { out.again = d.v; return out; });
     });` }).result;
   assert.deepStrictEqual(o.v, [24, FV]);      // (Round H1: this build's version read from the app, FV) ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) this build's version: 28 since Round r30, 27 since Round r29, 26 since Round r26)
-  assert.strictEqual(o.same, true, "the same document");
+  assert.strictEqual(o.same, true, "the same document but its grain lines");
+  assert.strictEqual(o.inside, true, "every grain line inside its pattern (moved: " + o.moved + ")");
   assert.ok(o.steps > 0, "its history came with it");
   assert.strictEqual(o.again, FV);      // (Round H1: this build's version read from the app, FV) ((Round H1a: version 31) (Round r34: version 30) ((Round r33b: version 29) Round r30: 28; Round r29: 27)
 });

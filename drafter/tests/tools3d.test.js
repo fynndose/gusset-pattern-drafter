@@ -79,18 +79,19 @@ test("Fold Arrangement on a pattern: the side away from its middle is folded, or
   // the strip right of x = 220 is the side away from the middle: it is the one that moves; with flip the other side does
   assert.strictEqual(fd[0].side, 1, "left of the line 220,0 -> 220,200 on the y-down page is the x > 220 side");
   p.fold[2].flip = false; assert.strictEqual(pieceFolds(p, [150, 100])[1].side, -fd[1].side);
-  // one fold, right over: by default the pattern stands flat facing +z with its middle at x = 0, so cloth at x on the page is at x - 150
+  // one fold, right over: by default the pattern stands flat facing +z, cloth at x on the page at 3D x (Round FIX-3 / A: the 2D axes are the floor and
+  // the centre line; before, its middle stood at x = 0, so cloth at x was at x - 150)
   p.fold = normFolds([{ kind: "internals", id: p.internals[j].id, angle: 180 }]);
   garmentSync();
   const it = G3.items.get(p.id), m = it.mesh;
   let moved = 0;
   for (let i = 0; i < m.xy.length/2; i++) {
-    if (m.xy[2*i] > 221) { moved++; near(it.X[3*i], 70 - (m.xy[2*i] - 220), 1e-3, "mirrored in the line x = 220"); near(it.X[3*i+2], it.X[2], 1e-3, "laid flat on the rest"); }
-    else if (m.xy[2*i] < 219) near(it.X[3*i], m.xy[2*i] - 150, 1e-3, "the rest stays");
+    if (m.xy[2*i] > 221) { moved++; near(it.X[3*i], 220 - (m.xy[2*i] - 220), 1e-3, "mirrored in the line x = 220"); near(it.X[3*i+2], it.X[2], 1e-3, "laid flat on the rest"); }
+    else if (m.xy[2*i] < 219) near(it.X[3*i], m.xy[2*i], 1e-3, "the rest stays");
   }
   assert.ok(moved > 5);
   p.fold[0].angle = 90; garmentSync();
-  for (let i = 0; i < m.xy.length/2; i++) if (m.xy[2*i] > 221) { near(it.X[3*i], 70, 1e-3, "at a right angle it stands on the line"); near(it.X[3*i+2] - it.X[2], m.xy[2*i] - 220, 1e-3, "towards the face"); }
+  for (let i = 0; i < m.xy.length/2; i++) if (m.xy[2*i] > 221) { near(it.X[3*i], 220, 1e-3, "at a right angle it stands on the line"); near(it.X[3*i+2] - it.X[2], m.xy[2*i] - 220, 1e-3, "towards the face"); }
   delete p.fold; garmentSync();
   for (let i = 0; i < it.X.length; i += 3) near(it.X[i+2], it.X[2], 1e-6, "unfolded: flat again");
 });
@@ -123,6 +124,7 @@ test("pins: a pin is a place on the pattern, the nearest cloth point is held, it
   assert.ok(vs.some(v => Math.hypot(m.xy[2*v] - 100, m.xy[2*v+1] - 100) < 15), "the cloth point nearest the middle");
   mapPiece(p, (q) => V(q.x + 50, q.y - 20));
   assert.deepStrictEqual([p.pins[0].x, p.pins[0].y], [50, -20], "moved with its pattern in the 2D window");
+  p.p3 = { pos: [150, 1100, 420], q: [0, 0, 0, 1], r: 0 };      // (Round FIX-3 / A: drawn at the 2D axis it would stand on the floor; hung 1 m up)
   garmentSync(); simBuild();
   const it2 = G3.items.get(p.id), held = piecePins(p, it2), sim = SIM.sim, y0 = held.map(v => sim.x[3*v+1]);
   for (let k = 0; k < 40; k++) C.clothStep(sim, 1/60);

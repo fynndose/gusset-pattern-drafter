@@ -358,7 +358,7 @@ test("the release bar, a T-shirt drawn from scratch on Marty" + skip("marty") + 
     "1600/0/600/280  2045/0/800/280", "2200/0/1400/280  2645/0/0/280", "2045/0/1600/0  2005/220/1640/220", "2645/0/2200/0  2605/220/2240/220"]);
   // arranged: the gizmo's boxes for the body, an arrangement point a sleeve; no 3D Placement
   assert.deepStrictEqual(o.asked.slice().sort(), ["Move along X", "Move along Y", "Move along Z", "Turn about Y"].filter(t => o.asked.includes(t)), "only the gizmo's boxes were used: " + o.asked);
-  assert.strictEqual(o.arr, 46, "Marty has every arrangement point");
+  assert.strictEqual(o.arr, 116, "Marty has every arrangement point"); /* (Round FIX-3 / B: the reference's layout, 116 points: 36 front, 36 back, 44 on the sides) */ // (Round FIX-2 / C12: four more on chest and back, left and right of the centre ones: 50)
   assert.deepStrictEqual(o.sleeves, [["armL_outer", true], ["armR_outer", true]], "each sleeve is on its arm's point, wrapped round the arm");
   assert.deepStrictEqual(o.said, ["Left sleeve → Left upper arm outside", "Right sleeve → Right upper arm outside"]);
   assert.strictEqual(o.steps.filter(n => n === "Arrange in 3D").length, 2); assert.strictEqual(o.steps.filter(n => n === "Turn in 3D").length, 1, "the back, half round"); assert.strictEqual(o.steps.filter(n => n === "3D Placement").length, 0);

@@ -4,8 +4,9 @@
   "license": "GPL-3.0-or-later",
   "description": "The app is in drafter/, the desktop shell in desktop/. The one development dependency, Playwright, is for the checks only and is never shipped.",
   "scripts": {
-    "test": "node drafter/tests/run.js",
+    "test": "node drafter/tests/run.js --full",
     "test:fast": "node drafter/tests/run.js --fast",
+    "test:serial": "node drafter/tests/run.js",
     "smoke:desktop": "node scripts/smoke-desktop.js"
   },
   "devDependencies": {

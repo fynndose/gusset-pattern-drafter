@@ -172,7 +172,7 @@ test("the Punch Mark tool in the booted app: place, select, move, name and size,
     app.undo();
     let svg = ""; app.setDownload((n, t) => { svg = t; }); app.el("ex-svg").onclick();
     out.svg = [/data-punch="Punch Mark 2"/.test(svg), /data-diameter="10"/.test(svg)];
-    out.print = /data-layer="notch"/.test(app.printJob().html);
+    out.print = /data-layer="punch"/.test(app.printJob().html);      // (Round BETA8-1 / C2: punch marks a print line kind of their own; they were drawn as notches)
     app.checkDoc(S.pieces, S.seams);
     return out;` });
   assert.deepStrictEqual(r.errors, []);

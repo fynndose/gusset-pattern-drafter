@@ -309,7 +309,7 @@ test("F7 the Dart tool is gone: not in the registry, not in the 2D menu; a file'
     return out;` });
   assert.deepStrictEqual(r.errors, []);
   const o = r.result;
-  assert.deepStrictEqual(o.registry, ["dart_double"], "no Dart tool of the old kind and no base dart tool; only the double-pointed Dart inside a pattern (Round r12 / 6)");
+  assert.deepStrictEqual(o.registry, ["dart_double", "base_dart_double"], "no Dart tool of the old kind and no base dart tool of the old kind; the double-pointed Dart inside a pattern (Round r12 / 6) and, since Round FIX-3 / H, its baseline form Base Dart (2D ▸ Create; the old base_dart id stays unused)");
   assert.strictEqual(o.menu, false, "no Dart row in the 2D menu");
   assert.deepStrictEqual(o.darts, [0, 0], "no dart objects");
   assert.deepStrictEqual(o.pts, [10, 10], "the pattern (seven points in the file) and its linked mirror: three more points each");
@@ -329,10 +329,12 @@ test("F9 Hi-Res Garment opens Hi-Res Properties: Particle Distance works (8 mm o
     return out;` });
   assert.deepStrictEqual(r.errors, []);
   const o = r.result, NB = " (not built yet) [ro]";
-  assert.deepStrictEqual(o.on.slice(0, 3), ["Hi-Res Properties", ["Particle Distance", "Tolerance" + NB, "\u2013 [ro]", "Add'l Thickness - Collision" + NB, "Skin Offset" + NB, "Simulation Quality" + NB], { res: 8 }]);
+  // (Round BETA8-1 / I, roadmap 3.C8, on purpose: Add'l Thickness - Collision and Simulation Quality are built, real rows either way;
+  // Reset puts them back too; Tolerance and Skin Offset stay greyed behind the switch)
+  assert.deepStrictEqual(o.on.slice(0, 3), ["Hi-Res Properties", ["Particle Distance", "Tolerance" + NB, "\u2013 [ro]", "Add'l Thickness - Collision", "Skin Offset" + NB, "Simulation Quality"], { res: 8, thick: 0, quality: "normal" }]);
   assert.ok(/lower than 7 mm/.test(o.on[3]), o.on[3]);
   assert.strictEqual(o.res, 10, "OK sets the distance between the cloth's points");
-  assert.deepStrictEqual(o.off[1], ["Particle Distance"], "only what works while the switch is off");
+  assert.deepStrictEqual(o.off[1], ["Particle Distance", "Add'l Thickness - Collision", "Simulation Quality"], "only what works while the switch is off");
 });
 
 // F10: 3D states (W46, Q21)

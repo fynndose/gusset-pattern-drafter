@@ -524,6 +524,8 @@ C.bodyReach = function (f, ax, ay, az, dx, dy, dz, max, gap) {
              shape3 (Round build-1, optional): true = it rests in the 3D shape X it has now, not flat (a solidified pattern)
              shrink (Round build-1, optional): { g: [the grain's direction on xy], warp, weft }: its rest lengths along the grain
                times warp and across it times weft (Simulation Shrinkage; 1 = as cut)
+             steam (Round BETA8-1 / E, optional): a factor a point (xy's order): an edge's rest length times the mean of its two ends'
+               (Steam: under 1 shrunk, over 1 relaxed), eased in as shrink is
              xy: the flat mesh (2 a point), X: where its points are now (3 a point)
      seams:  [{ id, k, pairs: [[A, B], …] }]  A, B anchors { p: piece number, i: [points], w: [weights] }
      pins:   [{ p, v }]  points held where they are
@@ -541,6 +543,9 @@ C.bodyReach = function (f, ax, ay, az, dx, dy, dz, max, gap) {
                pattern's cloth may stretch past its Max Stretch, as the reference's spike shows; Round r33b had 12 more passes of it),
                dragRelease 120 (REC-SHORT: frames after letting go during which the cloth that was held still slides, so it springs
                back to where it hangs; the reference's "took itself exactly back again"),
+               dragStep 2 (mm, Round BETA8-1 / B, PULL-1: the most a pinned place moves towards the pointer in one small step when it is
+               near the body; further from the body it may move as far as its clearance, so it never jumps through the body; never more
+               than 0.8 of the cloth's thickness off the skin. Pinned places collide with the body as any cloth: they slide round it),
                bodyStatic / bodyKinetic (Round r31 / 3): the body's own friction, static and kinetic, in place of the fabric's
                one coefficient; null (the default): the fabric's for both. The reference's avatar has 0.80 / 0.05, but in this
                solver cloth still settling counts as sliding, and at 0.05 a tube on the hips sank 186 mm (cloth.test.js),
@@ -553,8 +558,27 @@ C.bodyReach = function (f, ax, ay, az, dx, dy, dz, max, gap) {
              fraction, 0: no limit), S: [rest length from node j to j+1, …], L: [rest length from node j to j+2, …] }]: a cord or
              a strip lying along a line of the cloth (piping, binding: Round r11 / 3, 4). Its weight hangs on the cloth at its
              nodes; it keeps its length (to its limit) and resists bending, node to node and over every other node. */
+/* (Round FIX-3 / D, the fabric's Detail rows) A fabric whose stiffness differs by direction: d = { warp, weft, shR, shL, bWarp, bWeft, bR, bL }
+   (each a share of the fabric's own stretch or bend, 1 the fabric as it is; missing ones 1). dirOf() makes it { s: stretch, b: bend }, each
+   { a: along the grain (warp), c: across it (weft), r: the right bias, l: the left bias }, or null when every share is 1. dirK() is the
+   stiffness along a way at c = cos and s = sin of its angle to the grain (s > 0 towards the weft on the pattern's right): its compliance
+   the orthotropic mix c⁴/a + s⁴/c + 2c²s²/bias (the right bias where c and s have one sign); with every share 1 it is k itself, exactly,
+   since (c² + s²)² = 1. A cloth edge takes it by its own way on the flat pattern; a bending pair (the two corners across an edge) by the
+   way between them, the way the cloth bends there. Our model and our scale, not the reference's numbers. */
+function dirOf(d) {
+  if (!d || typeof d !== "object") return null;
+  const v = (x) => (Number.isFinite(x) && x > 0 ? x : 1), s = { a: v(d.warp), c: v(d.weft), r: v(d.shR), l: v(d.shL) }, b = { a: v(d.bWarp), c: v(d.bWeft), r: v(d.bR), l: v(d.bL) };
+  const one = (q) => q.a === 1 && q.c === 1 && q.r === 1 && q.l === 1;
+  return one(s) && one(b) ? null : { s: one(s) ? null : s, b: one(b) ? null : b };
+}
+function dirK(k, D, c, s) {
+  if (!D) return k;
+  const c2 = c*c, s2 = s*s;
+  return k/(c2*c2/D.a + s2*s2/D.c + 2*c2*s2/(c*s >= 0 ? D.r : D.l));
+}
+C.dirK = dirK; C.dirOf = dirOf;
 C.clothBuild = function (spec) {
-  const opt = Object.assign({ substeps: 20, stretchIters: 2, gravity: 9810, easeIn: 45, damping: 2.5, self: true, ground: true, maxPull: 6, seamSlip: 3, maxSpeed: 5000, seamClose: 1, seamIters: 2, interleave: true, limitEach: true, dragK: 2e5, dragMax: 2e6, dragReach: 100, dragSlide: 0.2, dragSlideReach: 300, dragLimitIters: 0, dragPin: true, dragRelease: 120, sdfSkip: true, bodyStatic: null, bodyKinetic: 0.05, seamRamp: 0, seamSoft: 1e-3, seamBend: 5 }, spec.opt || {});
+  const opt = Object.assign({ substeps: 20, stretchIters: 2, gravity: 9810, easeIn: 45, damping: 2.5, self: true, ground: true, maxPull: 6, seamSlip: 3, maxSpeed: 5000, seamClose: 1, seamIters: 2, interleave: true, limitEach: true, dragK: 2e5, dragMax: 2e6, dragReach: 100, dragSlide: 0.2, dragSlideReach: 300, dragLimitIters: 0, dragPin: true, dragRelease: 120, dragStep: 2, sdfSkip: true, bodyStatic: null, bodyKinetic: 0.05, seamRamp: 0, seamSoft: 1e-3, seamBend: 5 }, spec.opt || {});
   const off = [];
   let n = 0;
   for (const pc of spec.pieces) { off.push(n); n += pc.xy.length >> 1; }
@@ -562,19 +586,22 @@ C.clothBuild = function (spec) {
   const rest = new Float64Array(2*n), piece = new Int32Array(n), thick = new Float64Array(n), fric = new Float64Array(n);
   const eI = [], eJ = [], eL = [], eA = [], eM = [], bI = [], bJ = [], bL = [], bA = [], bnd = [], bendK = new Float64Array(n), fQ = [], fB = [], fK = [];
   const eF = [], bF = [];        // (Round build-1) the flat rest lengths beside eL / bL, which Simulation Shrinkage eases away from (SHRINK_EASE)
-  let res = 0, resN = 0;
+  let res = 0, resN = 0, dmp = null;      // (Round FIX-3 / D) dmp: each point's share of the damping (its fabric's Internal Damping), only when one is not 1
   spec.pieces.forEach((pc, k) => {
     const o = off[k], m = pc.xy.length >> 1, f = pc.fab || {};
     // a fabric's numbers, with the solver's own defaults (REC-SHORT: per section, zones)
     const num = (g) => ({ dens: (g.weight > 0 ? g.weight : 150)*1e-6, ks: g.stretch > 0 ? g.stretch : 3e5, kb: g.bend > 0 ? g.bend : 30, ms: g.maxStretch > 0 ? 1 + g.maxStretch : 0,
-      th: (g.thick > 0 ? g.thick : 2.5) + (pc.layer || 0)*1.5, fr: g.friction >= 0 ? g.friction : 0.3 });
+      th: (g.thick > 0 ? g.thick : 2.5) + (pc.layer || 0)*1.5, fr: g.friction >= 0 ? g.friction : 0.3, dir: dirOf(g.dir), dm: g.damp > 0 ? g.damp : 1 });
     const F0 = num(f), { dens, ks, kb, ms } = F0;
     const zt = pc.zones && Array.isArray(pc.zones.fabs) && pc.zones.fabs.length && pc.zones.t ? pc.zones.t : null, ZF = zt ? pc.zones.fabs.map(num) : null;
     const zf = (t) => { const z = zt ? zt[t] : -1; return z >= 0 && ZF[z] ? ZF[z] : F0; };       // triangle t's (its index /3) numbers
+    // (Round FIX-3 / D) the grain on the flat pattern, for a fabric whose stiffness differs along and across it (dirK())
+    const gl = Array.isArray(pc.g) ? Math.hypot(pc.g[0], pc.g[1]) : 0, gu = gl > 1e-9 ? [pc.g[0]/gl, pc.g[1]/gl] : null;
+    const kDir = (k, D, a, b) => { if (!D || !gu) return k; const dx = pc.xy[2*b] - pc.xy[2*a], dy = pc.xy[2*b+1] - pc.xy[2*a+1], l = Math.hypot(dx, dy); return l > 1e-9 ? dirK(k, D, (dx*gu[0] + dy*gu[1])/l, (-dx*gu[1] + dy*gu[0])/l) : k; };
     for (let i = 0; i < m; i++) {
       x[3*(o+i)] = pc.X[3*i]; x[3*(o+i)+1] = pc.X[3*i+1]; x[3*(o+i)+2] = pc.X[3*i+2];
       rest[2*(o+i)] = pc.xy[2*i]; rest[2*(o+i)+1] = pc.xy[2*i+1];
-      piece[o+i] = k; thick[o+i] = F0.th; fric[o+i] = F0.fr;
+      piece[o+i] = k; thick[o+i] = F0.th; fric[o+i] = F0.fr; if (F0.dm !== 1) (dmp || (dmp = new Float32Array(n).fill(1)))[o+i] = F0.dm;
     }
     // edges, each with the corner(s) across it (and, with zones, the fabric of each triangle beside it)
     const E = new Map(), T = pc.tri, EZ = zt ? new Map() : null;
@@ -582,12 +609,12 @@ C.clothBuild = function (spec) {
       const a = T[t], b = T[t+1], c = T[t+2], g = zf(t/3);
       const ar = Math.abs((pc.xy[2*b] - pc.xy[2*a])*(pc.xy[2*c+1] - pc.xy[2*a+1]) - (pc.xy[2*c] - pc.xy[2*a])*(pc.xy[2*b+1] - pc.xy[2*a+1]))/2;
       mass[o+a] += ar*g.dens/3; mass[o+b] += ar*g.dens/3; mass[o+c] += ar*g.dens/3;
-      if (g !== F0) for (const u of [a, b, c]) { thick[o+u] = g.th; fric[o+u] = g.fr; }        // a section's point: its fabric's surface
+      if (g !== F0) for (const u of [a, b, c]) { thick[o+u] = g.th; fric[o+u] = g.fr; if (g.dm !== 1 || dmp) (dmp || (dmp = new Float32Array(n).fill(1)))[o+u] = g.dm; }        // a section's point: its fabric's surface
       for (const [u, q, r] of [[a, b, c], [b, c, a], [c, a, b]]) { const key = u < q ? u*m + q : q*m + u, e = E.get(key); if (e) e.push(r); else E.set(key, [u, q, r]); if (EZ) (EZ.get(key) || (EZ.set(key, []), EZ.get(key))).push(g); }
     }
     // an edge's numbers: its triangles' fabric, the mean compliance where two meet
     const ez = (e) => { if (!EZ) return F0; const z = EZ.get(e[0] < e[1] ? e[0]*m + e[1] : e[1]*m + e[0]); if (!z || z.length < 2 || z[0] === z[1]) return z ? z[0] : F0;
-      return { ks: 2/(1/z[0].ks + 1/z[1].ks), kb: 2/(1/z[0].kb + 1/z[1].kb), ms: z[0].ms && z[1].ms ? (z[0].ms + z[1].ms)/2 : 0 }; };
+      return { ks: 2/(1/kDir(z[0].ks, z[0].dir && z[0].dir.s, e[0], e[1]) + 1/kDir(z[1].ks, z[1].dir && z[1].dir.s, e[0], e[1])), kb: 2/(1/z[0].kb + 1/z[1].kb), ms: z[0].ms && z[1].ms ? (z[0].ms + z[1].ms)/2 : 0, mixed: true }; };
     // (Round build-1) the rest of the cloth: its flat pattern, or with shape3 (Solidify) the 3D shape it has when the solver is
     // built, so it holds that shape; with shrink { g: [grain x, y], warp, weft } (Simulation Shrinkage, 1 = none) every length
     // along the grain times warp and across it times weft
@@ -597,6 +624,8 @@ C.clothBuild = function (spec) {
       : sh ? (a, b) => { const dx = pc.xy[2*a] - pc.xy[2*b], dy = pc.xy[2*a+1] - pc.xy[2*b+1], al = dx*gx + dy*gy, ac = dx*gy - dy*gx; return Math.hypot(al*sh.warp, ac*sh.weft); }
       : (a, b) => Math.hypot(pc.xy[2*a] - pc.xy[2*b], pc.xy[2*a+1] - pc.xy[2*b+1]);
     const dF = sh ? (a, b) => Math.hypot(pc.xy[2*a] - pc.xy[2*b], pc.xy[2*a+1] - pc.xy[2*b+1]) : d2;
+    // (Round BETA8-1 / E) Steam: each rest length times the mean of its two ends' factors, from the flat (or shrunk) one
+    const SF = pc.steam && pc.steam.length === m ? pc.steam : null, d2s = SF ? (a, b) => d2(a, b)*(SF[a] + SF[b])/2 : d2;
     const folds = Array.isArray(pc.folds) ? pc.folds.filter(f => f && Array.isArray(f.L) && f.L.length > 1) : [];
     const fm = folds.length ? foldMap(pc.xy, folds) : null;
     // (Round r14 / 3) elastics: the cloth's edges along an elastic line are the elastic, ratio r % of their length long and
@@ -604,14 +633,15 @@ C.clothBuild = function (spec) {
     const ex = new Map();
     for (const el of pc.elastics || []) if (el && Array.isArray(el.i) && el.r > 0 && el.k > 0) for (let j = 0; j + 1 < el.i.length; j++) { const u = el.i[j], q = el.i[j+1]; if (u !== q) ex.set(u < q ? u*m + q : q*m + u, el); }
     for (const e of E.values()) {
-      const L = d2(e[0], e[1]), el = ex.size ? ex.get(e[0] < e[1] ? e[0]*m + e[1] : e[1]*m + e[0]) : null, Le = el ? L*el.r/100 : L;
-      const { ks, kb, ms } = ez(e);
+      const L = d2s(e[0], e[1]), el = ex.size ? ex.get(e[0] < e[1] ? e[0]*m + e[1] : e[1]*m + e[0]) : null, Le = el ? L*el.r/100 : L;
+      const ef = ez(e), { kb, ms } = ef, ks = ef.mixed ? ef.ks : kDir(ef.ks, ef.dir && ef.dir.s, e[0], e[1]);      // (Round FIX-3 / D) by the edge's way along the grain
       eI.push(o + e[0]); eJ.push(o + e[1]); eL.push(Le); eA.push(1/(el ? el.k : ks)); eM.push(ms ? Le*ms : 0); res += L; resN++;
-      eF.push(sh ? dF(e[0], e[1])*(el ? el.r/100 : 1) : Le);
+      eF.push(sh || SF ? dF(e[0], e[1])*(el ? el.r/100 : 1) : Le);
       if (e.length === 4) {
         // (Round r14 / 2) the pair across an edge of a fold line keeps the distance it has with the cloth folded there
         const fd = fm ? foldAt(pc.xy, e[0], e[1], e[2], e[3], folds, fm) : null;
-        bI.push(o + e[2]); bJ.push(o + e[3]); bL.push(fd ? fd.L : d2(e[2], e[3])); bA.push(1/(fd ? Math.max(kb, fd.k) : kb)); bF.push(fd ? fd.L : dF(e[2], e[3]));
+        const kbd = ef.mixed ? kb : kDir(kb, ef.dir && ef.dir.b, e[2], e[3]);      // (Round FIX-3 / D) the bend across the edge, by its way along the grain
+        bI.push(o + e[2]); bJ.push(o + e[3]); bL.push(fd ? fd.L : d2s(e[2], e[3])); bA.push(1/(fd ? Math.max(kbd, fd.k) : kbd)); bF.push(fd ? fd.L : dF(e[2], e[3]));
         if (fd) { fQ.push(o + e[0], o + e[1], o + e[2], o + e[3]); fB.push(fd.b0); fK.push(Math.max(kb, fd.k)*fd.lever*fd.lever); }      // its stiffness in the angle: the bending's, times the lever squared
       }
       else for (const [u, q] of [[e[0], e[1]], [e[1], e[0]]]) (bnd[o + u] || (bnd[o + u] = [])).push(o + q, o + e[2]);   // a border edge: its other end and the corner across it
@@ -633,7 +663,7 @@ C.clothBuild = function (spec) {
   for (let i = 0; i < n; i++) w[i] = mass[i] > 0 ? 1/mass[i] : 0;
   res = resN ? res/resN : 20;
   // seams: up to three points a side
-  const sIdx = [], sW = [], sA = [], sOf = [], sBend = [], sFold = [], noHit = new Set();
+  const sIdx = [], sW = [], sA = [], sOf = [], sBend = [], sFold = [], noHit = new Set(), sLen = [];      // (Round FIX-3 / F) sLen: a stitch's thread, mm (0: none)
   (spec.seams || []).forEach((sm, si) => {
     sBend[si] = sm.bend > 0 ? sm.bend : 1;                       // (Round r11 / 5) a seam's own factor on the bending across it: a glued seam's is 2
     sFold[si] = sm.fold && Number.isFinite(sm.fold.a) ? sm.fold : null;      // (Round r14 / 5) a seam's fold
@@ -641,7 +671,7 @@ C.clothBuild = function (spec) {
       const ia = [], wa = [];
       for (const [an, sign] of [[A, 1], [B, -1]]) for (let k = 0; k < 3; k++) { ia.push(k < an.i.length ? off[an.p] + an.i[k] : -1); wa.push(k < an.i.length ? sign*an.w[k] : 0); }
       // no softness: a seam holds (Round r9 / 3); (Round build-1) a glue of Strength below 1 has a compliance, sm.soft (mm/N)
-      sIdx.push(...ia); sW.push(...wa); sA.push(sm.soft > 0 && Number.isFinite(sm.soft) ? sm.soft : 0); sOf.push(si);
+      sIdx.push(...ia); sW.push(...wa); sA.push(sm.soft > 0 && Number.isFinite(sm.soft) ? sm.soft : 0); sOf.push(si); sLen.push(sm.len > 0 && Number.isFinite(sm.len) ? sm.len : 0);
       // points that are sewn to each other must be able to meet
       for (let a = 0; a < 3; a++) for (let b = 3; b < 6; b++) if (ia[a] >= 0 && ia[b] >= 0) noHit.add(ia[a] < ia[b] ? ia[a]*n + ia[b] : ia[b]*n + ia[a]);
     }
@@ -651,11 +681,11 @@ C.clothBuild = function (spec) {
   const fSt = fB.map(() => -1);
   for (let q = 0; q < across.B0.length; q++) { fQ.push(...across.Q.slice(4*q, 4*q + 4)); fB.push(across.B0[q]); fK.push(across.K[q]); fSt.push(across.FS[q]); }
   // holds: up to three points, and where they go
-  const hIdx = [], hW = [], hTo = [];
+  const hIdx = [], hW = [], hTo = [], hLen = [];
   for (const hd of spec.holds || []) {
     if (!hd || !hd.a || !hd.to) continue;
     for (let k = 0; k < 3; k++) { hIdx.push(k < hd.a.i.length ? off[hd.a.p] + hd.a.i[k] : -1); hW.push(k < hd.a.i.length ? hd.a.w[k] : 0); }
-    hTo.push(hd.to[0], hd.to[1], hd.to[2]);
+    hTo.push(hd.to[0], hd.to[1], hd.to[2]); hLen.push(hd.len > 0 && Number.isFinite(hd.len) ? hd.len : 0);
   }
   // FILL: the patterns with fill, and the groups they are sewn into (a pattern and everything sewn to it, through seams)
   const np = spec.pieces.length, fill = spec.pieces.map(pc => pc.fill > 0 ? Math.min(100, pc.fill) : 0), grp = Array.from({ length: np }, (_, k) => k);
@@ -663,20 +693,21 @@ C.clothBuild = function (spec) {
   const pieceOf = (i) => { let k = 0; while (k + 1 < np && off[k+1] <= i) k++; return k; };
   // (Round r11 / 2) the groups always, so that fill can be given to a pattern while the cloth is simulated (clothFill())
   for (let c = 0; c < sIdx.length; c += 6) { const a = sIdx[c], b = sIdx[c+3]; if (a >= 0 && b >= 0) { const ra = root(pieceOf(a)), rb = root(pieceOf(b)); if (ra !== rb) grp[ra] = rb; } }
-  const sim = { n, off, x, p, v, w, w0: Float64Array.from(w), mass, rest, piece, thick, fric, res,
-    fill, fillGrp: fill.map((f, k) => root(k)), fillF: fill.some(f => f > 0) ? new Float64Array(3*n) : null, fillTri: spec.pieces.map(pc => pc.tri), fillArea: spec.pieces.map(pc => C.triArea2D(pc.xy, pc.tri)),
-    hIdx: Int32Array.from(hIdx), hW: Float64Array.from(hW), hTo: Float64Array.from(hTo), hClosed: new Uint8Array(hTo.length/3),
+  const sim = { n, off, x, p, v, w, w0: Float64Array.from(w), dmp, mass, rest, piece, thick, fric, res,
+    fill, fillGrp: fill.map((f, k) => root(k)), fillF: fill.some(f => f > 0) || spec.pieces.some(pc => pc.press) ? new Float64Array(3*n) : null,
+    pPa: spec.pieces.some(pc => pc.press) ? Float64Array.from(spec.pieces, pc => Number.isFinite(pc.press) ? pc.press : 0) : null, fillTri: spec.pieces.map(pc => pc.tri), fillArea: spec.pieces.map(pc => C.triArea2D(pc.xy, pc.tri)),
+    hIdx: Int32Array.from(hIdx), hW: Float64Array.from(hW), hTo: Float64Array.from(hTo), hClosed: new Uint8Array(hTo.length/3), hLen: hLen.some(v => v > 0) ? Float64Array.from(hLen) : null,
     eI: Int32Array.from(eI), eJ: Int32Array.from(eJ), eL: Float64Array.from(eL), eA: Float64Array.from(eA), eM: Float64Array.from(eM), limit: eM.some(v => v > 0),
     sClosed: new Uint8Array(sA.length), drag: null,
     bI: Int32Array.from(bI), bJ: Int32Array.from(bJ), bL: Float64Array.from(bL), bA: Float64Array.from(bA), fQ: Int32Array.from(fQ), fB: Float64Array.from(fB), fK: Float64Array.from(fK), fSt: Int32Array.from(fSt),
     rN: Int32Array.from(rN), rW: Float64Array.from(rW), rI: Int32Array.from(rI), rJ: Int32Array.from(rJ), rL: Float64Array.from(rL), rA: Float64Array.from(rA), rM: Float64Array.from(rM),
     xI: Int32Array.from(across.I), xJ: Int32Array.from(across.J), xL: Float64Array.from(across.L), xA: Float64Array.from(across.A), xS: Int32Array.from(across.S),
-    sIdx: Int32Array.from(sIdx), sW: Float64Array.from(sW), sA: Float64Array.from(sA), sOf: Int32Array.from(sOf), noHit,
+    sIdx: Int32Array.from(sIdx), sW: Float64Array.from(sW), sA: Float64Array.from(sA), sOf: Int32Array.from(sOf), noHit, sLen: sLen.some(v => v > 0) ? Float64Array.from(sLen) : null,
     field: spec.field || null, opt, pairs: new Int32Array(0), nPairs: 0, time: 0, frames: 0, g: [0, 0, 0],
     ghost: spec.pieces.some(pc => pc.ghost) ? Uint8Array.from(spec.pieces, pc => pc.ghost ? 1 : 0) : null };
   // (Round build-1) Simulation Shrinkage comes in over the first SHRINK_EASE frames, from the cut lengths to the shrunk ones: all at
   // once, a flat sheet's triangles fold over and it never comes back to its shape
-  if (spec.pieces.some(pc => pc.shrink)) Object.assign(sim, { eF: Float64Array.from(eF), eT: Float64Array.from(eL), bF: Float64Array.from(bF), bT: Float64Array.from(bL) });
+  if (spec.pieces.some(pc => pc.shrink || pc.steam)) Object.assign(sim, { eF: Float64Array.from(eF), eT: Float64Array.from(eL), bF: Float64Array.from(bF), bT: Float64Array.from(bL) });
   // (Round r15 / 8) never below the patterns' Collision Thickness (opt.selfMin, 2.5 mm by default; it was 3 mm)
   opt.selfDist = opt.selfDist > 0 ? opt.selfDist : Math.min(14, Math.max(opt.selfMin > 0 ? opt.selfMin : 2.5, 0.7*res));
   for (const pn of spec.pins || []) C.clothPin(sim, off[pn.p] + pn.v, true);
@@ -824,7 +855,7 @@ function seamBends(sIdx, sW, sOf, bnd, rest, bendK, k, sBend, sFold) {
    solver is built again: the cloth goes on from where it is, and a pattern's outward side, once decided, is kept. */
 C.clothFill = function (sim, fills) {
   for (let k = 0; k < sim.fill.length; k++) sim.fill[k] = fills[k] > 0 ? Math.min(100, fills[k]) : 0;
-  if (sim.fill.some(f => f > 0)) { if (!sim.fillF) sim.fillF = new Float64Array(3*sim.n); }
+  if (sim.fill.some(f => f > 0) || sim.pPa) { if (!sim.fillF) sim.fillF = new Float64Array(3*sim.n); }
   else sim.fillF = null;
   sim.fillGroups = [];
 };
@@ -849,7 +880,7 @@ C.clothPin = function (sim, i, on, to) {
 C.clothDrag = function (sim, d) {
   const was = sim.drag;
   // (REC-SHORT) the pinned points of the last pull get their own weight back; let go, the held cloth slides a while longer
-  if (was) for (const g of [was, ...(was.also || [])]) if (g.pinned) for (const i of g.pinned) sim.w[i] = sim.w0[i];
+  if (was) for (const g of [was, ...(was.also || [])]) if (g.pinned) for (const i of g.pinned) { sim.w[i] = sim.w0[i]; if (sim.pinBody) sim.pinBody[i] = 0; }
   if (was && !(d && d.i && d.i.length && d.to)) sim.slideLeft = sim.opt.dragRelease > 0 ? sim.opt.dragRelease : 0;
   const one = (q, old) => {
     if (!(q && q.i && q.i.length && q.to)) return null;
@@ -867,6 +898,9 @@ C.clothDrag = function (sim, d) {
     if (sim.opt.dragPin) for (const g of [sim.drag, ...(sim.drag.also || [])]) {
       g.pinned = g.i.filter(i => sim.w[i] > 0 || (was && was.pinned && was.pinned.includes(i)));
       for (const i of g.pinned) sim.w[i] = 0;
+      // (Round BETA8-1 / B, PULL-1) the pinned places still meet the body (clothStep: body and floor), so they slide round it
+      if (!sim.pinBody || sim.pinBody.length !== sim.n) sim.pinBody = new Uint8Array(sim.n);
+      for (const i of g.pinned) sim.pinBody[i] = 1;
     }
   }
   // the cloth that slides while held
@@ -917,8 +951,20 @@ function dragStep(sim, h) {
 function dragOne(sim, d, h) {
   const x = sim.x, w = sim.w;
   if (d.pinned && d.pinned.length) {        // (REC-SHORT) the place grabbed follows the pointer exactly
-    const mx = d.to[0] - d.from[0], my = d.to[1] - d.from[1], mz = d.to[2] - d.from[2];
-    for (const i of d.pinned) { const k = d.i.indexOf(i), p0 = d.p0[k]; x[3*i] = p0[0] + mx; x[3*i+1] = p0[1] + my; x[3*i+2] = p0[2] + mz; }
+    // (Round BETA8-1 / B, PULL-1) ... but never through the body: each small step it goes towards its place at the pointer no further
+    // than its clearance from the body allows (the field changes by at most sdfLip() a millimetre, so a move shorter than the distance
+    // over that cannot reach the skin), and at least opt.dragStep (the body's push in this step then takes it back out along the skin).
+    // Away from the body that is the whole way, as before; at the body it slides round it towards the pointer
+    const mx = d.to[0] - d.from[0], my = d.to[1] - d.from[1], mz = d.to[2] - d.from[2], f = sim.field, lip = f ? sdfLip(f) : 1;
+    for (const i of d.pinned) {
+      const k = d.i.indexOf(i), p0 = d.p0[k], a = 3*i, tx = p0[0] + mx - x[a], ty = p0[1] + my - x[a+1], tz = p0[2] + mz - x[a+2], len = Math.sqrt(tx*tx + ty*ty + tz*tz);
+      let s = 1;
+      if (f && len > 0) {
+        const th = sim.thick[i], room = (C.sdfSample(f, x[a], x[a+1], x[a+2], null) - th)/lip, most = Math.max(room, Math.min(sim.opt.dragStep, 0.8*th));
+        if (len > most) s = most/len;
+      }
+      x[a] += s*tx; x[a+1] += s*ty; x[a+2] += s*tz;
+    }
   }
   if (d.reach) {
     // (Round r33b / 1) the handful: each point towards its own place moved as the pointer moved, held the more firmly the nearer it is
@@ -955,12 +1001,13 @@ function seamStep(sim, mark, h2) {
   for (let c = 0; c < m; c++) {
     let dx = 0, dy = 0, dz = 0, den = 0;
     for (let k = 0; k < 6; k++) { const i = SI[6*c+k]; if (i < 0) continue; const q = SW[6*c+k]; dx += q*x[3*i]; dy += q*x[3*i+1]; dz += q*x[3*i+2]; den += q*q*w[i]; }
-    const len = Math.sqrt(dx*dx + dy*dy + dz*dz);
+    const len = Math.sqrt(dx*dx + dy*dy + dz*dz), tl = sim.sLen ? sim.sLen[c] : 0;      // (Round FIX-3 / F) tl: a tack's thread
     if (len < 1e-9 || den <= 0) { closed[c] = 1; continue; }
-    if (mark && len > slip) for (let k = 0; k < 6; k++) { const i = SI[6*c+k]; if (i >= 0) open[i] = 1; }
+    if (tl > 0 && len <= tl + shut) { closed[c] = 1; if (len <= tl) continue; }
+    if (mark && len > slip + tl) for (let k = 0; k < 6; k++) { const i = SI[6*c+k]; if (i >= 0) open[i] = 1; }
     if (!closed[c] && len <= shut) closed[c] = 1;
     const soft = SA[c] > 0 && h2 ? SA[c]*h2 : 0;               // (Round build-1) a soft stitch (a glue's Strength below 1: its compliance, h2 = 1/h²); 0 for every seam
-    const lam = -(closed[c] ? len/(den + ramp + soft) : Math.min(len/(den + ramp + soft), o.maxPull/den))/len;
+    const over = len - tl, lam = -(closed[c] ? over/(den + ramp + soft) : Math.min(over/(den + ramp + soft), o.maxPull/den))/len;
     for (let k = 0; k < 6; k++) { const i = SI[6*c+k]; if (i < 0) continue; const q = lam*SW[6*c+k]*w[i]; x[3*i] += q*dx; x[3*i+1] += q*dy; x[3*i+2] += q*dz; }
   }
 }
@@ -976,6 +1023,25 @@ function seamStep(sim, mark, h2) {
    Worked out once a frame. */
 const FILL_PA = 5, FILL_SHAPE = 0.5;                        // g / (mm s²), that is Pa (about three times a medium cloth's own weight on its area); the share of a ball's volume a full cushion reaches
 C.FILL_PA = FILL_PA; C.FILL_SHAPE = FILL_SHAPE;
+/* (Round FIX-3b / C) A PATTERN'S PRESSURE (pieces[k].press, Pa; the page's Property Editor ▸ Pressure): its cloth pushed along its
+   triangles' normals, the pressure times each triangle's area shared out between its three points, worked out once a frame from the
+   cloth as it lies (so it follows the cloth as it turns), added to the fill's forces. Positive pushes along the face the triangles'
+   winding gives (the front of a pattern as it is meshed), negative the other way. */
+function pressForces(sim) {
+  const x = sim.x, F = sim.fillF, np = sim.pPa.length;
+  for (let k = 0; k < np; k++) {
+    const P = sim.pPa[k];
+    if (!P) continue;
+    const o = sim.off[k], T = sim.fillTri[k];
+    for (let t = 0; t < T.length; t += 3) {
+      const a = 3*(o + T[t]), b = 3*(o + T[t+1]), c = 3*(o + T[t+2]);
+      const ux = x[b] - x[a], uy = x[b+1] - x[a+1], uz = x[b+2] - x[a+2], vx = x[c] - x[a], vy = x[c+1] - x[a+1], vz = x[c+2] - x[a+2];
+      const q = P/6, fx = q*(uy*vz - uz*vy), fy = q*(uz*vx - ux*vz), fz = q*(ux*vy - uy*vx);
+      F[a] += fx; F[a+1] += fy; F[a+2] += fz; F[b] += fx; F[b+1] += fy; F[b+2] += fz; F[c] += fx; F[c+1] += fy; F[c+2] += fz;
+    }
+  }
+}
+C.pressForces = pressForces;
 function fillForces(sim) {
   const x = sim.x, F = sim.fillF, np = sim.fill.length, groups = new Map();
   F.fill(0);
@@ -1053,10 +1119,11 @@ function holdStep(sim) {
   for (let c = 0; c < m; c++) {
     let dx = -To[3*c], dy = -To[3*c+1], dz = -To[3*c+2], den = 0;
     for (let k = 0; k < 3; k++) { const i = I[3*c+k]; if (i < 0) continue; const q = W[3*c+k]; dx += q*x[3*i]; dy += q*x[3*i+1]; dz += q*x[3*i+2]; den += q*q*w[i]; }
-    const len = Math.sqrt(dx*dx + dy*dy + dz*dz);
+    const len = Math.sqrt(dx*dx + dy*dy + dz*dz), tl = sim.hLen ? sim.hLen[c] : 0;      // (Round FIX-3 / F) a tack's thread to the avatar
     if (len < 1e-9 || den <= 0) { closed[c] = 1; continue; }
+    if (tl > 0 && len <= tl + o.seamClose) { closed[c] = 1; if (len <= tl) continue; }
     if (!closed[c] && len <= o.seamClose) closed[c] = 1;
-    const lam = -(closed[c] ? len/den : Math.min(len/den, o.maxPull/den))/len;
+    const over = len - tl, lam = -(closed[c] ? over/den : Math.min(over/den, o.maxPull/den))/len;
     for (let k = 0; k < 3; k++) { const i = I[3*c+k]; if (i < 0) continue; const q = lam*W[3*c+k]*w[i]; x[3*i] += q*dx; x[3*i+1] += q*dy; x[3*i+2] += q*dz; }
   }
 }
@@ -1210,7 +1277,7 @@ C.clothStep = function (sim, dt) {
   // where each point was when the body's field was last looked up there, and the distance it gave (another field: look again)
   if (sim.sdFor !== f) { sim.sdFor = f; sim.sdD = new Float64Array(n).fill(-Infinity); sim.sdP = new Float64Array(3*n); }
   const SD = sim.sdD, SP = sim.sdP, SDF_LIP = f ? sdfLip(f) : 0;
-  if (sim.fillF) fillForces(sim);
+  if (sim.fillF) { if (sim.fill.some(f => f > 0)) fillForces(sim); else sim.fillF.fill(0); if (sim.pPa) pressForces(sim); }
   const FF = sim.fillF, PR = sim.press, EF = sim.eFrc;
   if (PR) PR.fill(0);
   if (EF) { EF.fill(0); sim.h2now = h2; }
@@ -1269,8 +1336,9 @@ C.clothStep = function (sim, dt) {
     if (sim.limit && sim.drag && o.dragLimitIters > 0) for (const g of [sim.drag, ...(sim.drag.also || [])]) if (g.edges && g.edges.length) for (let it = 0; it < o.dragLimitIters; it++) { limitStep(sim, false, g.edges); limitStep(sim, true, g.edges); }
     if (sim.rI.length) for (let it = 0; it < 6; it++) rodStep(sim, h2, true, it & 1);      // (Round r11 / 3) and no rod longer than its limit (a chain: both ways, three times; within about 1 % of it)
     // the body and the floor, with friction: what a point slid along the surface is held back
+    const PB = sim.drag && sim.pinBody;        // (Round BETA8-1 / B, PULL-1) the pinned places meet the body too
     for (let i = 0; i < n; i++) {
-      if (w[i] === 0) continue;
+      if (w[i] === 0 && !(PB && PB[i])) continue;
       const k = 3*i, th = sim.thick[i];
       let push = 0;
       if (f) {
@@ -1285,7 +1353,7 @@ C.clothStep = function (sim, dt) {
         }
       }
       if (o.ground && x[k+1] < th) { push = th - x[k+1]; x[k+1] = th; g[0] = 0; g[1] = 1; g[2] = 0; }
-      if (push > 0) {
+      if (push > 0 && w[i] > 0) {        // (a pinned place slides round the body towards the pointer: no friction holds it)
         const mx = x[k] - p[k], my = x[k+1] - p[k+1], mz = x[k+2] - p[k+2], dn = mx*g[0] + my*g[1] + mz*g[2];
         const tx = mx - dn*g[0], ty = my - dn*g[1], tz = mz - dn*g[2], tl = Math.sqrt(tx*tx + ty*ty + tz*tz);
         // Coulomb: a slide smaller than friction times the push is stopped altogether. That is what holds a
@@ -1306,10 +1374,22 @@ C.clothStep = function (sim, dt) {
     }
     // the seams last: nothing done after them in this step, not the body's push, not the fabric's limit, can leave a sewn seam open
     for (let it = 0; it < o.seamIters; it++) { seamStep(sim, false, h2); holdStep(sim); }
+    // (Round BETA8-1 / B, PULL-1) while the pointer pulls, the body has the last word: a seam pulled hard by the pull (the patterns on
+    // the body held by its other side) must not drag cloth into the body; what the seams left inside is pushed back out (no friction:
+    // only the push). Not pulling, nothing here runs and the step is the same as before
+    if (f && sim.drag) for (let i = 0; i < n; i++) {
+      if (w[i] === 0 && !(PB && PB[i])) continue;
+      const k = 3*i, th = sim.thick[i];
+      if (o.sdfSkip && SD[i] - SDF_LIP*Math.sqrt((x[k] - SP[k])*(x[k] - SP[k]) + (x[k+1] - SP[k+1])*(x[k+1] - SP[k+1]) + (x[k+2] - SP[k+2])*(x[k+2] - SP[k+2])) > th + 0.5) continue;
+      const d = C.sdfSample(f, x[k], x[k+1], x[k+2], g);
+      SD[i] = d; SP[k] = x[k]; SP[k+1] = x[k+1]; SP[k+2] = x[k+2];
+      if (d < th) { const q = th - d; x[k] += g[0]*q; x[k+1] += g[1]*q; x[k+2] += g[2]*q; }
+    }
     for (let i = 0; i < n; i++) {
       if (w[i] === 0) continue;
       const k = 3*i;
-      v[k] = (x[k] - p[k])/h*damp; v[k+1] = (x[k+1] - p[k+1])/h*damp; v[k+2] = (x[k+2] - p[k+2])/h*damp;
+      const dk = sim.dmp ? Math.max(0, 1 - o.damping*sim.dmp[i]*h) : damp;      // (Round FIX-3 / D) a fabric's own Internal Damping
+      v[k] = (x[k] - p[k])/h*dk; v[k+1] = (x[k+1] - p[k+1])/h*dk; v[k+2] = (x[k+2] - p[k+2])/h*dk;
     }
   }
   if (PR) for (let i = 0; i < n; i++) PR[i] /= sub;

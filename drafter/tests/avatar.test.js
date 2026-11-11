@@ -245,7 +245,7 @@ test("the program starts with no avatar, in a browser and in the desktop app, wh
       out.menu = app.MENUS.avatar().filter(x => x.n || x.hd).slice(0, 2).map(x => x.n || x.hd);
       // simulating with no avatar: the cloth falls and lies on the floor
       const sq = (n, x, y, w, h) => app.mkPiece(n, app.mkShape([{x:x,y:y},{x:x+w,y:y},{x:x+w,y:y+h},{x:x,y:y+h}], true));
-      app.push("Rectangle"); S.pieces.push(sq("Cloth", 0, 0, 200, 200)); S.cloth = app.normCloth({ ...S.cloth, worker: false }); app.commit();
+      app.push("Rectangle"); S.pieces.push(sq("Cloth", 0, -1200, 200, 200));      /* (Round FIX-3 / A: drawn 1 m above the 2D axis, the floor, so that it stands that high) */ S.cloth = app.normCloth({ ...S.cloth, worker: false }); app.commit();
       const it = () => app.G3.items.get(S.pieces[0].id), low = () => { let y = Infinity; for (let i = 1; i < it().X.length; i += 3) y = Math.min(y, it().X[i]); return y; };
       const y0 = low();
       app.ev("simStart")(); out.said = toasts[toasts.length-1];
@@ -500,7 +500,7 @@ function presetChecks(root, id, want) {
   assert.ok(hip[0] < waist[0] && waist[0] < chest[0], "hip below waist below chest: " + [hip[0], waist[0], chest[0]]);
   // arrangement points: all of them, since the skeleton is whole
   S.avSet = normAvatar({ cell: 14 }); av.sdf = null;
-  assert.strictEqual(arrPoints(av).length, 46, "a full skeleton gives every arrangement point");
+  assert.strictEqual(arrPoints(av).length, 116, "a full skeleton gives every arrangement point"); /* (Round FIX-3 / B: the reference's layout, 116 points: 36 front, 36 back, 44 on the sides) */ // (Round FIX-2 / C12: four more on chest and back, left and right of the centre ones: 50)
 }
 
 test("the avatar in the booted app: the menu, the status bar, saved settings coming back, and the camera keys over the 3D window", () => {

@@ -263,7 +263,8 @@ test("r19 / H28: Print Layout's commands on a bar at the right, in the reference
     return out;` }).result;
   // (Round r25 / 3: Manual Nesting is built, so it is on the bar either way)
   assert.deepStrictEqual(o.on, ["nest", "stop-", "settings", "unnest", "unnestAdd-", "labels", "manual", "row", "snap", "tape", "paper", "plotter", "print", "file"]);      // (Round r29: Paper View, ours)
-  assert.deepStrictEqual(o.off, ["nest", "settings", "unnest", "labels", "manual", "row", "snap", "tape", "paper", "plotter", "print", "file"]);
+  /* (Round BETA8-1 / F: Stop Nesting is built, on the bar either way, pressable only while nesting) */
+  assert.deepStrictEqual(o.off, ["nest", "stop-", "settings", "unnest", "labels", "manual", "row", "snap", "tape", "paper", "plotter", "print", "file"]);
 });
 
 /* ---- Batch 7 ---- */
@@ -271,7 +272,7 @@ test("r19 / H29: the Plotter box: Options and Port (greyed, not built, only with
   const o = boot({ script: DOC + `
     app.setMode("layout"); const dlg = app.el("dlg"), html = () => dlg.innerHTML;
     app.setUnbuilt(true); app.ev("plotterDialog")();
-    /* (Round r20 / 8: Pen, Cutter, Unit and Cut on Outline are built for the HP-GL file; only the Port stays greyed) */ out.on = ["Options", "Port", "Line Options", "Select All", "Add’l Information", "Pen</label>", "Cutter</label>", "Serial Port (not built yet)", "Pattern outline", "Seam allowance", "Pattern name", "Plot", "Save", "Reset", "Cancel"].filter(t => !html().includes(t));
+    /* (Round r20 / 8: Pen, Cutter, Unit and Cut on Outline are built for the HP-GL file; only the Port stays greyed) */ out.on = ["Options", /* (BETA8-1 / C2: the Port shows with a serial plotter) */ "Line Options", "Select All", "Add’l Information", "Pen</label>", "Cutter</label>", "Pattern outline", "Seam allowance", "Pattern name", "Plot", "Save", "Reset", "Cancel"].filter(t => !html().includes(t));
     out.preview = /class="page"/.test(html());
     app.setUnbuilt(false); app.ev("plotterDialog")(); out.off = [/Pen \(not built yet\)/.test(html()), /<h3>Port/.test(html())];
     // Select All off for the lines: every line kind off, in the print's settings; Reset brings the defaults back
@@ -325,7 +326,7 @@ test("r19 follow-up / version 23: a version 22 file (written by the build before
     return app.wait(() => S.pieces.length === 2, "the file opened").then(() => {
       const J = app.ev("canonJSON"), now = app.ev("docObj")();
       out.v = [was.v, now.v];
-      /* (Round H1a / 2: from version 31 every document says its render settings and the defaults it was written with, as its version) */ const strip = (d) => { const c = JSON.parse(JSON.stringify(d)); delete c.v; delete c.render; delete c.defaults; delete c.scene; delete c.drape; delete c.states3; delete c.states3Bin; delete c.history; return J(c); };
+      /* (Round H1a / 2: from version 31 every document says its render settings and the defaults it was written with, as its version) */ const strip = (d) => { const c = JSON.parse(JSON.stringify(d)); delete c.v; delete c.render; delete c.defaults; delete c.display /* (Round FIX-2 / C8: the session's view, written at saving, starts with names and grain lines hidden) */; delete c.scene; delete c.drape; delete c.states3; delete c.states3Bin; delete c.history; return J(c); };
       out.same = strip(was) === strip(now); if (!out.same) { const a = strip(was), b = strip(now); let k = 0; while (a[k] === b[k]) k++; out.diff = [a.slice(k - 60, k + 120), b.slice(k - 60, k + 120)]; }
       out.names = S.pieces.map(p => p.name); out.layout = [S.layout.name, S.layout.paper, S.layout.margin, S.layout.cols, Object.keys(S.layout.place).length];
       out.lights = [S.lights.length, "lights" in now]; out.undo = S.un.map(s => s.n);

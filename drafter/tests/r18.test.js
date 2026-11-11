@@ -307,7 +307,7 @@ test("r18 / 3: IK on Marty: Edit Body Part moves the hand to the pointer with th
       return out;
     });` });
   const r = o.result;
-  assert.strictEqual(r.handles, 7, "no joint gizmo in IK (the pattern gizmo's handles are listed)"); assert.strictEqual(r.noGiz, null);
+  assert.strictEqual(r.handles, 8, "no joint gizmo in IK (the pattern gizmo's handles are listed)"); /* (Round FIX-3 / G: with the tack, 8) */ assert.strictEqual(r.noGiz, null);
   assert.strictEqual(r.edit, "part", "Edit Body Part at the start");
   assert.ok(r.part.reach < 2, "the hand reached the pointer: " + r.part.reach + " mm off"); assert.ok(r.part.elbow > 5, "the elbow moved with it");
   assert.deepStrictEqual(r.part.stay, [0, 0, 0, 0, 0, 0], "the shoulder, the collar, the spine, the hips, the other hand and a foot stay");
@@ -508,8 +508,8 @@ test("r18 / 6: arrangement points come from bounding volumes and points: the def
       const old = [];
       const add = (id, P, up, dir) => { const side = up.clone().cross(dir).normalize(), o = side.clone().cross(up).normalize(); old.push([id, P.toArray(), up.toArray(), o.toArray(), reach(P, o)]); };
       const P0 = at(R.pelvis), top = at(R.neck), H = top.clone().sub(P0).dot(U);
-      for (const [key, k] of [["chest", 0.62], ["waist", 0.2], ["hip", -0.12]]) { const P = centre(P0.clone().addScaledVector(U, H*k), F, Lx); for (const [dk, d] of [["front", F], ["back", F.clone().negate()], ["left", Lx], ["right", Lx.clone().negate()]]) add(key + "_" + dk, P, U, d); }
-      const Pn = centre(top.clone().lerp(at(R.head), 0.3), F, Lx); add("neck_front", Pn, U, F); add("neck_back", Pn, U, F.clone().negate());
+      /* (Round FIX-3 / B: the hip row moved up to the hip joints, -0.02; it was -0.12) */ for (const [key, k] of [["chest", 0.62], ["waist", 0.2], ["hip", -0.02]]) { const P = centre(P0.clone().addScaledVector(U, H*k), F, Lx); for (const [dk, d] of [["front", F], ["back", F.clone().negate()], ["left", Lx], ["right", Lx.clone().negate()]]) add(key + "_" + dk, P, U, d); }
+      /* (Round FIX-3 / B: the neck points at its base, 0; they were at 0.3) */ const Pn = centre(top.clone().lerp(at(R.head), 0), F, Lx); add("neck_front", Pn, U, F); add("neck_back", Pn, U, F.clone().negate());
       for (const s of ["L", "R"]) for (const [a, b, key] of [["arm", "forearm", "arm"], ["forearm", "hand", "forearm"], ["thigh", "shin", "thigh"], ["shin", "foot", "shin"]]) {
         const A = at(R[a + s]), B = at(R[b + s]), up = A.clone().sub(B).normalize(), fwd = F.clone().addScaledVector(up, -F.dot(up)).normalize();
         let outer = up.clone().cross(fwd).normalize(); if (outer.dot(Lx)*(s === "L" ? 1 : -1) < 0) outer.negate();
@@ -549,16 +549,16 @@ test("r18 / 6: arrangement points come from bounding volumes and points: the def
       return out;
     });` });
   const r = o.result;
-  assert.deepStrictEqual(r.n, [46, 46]); assert.strictEqual(r.same, true, "every default point exactly where it always was");
-  assert.deepStrictEqual(r.tab, [true, true, true, true, true, 46, 10], "46 points on 10 volumes: the body, the neck, four on each side");
+  assert.deepStrictEqual(r.n, [46, 116]); /* (Round FIX-3 / B: the reference's layout, 116 points: 36 front, 36 back, 44 on the sides) */ assert.strictEqual(r.same, true, "every default point exactly where it always was (the first 46)"); // (Round FIX-2 / C12: four more on chest and back, left and right of the centre ones: 50)
+  assert.deepStrictEqual(r.tab, [true, true, true, true, true, 116, 10], "116 points on 10 volumes: the body, the neck, four on each side"); /* (Round FIX-3 / B: the reference's layout, 116 points: 36 front, 36 back, 44 on the sides) */ // (Round FIX-2 / C12: four more on chest and back, left and right of the centre ones: 50)
   assert.strictEqual(r.bvShown, 10, "the volumes drawn while the tab is in front");
   assert.strictEqual(r.partner, "armR_back"); assert.strictEqual(r.bodyPartner, "waist_right"); assert.strictEqual(r.rings, 2, "the point and its partner ringed");
   assert.ok(r.moved[0] > 30 && r.moved[1] === "Arrangement" && r.moved[2], "moved, one step, its partner left alone: " + r.moved);
   assert.deepStrictEqual([r.inFile.x, r.inFile.y], [60, 80]);
   assert.ok(r.posed > 25, "the point follows the arm turned at the shoulder: " + r.posed + " mm");
-  assert.deepStrictEqual(r.unassigned, [45, false]);
+  assert.deepStrictEqual(r.unassigned, [115, false]); /* (Round FIX-3 / B: the reference's layout, 116 points: 36 front, 36 back, 44 on the sides) */      // (Round FIX-2 / C12: 50 points, one taken away)
   assert.strictEqual(r.gap, 50);
-  assert.deepStrictEqual(r.back, [false, 46]);
+  assert.deepStrictEqual(r.back, [false, 116]); /* (Round FIX-3 / B: 116 points) */ // (Round FIX-2 / C12: four more on chest and back, left and right of the centre ones: 50)
 });
 
 /* ---- batch 7: the IK Joint tab ---- */

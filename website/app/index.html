@@ -58,14 +58,14 @@
   #mode button:hover { border-color: #77777c; }
   /* the library button at the top right of the window (Round CF, as the other program has it) */
   /* (Round r19 / H31) a small bookshelf, its name as the tooltip, as the reference's library symbol (it was the word with a drawing) */
-  #s-lib { display: flex; align-items: center; margin-left: 8px; background: none; border: 1px solid transparent; border-radius: 2px; color: var(--text); padding: 1px 4px; cursor: pointer; }
-  #s-lib:hover { border-color: #77777c; }
+  #s-find, #s-lib { display: flex; align-items: center; margin-left: 8px; background: none; border: 1px solid transparent; border-radius: 2px; color: var(--text); padding: 1px 4px; cursor: pointer; }
+  #s-find:hover, #s-lib:hover { border-color: #77777c; }
   /* (Round r24) a newer version: the desktop app's button, its state in words (and its frame dashed while downloading) */
   #s-upd { margin-left: 8px; background: none; border: 1px solid var(--accent); border-radius: 2px; color: var(--text); padding: 1px 8px; font: 11px Segoe UI, Arial, sans-serif; cursor: pointer; }
   #s-upd:hover { background: #3c3c3e; }
   #s-upd:disabled { border-style: dashed; cursor: default; }
   #s-upd.ready { font-weight: 600; border-width: 2px; }
-  #s-lib svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linejoin: round; stroke-linecap: round; }
+  #s-find svg, #s-lib svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linejoin: round; stroke-linecap: round; }
 
   /* ---- scrollbars: dark, everywhere (panels, lists, the timeline, dialogs) ---- */
   * { scrollbar-width: thin; scrollbar-color: #56565a #1e1e20; }
@@ -117,6 +117,12 @@
   .selectors button.on { border-color: var(--sel); }
   .selectors button svg { width: 18px; height: 18px; fill: none; stroke: #d6d6d6; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
   #sel3d { left: 8px; top: 8px; }
+  /* (Round FIX-2 / C10) the fabric Material tabs Front / Back / Side: the one in front bold and underlined, not told by colour alone */
+  .facetabs { display: flex; gap: 2px; margin: 4px 0 6px; border-bottom: 1px solid #4a4a4e; }
+  .facetabs .ftab { background: none; border: none; color: var(--dim); padding: 3px 10px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .facetabs .ftab.on { color: #f0f0f0; font-weight: 600; border-bottom-color: var(--accent-line); }
+  /* (Round FIX-2 / C5) the 3D column's dividers: a gap and a rule between the render switches, the display lists and Render */
+  .selectors .sel-div { height: 1px; margin: 5px 3px; background: #8a8a8e; flex: none; }
   /* Print Layout: its own pane, a bar of commands over one large sheet view */
   #lay-bar { gap: 4px; padding: 4px 6px; }
   #lay-stage { position: relative; flex: 1; min-height: 0; overflow: hidden; background: var(--canvas); }
@@ -140,9 +146,11 @@
   #cam3d #vcube { display: block; width: 148px; height: 148px; cursor: grab; touch-action: none; }
   /* (Round UI-1c / C, the maintainer's brief) Home: the house alone, no button or frame, small and half see-through grey, close to the
      cube's top left corner; under the pointer whole, orange and its lines thicker (the thickness as well as the colour) */
-  #cam3d #vhome { position: absolute; left: 2px; top: 2px; width: 18px; height: 18px; padding: 0; display: grid; place-items: center; background: none; border: none; color: #3a3a3e; opacity: .55; cursor: pointer; }
+  /* (Round FIX-2 / C4, the maintainer's feedback) Home only while the pointer is near the cube or on it (it fades with the step arrows, --vnear
+     set by vcubeNear()), bigger, by the cube's top left corner */
+  #cam3d #vhome { position: absolute; left: 2px; top: 2px; width: 26px; height: 26px; padding: 0; display: grid; place-items: center; background: none; border: none; color: #3a3a3e; opacity: calc(var(--vnear, 0) * .8); cursor: pointer; }
   #cam3d #vhome:hover, #cam3d #vhome:focus-visible { opacity: 1; color: var(--accent); }
-  #cam3d #vhome svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  #cam3d #vhome svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
   #cam3d #vhome:hover svg { stroke-width: 2.3; }
   #posepanel { display: none; position: absolute; right: 8px; top: 156px; bottom: 26px; width: 268px; overflow-y: auto; background: #2b2b2ef2; border: 1px solid #1a1a1c; color: #d8d8dc; font: 11px Segoe UI, Arial, sans-serif; padding: 6px 8px; }
   #posepanel .pph { display: flex; align-items: center; margin-bottom: 4px; } #posepanel .pph .grow { flex: 1; }
@@ -197,6 +205,9 @@
   #avtabs { position: absolute; left: 0; right: 0; bottom: 0; height: 26px; z-index: 32; background: #1c1c1e; border-top: 1px solid #101011; display: flex; gap: 2px; padding: 0 6px; }
   #avtabs button { background: none; border: none; border-top: 2px solid transparent; color: #cfcfd4; padding: 0 10px; cursor: pointer; font: 12px Segoe UI, Arial, sans-serif; }
   #avtabs button.on { color: #fff; font-weight: 600; border-top-color: var(--accent-line); background: #2b2b2e; }
+  /* (Round FIX-4 / B) Select Mesh (Brush)'s panel, at the top right of the 3D window */
+  .brush3d { position: absolute; right: 8px; top: 156px; width: 188px; background: #2b2b2ef2; border: 1px solid #1a1a1c; color: #d8d8dc; font: 11px Segoe UI, Arial, sans-serif; padding: 0 6px 6px; z-index: 6; }
+  .brush3d .hd { padding: 4px 0; font-weight: 600; } .brush3d .row { display: flex; gap: 4px; align-items: center; } .brush3d input[type=range] { flex: 1; } .brush3d .s { width: 40px; }
   #jointpanel { display: none; position: absolute; right: 8px; top: 156px; width: 188px; background: #2b2b2ef2; border: 1px solid #1a1a1c; color: #d8d8dc; font: 11px Segoe UI, Arial, sans-serif; padding: 0 0 6px; z-index: 6; }
   #jointpanel.beside { right: 286px; }
   #jointpanel .jph { text-align: center; padding: 4px 6px; border-bottom: 1px solid #1a1a1c; margin-bottom: 4px; }
@@ -269,6 +280,9 @@
   .obi .x { visibility: hidden; background: none; border: none; color: var(--dim); cursor: pointer; font-size: 13px; padding: 0 2px; }
   .obi:hover .x { visibility: visible; }
   .obi .x:hover { color: #ff8080; }
+  /* (Round BETA8-1 / H, roadmap 2.C33) the item's "…" menu: shown on hover and on the selected row */
+  .obi .dots { visibility: hidden; background: none; border: none; color: var(--dim); cursor: pointer; font-size: 13px; padding: 0 3px; }
+  .obi:hover .dots, .obi.on .dots { visibility: visible; } .obi .dots:hover { color: var(--accent-text); }
   #pe { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
   #props { flex: 1; overflow-y: auto; overflow-x: hidden; border-bottom: none; }
   details.pe .row input.w, details.pe .row select.w { width: 112px; }
@@ -424,6 +438,11 @@
   #menu .sep, .msub .sep { height: 1px; background: #3d3d3d; margin: 4px 0; }
   #menu .msearch { padding: 4px 8px 5px; border-bottom: 1px solid var(--line, #3a3a3a); }
   #menu .msearch input { width: 100%; box-sizing: border-box; font-size: 12px; padding: 3px 6px; }
+  /* (Round BETA8-1 / L, W1) the pattern menu's tabs: five pills; the chosen one lighter and with a thicker edge (not by colour alone) */
+  #menu .mtabs { display: flex; flex-wrap: wrap; gap: 3px; padding: 3px 6px 5px; border-bottom: 1px solid var(--line, #3a3a3a); }
+  #menu .mtab { font: inherit; font-size: 11px; padding: 1px 7px; border-radius: 9px; border: 1px solid #555; background: #2a2a2c; color: var(--dim, #aaa); cursor: pointer; }
+  #menu .mtab:hover { color: #ddd; border-color: #777; }
+  #menu .mtab.on { background: #5a5a5e; color: #fff; border: 2px solid #bbb; padding: 0 6px; }
   #menu .hd, .msub .hd { padding: 3px 14px; font-size: 11px; color: #6e6e6e; }
   .msub { z-index: 91; }
   #menu .mic, .msub .mic { display: inline-block; width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; }
@@ -484,9 +503,10 @@
      (Round UI-1 / D, the maintainer's brief) tighter: the slot 8 characters (-9999.99 mm, -999.99 cm, -393.70 in), the label 3 px before
      its slot, 10 px between X's number and Y */
   #s-pos { display: inline-flex; align-items: baseline; }
-  #s-pos .pl { color: var(--dimmer); margin: 0 3px 0 10px; }
+  #s-pos .pl { color: var(--dimmer); margin: 0 0.5ch 0 1.5ch; }
   #s-pos .pl:first-child { margin-left: 0; }
-  #s-pos .pv { display: inline-block; width: 8ch; text-align: right; font-variant-numeric: tabular-nums; color: var(--dim); }
+  /* (Round FIX-2 / C11) the number straight after its letter, left-aligned; the slot as wide as the widest value at the chosen decimals (posShow()), so Y never moves */
+  #s-pos .pv { display: inline-block; width: 9ch; text-align: left; font-variant-numeric: tabular-nums; color: var(--dim); }
   #timeline .tl-name .num { display: inline-block; min-width: 4ch; text-align: right; font-variant-numeric: tabular-nums; }
   #s-save.ok { color: var(--dimmer); }
   #s-save.pending { color: var(--dim); }
@@ -745,7 +765,7 @@
   #dlg .hint { font-size: 10px; color: var(--dimmer); margin-bottom: 7px; }
   #dlg .df .lc { display: inline-block; padding: 1px 5px; border-radius: 2px; font-weight: 600; }
   #dlg .df input.ro { background: transparent; border-color: transparent; color: var(--text); }
-  #dlg .derr { display: none; font-size: 10.5px; color: #ffd27a; border-left: 3px solid #ffd27a; padding: 3px 6px; margin: 4px 0 8px; }
+  #dlg .derr { display: none; font-size: 10.5px; color: var(--accent-text); border-left: 3px solid var(--accent-line); padding: 3px 6px; margin: 4px 0 8px; }
   #dlg .derr::before { content: "\26A0  "; }
   /* a question that must be answered: over everything, closed only by its buttons */
   #modal { position: fixed; inset: 0; z-index: 200; background: #000a; display: grid; place-items: center; }
@@ -820,10 +840,11 @@
 
 <div id="app">
   <div id="menubar">
-    <span class="mb" data-m="file">File</span><span class="mb" data-m="edit">Edit</span><span class="mb" data-m="3d">3D</span><span class="mb" data-m="2d">2D</span><span class="mb" data-m="materials">Materials/UV</span><span class="mb" data-m="avatar">Avatar</span><span class="mb" data-m="production">Production</span><span class="mb" data-m="render">Render</span><span class="mb" data-m="settings">Settings</span><span class="mb" data-m="help">Help</span>
+    <span class="mb" data-m="file">File</span><span class="mb" data-m="edit">Edit</span><span class="mb" data-m="3d">3D</span><span class="mb" data-m="2d">2D</span><span class="mb" data-m="materials">Materials/UV</span><span class="mb" data-m="avatar">Avatar</span><span class="mb" data-m="fabric">Fabric</span><span class="mb" data-m="production">Production</span><span class="mb" data-m="render">Render</span><span class="mb" data-m="settings">Settings</span><span class="mb" data-m="help">Help</span>
     <span class="grow"></span><span id="title">2D Pattern Window</span><span class="grow"></span>
     <span id="mode"></span>
     <button id="s-upd" style="display:none">Update available</button>
+    <button id="s-find" title="Search every menu: type part of a command's name" aria-label="Search the menus"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4a6 6 0 1 0 0 12 6 6 0 0 0 0-12zM14.5 14.5L20 20"/></svg></button>
     <button id="s-lib" title="Library (Y): open or add a block or one of your patterns" aria-label="Library"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M3 3h18M3 12h18M5 4v7M8 5v6M11 4v7M14 13v7M17 14v6M20 15v5M4.5 13.5l2.5 6.5"/></svg></button>
   </div>
   <div id="work">

@@ -38,9 +38,13 @@ contextBridge.exposeInMainWorld("desktop", {
   // bugReport: the text and, if given, the open document's bytes beside it. Each resolves to { path, name } or null if cancelled.
   exportFile: (suggested, data) => ipcRenderer.invoke("file:export", suggested, data),
   showSaved: () => ipcRenderer.invoke("file:show-saved"),
+  // (Round BETA8-1 / K) the library's Show in Explorer: a .pdraft file that is there, shown in its folder; resolves to whether it was
+  showFile: (p) => ipcRenderer.invoke("file:show", p),
   pdf: (suggested, html) => ipcRenderer.invoke("file:pdf", suggested, html),
   bugReport: (suggested, text, doc) => ipcRenderer.invoke("file:bug-report", suggested, text, doc || null),
   copyText: (text) => ipcRenderer.invoke("clipboard:write", text),
+  // (Round BETA8-1 / C2) the Plotter box's serial port: the ports to choose from when the page asks for one, and the one chosen ("" none)
+  serial: { onPorts: (f) => ipcRenderer.on("serial-ports", (e, l) => f(l)), pick: (id) => ipcRenderer.invoke("serial:pick", id) },
   // { version, build, commit, packaged, os, arch, electron, chrome }, and notice: a line to show at the start (what was brought
   // over from the folder of the program's old name, desktop/migrate.js), only in the session that brought it
   info: () => ipcRenderer.invoke("app:info"),

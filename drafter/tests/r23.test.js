@@ -91,11 +91,13 @@ test("r23 / 2: the toolbars start upright along the outer edges (3D at the left 
   assert.deepStrictEqual(next, ["top", "top"], "kept across a restart and a layout reset");
 });
 
+// (Round FIX-4b / A) this stored pdraft:ui has Show Tools That Are Not Built Yet off (it starts off since the beta.8 gate), so a not-built
+// row of Settings is null and left out: the row is found with x && x.n
 test("r23 / 2: Reset Toolbars (Settings, and More ▸ on a right-click on a toolbar's empty part) puts both back; a right-click on a tool opens no toolbar menu", () => {
   const o = boot({ blank: true, storage: { "pdraft:ui": JSON.stringify({ dock2: "top", dock3: "top" }) }, script: `
     const out = {};
     out.start = [S.ui.dock2, S.ui.dock3];
-    const row = app.MENUS.settings().find(x => x.n === "Reset Toolbars"); out.row = !!row;
+    const row = app.MENUS.settings().find(x => x && x.n === "Reset Toolbars"); out.row = !!row;
     row.f(); out.settings = [S.ui.dock2, S.ui.dock3, JSON.parse(app.storage.get("pdraft:ui")).dock3];
     app.ev("setDock")("3D", "top");
     app.menu.children.length = 0; app.el("menu").style.display = "none";

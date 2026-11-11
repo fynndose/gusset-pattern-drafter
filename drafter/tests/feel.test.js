@@ -310,6 +310,7 @@ test("annotations in the booted app: typed in the program's own dialog, placed w
     // with any other tool a note is not in the way of the pattern under it
     app.setTool("edit_pattern"); out.under = app.hit(s2.x, s2.y).k;
     // renaming through the same dialog (the grading size names use it too)
+    S.show.name = true;      // (Round FIX-2 / C8: names start hidden; a hidden name cannot be clicked, so it is shown here)
     app.setTool("annotations"); app.promptAnswer = "  Front  ";
     S.pieces[0].anno = { x: 150, y: 30 }; const n = at({ x: 150, y: 30 }); app.click(n.x, n.y); out.name = S.pieces[0].name;
     app.checkDoc(S.pieces, S.seams);

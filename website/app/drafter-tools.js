@@ -36,7 +36,7 @@ var TOOL_REGISTRY = (function () {
     ["notch", "2D", "Markings"], ["allowance", "2D", "Markings"], ["annotation", "2D", "Markings"], ["measure", "2D", "Markings"], ["grade", "2D", "Markings"],
     ["edit_sew", "2D", "Sewing"], ["seg_sew", "2D", "Sewing"], ["free_sew", "2D", "Sewing"], ["check_sew", "2D", "Sewing"],
     ["topstitch", "2D", "Stitch"], ["puckering", "2D", "Stitch"],
-    ["texture", "2D", "Material"], ["graphic2", "2D", "Material"], ["button2", "2D", "Material"], ["layer", "2D", "Material"], ["drafter", "2D", "Material"],
+    ["texture", "2D", "Material"], ["graphic2", "2D", "Material"], ["button2", "2D", "Material"], ["glue2", "2D", "Material"], ["layer", "2D", "Material"], ["drafter", "2D", "Material"],
     // ---- 3D window ----
     ["simulate", "3D", "Simulate"], ["select3", "3D", "Simulate"], ["mesh", "3D", "Simulate"], ["pin", "3D", "Simulate"],
     // (Round r33 / 5, the maintainer's brief) Fold Arrangement and the two resets each a button of their own; "arrange" keeps the
@@ -55,7 +55,7 @@ var TOOL_REGISTRY = (function () {
     ["transform_pattern", "Transform Pattern", "A", "select", "built", "arrow", "Select, move, scale and turn whole patterns."],
     ["edit_pattern", "Edit Pattern", "Z", "edit", "built", "node", "Move points and segments."],
     ["transform_point", "Transform Point/Segment", "", "edit", "built", "node+box", "Move, scale or turn selected points and segments in their own box."],
-    ["edit_curve_point", "Edit Curve Point", "V", "edit", "partly", "curvept", "Add and drag curve points: the curve runs through them."],
+    ["edit_curve_point", "Edit Curve Point", "V", "edit", "built", "curvept", "Add, drag, select and delete curve points: the curve runs through them."],
     ["edit_curvature", "Edit Curvature", "C", "edit", "built", "curve", "Drag a segment to bend it."],
     ["smooth_curve", "Smooth Curve", "", "edit", "built", "smooth", "Replace a stretch of outline, such as a corner, by one smooth curve."],
     ["add_point", "Add Point / Split Line", "X", "edit", "built", "addpt", "Add a point on a segment."],
@@ -75,7 +75,8 @@ var TOOL_REGISTRY = (function () {
     ["base_polygon", "Base Polygon / Line", "", "base", "built", "polygon+dash", "Draw a baseline (reference only)."],
     ["base_rectangle", "Base Rectangle", "", "base", "built", "rect+dash", "A rectangular baseline."],
     ["base_ellipse", "Base Ellipse", "", "base", "built", "ellipse+dash", "An elliptical baseline."],
-    ["trace", "Trace", "I", "trace", "partly", "trace", "Turn a closed internal shape or baseline into a pattern; Enter turns a baseline into an internal line."],
+    ["base_dart_double", "Base Dart", "", "base", "built", "dart+dash", "A double-pointed dart as a baseline (reference only)."],      // (Round FIX-3 / H, 2D ▸ Create ▸ Base Dart)
+    ["trace", "Trace", "I", "trace", "built", "trace", "Make patterns, internal shapes and lines from picked lines or shapes (Trace, Fill & Trace, Trim, Slice)."],
     // ---------------- 2D: shape ----------------
     ["fullness", "Fullness", "", "fullness", "built", "fan", "Slash from one edge to another and turn one side to add fullness."],
     ["fullness_point", "Fullness (Point)", "", "fullness", "partly", "fan", "Slash and spread from a point.", { via: MENU + "select the segment to grow, then right-click the outline point to pivot on, More ▸ Fullness (Point)…" }],
@@ -87,23 +88,23 @@ var TOOL_REGISTRY = (function () {
     ["edit_grading_each", "Edit Grading (Each)", "", "grade", "built", "grade+box", "Select points; the arrow keys move them in the size picked only."],
     ["edit_curve_grading_each", "Edit Curve Grading (Each)", "", "grade", "built", "gradecurve+box", "Select curve points; the arrow keys move them in the size picked only."],
     // ---------------- 2D: markings ----------------
-    ["notch", "Notch", "", "notch", "partly", "notch", "Add notches; click one to select it and change its look in the Property Editor."],
+    ["notch", "Notch", "", "notch", "built", "notch", "Add notches; click one to select it and change its look in the Property Editor."],
     ["punch_mark", "Punch Mark", "", "notch", "built", "punch", "Mark a drill hole inside a pattern."],
     ["seam_allowance", "Seam Allowance", "", "allowance", "built", "allowance", "Add or remove seam allowance, edge by edge."],
     ["edit_annotations", "Edit Annotation", "", "annotation", "built", "text+edit", "Drag a pattern name or an annotation."],
-    ["annotations", "Pattern Annotation", "", "annotation", "partly", "text", "Name a pattern, or click inside one to type a note (notes are also on the right-click menu)."],
+    ["annotations", "Pattern Annotation", "", "annotation", "built", "text", "Name a pattern, or click inside one to type a note (notes are also on the right-click menu)."],
     ["pattern_symbol", "Pattern Symbol", "", "annotation", "built", "symbol", "Mark a segment with a fold or gather symbol."],
     ["walk", "Walk Pattern", "", "measure", "built", "walk", "Roll one edge along another to compare and notch them."],
-    ["measure", "Point of Measure", "", "measure", "partly", "ruler", "Measure between two points, straight or along the outline."],
+    ["measure", "Point of Measure", "", "measure", "built", "ruler", "Measure between two points, straight or along the outline."],
     ["edit_pom", "Edit Point of Measure", "", "measure", "built", "ruler+edit", "Select measurements, move their ends, delete them."],
     // ---------------- 2D: sewing ----------------
-    ["edit_sewing", "Edit Sewing", "B", "edit_sew", "partly", "sew+edit", "Select, lengthen, slide, reverse, deactivate and delete sewing lines; both lengths at the pointer."],
+    ["edit_sewing", "Edit Sewing", "B", "edit_sew", "built", "sew+edit", "Select, lengthen, slide, reverse, deactivate and delete sewing lines; both lengths at the pointer."],
     ["segment_sewing", "Segment Sewing", "N", "seg_sew", "built", "sew", "Sew whole segments together; Shift for 1:N."],
     ["mn_segment_sewing", "M:N Segment Sewing", "", "seg_sew", "built", "sew+mn", "Sew several segments to several; Enter ends each side."],
     ["free_sewing", "Free Sewing", "M", "free_sew", "built", "sewfree", "Sew any two stretches of line, point to point."],
     ["mn_free_sewing", "M:N Free Sewing", "", "free_sew", "built", "sewfree+mn", "Free sewing of several stretches to several."],
     ["check_sewing", "Check Sewing Length", "", "check_sew", "built", "sew+check", "Paint seams whose two sides differ in length.", { toggle: "sewCheck" }],
-    ["show_sewing", "Show 2D Sewing", "", "check_sew", "partly", "sew+eye", "Show sewing lines while other tools are in use.", { via: "Sewing lines are always shown here; there is nothing to switch on." }],
+    ["show_sewing", "Show 2D Sewing", "", "check_sew", "built", "sew+eye", "Show the sewing lines in the 2D window while other tools are in use (off at every start; the sewing tools show them either way).", { toggle: "sewing2" }],
     // ---------------- 2D: stitch ----------------
     ["edit_topstitch", "Edit Topstitch", "J", "topstitch", "built", "stitch+edit", "Select and change topstitches."],
     ["segment_topstitch", "Segment Topstitch", "K", "topstitch", "built", "stitch", "Topstitch along a whole segment."],
@@ -114,14 +115,14 @@ var TOOL_REGISTRY = (function () {
     ["free_puckering", "Free Puckering", "", "puckering", "built", "puckerfree", "Puckering between two places on a line."],
     ["seamline_puckering", "Seamline Puckering", "", "puckering", "built", "pucker+sew", "Puckering along a sewn seam."],
     // ---------------- 2D: material ----------------
-    ["edit_texture", "Edit Texture (Grainline)", "T", "texture", "partly", "grain", "Set the grainline (the fabric texture itself is not moved)."],
+    ["edit_texture", "Edit Texture (2D)", "T", "texture", "built", "grain", "Move and turn the grainline, and the fabric's texture laid along it."],      // (Round BETA8-1 / C, 2.C24: the texture follows the grainline; FIX-4b's G9 had named it "(Grainline)")
     ["edit_uv", "Edit UV", "", "texture", "unbuilt", "uv", "Lay patterns out for texture export."],
     ["transform_graphic", "Transform Graphic", "", "graphic2", "built", "image+box", "Move, scale and turn a placed graphic."],
     ["graphic", "Graphic", "", "graphic2", "built", "image", "Place an image on a pattern."],
     ["button2d", "Button", "", "button2", "built", "button", "Place a button on a pattern."],
     ["buttonhole2d", "Buttonhole", "", "button2", "built", "buttonhole", "Place a buttonhole on a pattern."],
     ["fasten2d", "Fasten Button", "", "button2", "built", "button+check", "Fasten a button to a buttonhole."],
-    ["set_sublayer", "Set Sublayer", "", "layer", "unbuilt", "layers", "Say which of two patterns lies on top in 3D."],
+    ["set_sublayer", "Set Sublayer", "", "layer", "built", "layers", "Say which of two patterns lies on top in 3D."],
     ["fill", "Fill", "", "layer", "built", "puff", "Give a pattern filling: click it, set how full."],
     ["pattern_drafter", "Pattern Drafter", "", "drafter", "partly", "blocks", "Draft a block from measurements.", { via: "Here it is File ▸ New Block… (one skirt block, placeholder values)." }],
     ["auto_fitting", "Auto Fitting", "", "drafter", "unbuilt", "body+check", "Refit patterns to a resized avatar."],
@@ -130,14 +131,14 @@ var TOOL_REGISTRY = (function () {
     ["simulate", "Simulate", "Space", "simulate", "built", "play", "Drape the garment: seams pull together and the cloth hangs on the avatar.", { toggle: "simulate" }],
     ["quick_pinching", "Quick Pinching", "Ctrl+Q", "simulate", "built", "pinch", "Pull the cloth by one point while simulating."],
     ["select_move", "Select/Move", "Q", "select3", "built", "move3d", "Select and place patterns in 3D."],
-    ["select_mesh_brush", "Select Mesh (Brush)", "", "mesh", "later", "mesh+brush", "Paint a part of the cloth to select it."],
-    ["select_mesh_box", "Select Mesh (Box)", "", "mesh", "later", "mesh+box", "Box-select a part of the cloth."],
-    ["select_mesh_lasso", "Select Mesh (Lasso)", "", "mesh", "later", "mesh+lasso", "Lasso a part of the cloth."],
+    ["select_mesh_brush", "Select Mesh (Brush)", "", "mesh", "built", "mesh+brush", "Paint a part of the cloth to select it."],
+    ["select_mesh_box", "Select Mesh (Box)", "", "mesh", "built", "mesh+box", "Box-select a part of the cloth."],
+    ["select_mesh_lasso", "Select Mesh (Lasso)", "", "mesh", "built", "mesh+lasso", "Lasso a part of the cloth."],
     ["pin_box", "Pin (Box)", "W", "pin", "built", "pin+box", "Pin cloth points in place: click one, or drag a box over the cloth."],
     ["pin_lasso", "Pin (Lasso)", "", "pin", "built", "pin+lasso", "Pin a lassoed part of the cloth in place."],
     // ---------------- 3D: arrange ----------------
     // (Round r33 / 5) Show Arrangement Points is no longer a toolbar button: Settings ▸ Display ▸ Avatar, the Avatar display list, Shift+F
-    ["fold_arrangement", "Fold Arrangement", "", "fold_arr", "partly", "foldline", "Fold cloth along internal lines before simulating."],
+    ["fold_arrangement", "Fold Arrangement", "", "fold_arr", "built", "foldline", "Fold the cloth along an internal line, a baseline or a seam: a handle a side, the drape kept."],
     ["fold_garment", "Fold 3D Garment", "", "arrange", "later", "foldshirt", "Fold a finished garment."],
     ["auto_arrangement", "Auto 3D Arrangement", "", "arrange", "later", "body+plus", "Place patterns round the avatar automatically."],
     // (Round r33b / 4) built: a button of its own beside the resets
@@ -158,6 +159,7 @@ var TOOL_REGISTRY = (function () {
     ["tack_avatar", "Tack on Avatar", "", "tack", "built", "tack+body", "Hold a spot of the garment to the avatar."],
     ["edit_tack", "Edit Tack", "", "tack", "built", "tack+edit", "Select, move or delete tacks."],
     ["press", "Press", "", "press", "later", "iron", "Press two sewn layers flat at the edge."],
+    ["steam", "Steam", "", "press", "built", "iron+brush", "Brush over the cloth to shrink it there (or relax it, Strength below 0)."],      // (Round BETA8-1 / E, roadmap 3.A18)
     // the 2D tools picked on the cloth (Round r10 / 3; not in the reference's 3D toolbar list: compare in the other program)
     ["edit_topstitch_3d", "Edit Topstitch (3D)", "", "stitch3", "built", "stitch+edit", "Edit Topstitch on the garment: the 2D tool, picked on the cloth."],
     ["segment_topstitch_3d", "Segment Topstitch (3D)", "", "stitch3", "built", "stitch", "Segment Topstitch on the garment: the 2D tool, picked on the cloth."],
@@ -173,7 +175,8 @@ var TOOL_REGISTRY = (function () {
     ["edit_style_line", "Edit Style Line", "", "style_line", "built", "shirt+edit", "Move outline points directly on the garment."],
     ["scale_style_line", "Scale Style Line", "", "style_line", "later", "shirt+box", "Scale part of the garment's outline."],
     ["add_style_line", "Add Style Line", "", "style_line", "later", "shirt+plus", "Add a line to the garment's outline."],
-    ["seamline_rip", "Seamline Rip", "", "style_line", "later", "rip", "Let a stretch of seam tear open."],
+    ["edit_rip", "Edit Rip", "", "style_line", "built", "rip+edit", "Select a rip, move its ends along its seam, or delete it."],
+    ["seamline_rip", "Seamline Rip", "", "style_line", "built", "rip", "Leave a stretch of a seam open: click where it starts and where it ends."],
     // ---------------- 3D: trims ----------------
     ["button", "Button", "", "button", "built", "button", "Place a button."],
     ["buttonhole", "Buttonhole", "", "button", "built", "buttonhole", "Place a buttonhole."],
@@ -189,6 +192,12 @@ var TOOL_REGISTRY = (function () {
     ["seam_taping", "Seam Taping", "", "bond", "later", "tape", "Tape edges so they keep their length."],
     ["gluing", "Gluing", "", "bond", "built", "drop", "Bond two layers over an area, or a seam instead of stitching it."],
     ["glue_fill", "Glue Fill", "", "bond", "built", "drop+box", "Click a piece lying on another pattern: it is glued where it overlaps. Shift+click: Subtract."],
+    // (Round FIX-2 / C1, the maintainer's brief "glue also in 2D") the same three tools on the 2D toolbar: each hands over to the tool of the
+    // same name (TOOL_ALIAS in the app), which works in both windows
+    ["glue_fill_2d", "Glue Fill", "", "glue2", "built", "drop+box", "Click a piece lying on another pattern: it is glued where it overlaps. Shift+click: Subtract."],
+    ["sticker_2d", "Sticker", "", "glue2", "built", "drop+plus", "Click a piece, then where it goes on another pattern: it is glued there."],
+    ["edit_gluing_2d", "Edit Gluing", "", "glue2", "built", "drop+edit", "Select a glue to move, turn, scale or delete it, and set its strength."],
+    ["glue_brush", "Glue Brush", "", "bond", "built", "drop+brush", "Paint over the cloth where it is glued to the layer under it."],      // (Round BETA8-1 / D, roadmap 3.C5)
     ["sticker", "Sticker", "", "bond", "built", "drop+plus", "Click a piece, then where it goes on another pattern: it is glued there."],
     ["edit_gluing", "Edit Gluing", "", "bond", "built", "drop+edit", "Select a glue to move, turn, scale or delete it, and set its strength."],
     ["lacing", "Lacing", "", "bond", "later", "lace", "Thread a lace through holes."],

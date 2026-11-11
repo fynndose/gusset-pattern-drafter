@@ -94,6 +94,7 @@ test("corner angles: 90 on a square, the same whichever way the outline runs, ov
 
 test("hidden things can't be clicked: baselines, reference lines, the grainline, the name, annotations", () => {
   reset();
+  S.show.name = S.show.grainline = true;      // (Round FIX-2 / C8: both start hidden; shown here, then hidden by the test)
   const p = mkPiece("P", rectShape(0, 0, 400, 400)); S.pieces.push(p);
   addChild(p, "bases", mkShape([V(50, 50), V(150, 50)], false));                          // a baseline
   addChild(p, "bases", { ...mkShape([V(50, 100), V(150, 100)], false), ref: true });       // a reference line
