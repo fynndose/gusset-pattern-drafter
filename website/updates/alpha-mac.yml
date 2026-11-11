@@ -1,26 +1,26 @@
-version: 1.0.0-beta.7
+version: 1.0.0-beta.8
 files:
-  - url: https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.7/Gusset-1.0.0-beta.7-mac-x64.zip
-    sha512: KauoFdZGMdpIJXMfbFJDN2LPyz+RDEfn5C47FlPDqTm/l8G0SaBKKgIEVCskUJhzqNgvfDnrwPdJAVE+oC9vOg==
-    size: 123262261
-  - url: https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.7/Gusset-1.0.0-beta.7-mac-arm64.zip
-    sha512: pSbflGGhAVJ1i0a7i1tm8/wu86Nzq8XMkubT3Lug7atN4UbPb6glBKxPqp++QNBpgVrs/3R4pnARf4H4m1usWg==
-    size: 117343917
-  - url: https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.7/Gusset-1.0.0-beta.7-mac-arm64.zip
-    sha512: pSbflGGhAVJ1i0a7i1tm8/wu86Nzq8XMkubT3Lug7atN4UbPb6glBKxPqp++QNBpgVrs/3R4pnARf4H4m1usWg==
-    size: 117343917
-  - url: https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.7/Gusset-1.0.0-beta.7-mac-x64.dmg
-    sha512: lyGx1w7TgRD8FRt4Oew/KCxXN/q1K3DJAZrhc+khkPkxyO2RsPylg4cY5O4yXKm12Ql9yeu9kn2J3dJMwHp/VA==
-    size: 116011956
-  - url: https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.7/Gusset-1.0.0-beta.7-mac-x64.dmg
-    sha512: lyGx1w7TgRD8FRt4Oew/KCxXN/q1K3DJAZrhc+khkPkxyO2RsPylg4cY5O4yXKm12Ql9yeu9kn2J3dJMwHp/VA==
-    size: 116011956
-  - url: https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.7/Gusset-1.0.0-beta.7-mac-arm64.dmg
-    sha512: jD3ZWap2t+ZgNFek1Xq2c3Jh66Sc3cKil8x4VJPOWRR04xI5fQ4DVOz7bIIIyd5MiUBK4HTyeVi/Ps6qMhJWkQ==
-    size: 111118354
-  - url: https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.7/Gusset-1.0.0-beta.7-mac-arm64.dmg
-    sha512: jD3ZWap2t+ZgNFek1Xq2c3Jh66Sc3cKil8x4VJPOWRR04xI5fQ4DVOz7bIIIyd5MiUBK4HTyeVi/Ps6qMhJWkQ==
-    size: 111118354
-path: https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.7/Gusset-1.0.0-beta.7-mac-x64.zip
-sha512: KauoFdZGMdpIJXMfbFJDN2LPyz+RDEfn5C47FlPDqTm/l8G0SaBKKgIEVCskUJhzqNgvfDnrwPdJAVE+oC9vOg==
-releaseDate: '2026-11-09T16:54:36.700Z'
+  - url: https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.8/Gusset-1.0.0-beta.8-mac-x64.zip
+    sha512: oEqtOInqQUE0OwqA+92N4LDt0/f0xw3BQmCpUXg5yfr8CW1opBptFG5bCARNU4nWyYhcrgUkkMu5mrYt/AmTyg==
+    size: 123320243
+  - url: https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.8/Gusset-1.0.0-beta.8-mac-arm64.zip
+    sha512: 9QgfpAygoMDIfNceWwxfyvDp+0l5U/IC4lWLsuBskTmcW/o0gkTP3qh5CtVk6SOXd74fdFUslt1VCkqzJp9Geg==
+    size: 117401896
+  - url: https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.8/Gusset-1.0.0-beta.8-mac-arm64.zip
+    sha512: 9QgfpAygoMDIfNceWwxfyvDp+0l5U/IC4lWLsuBskTmcW/o0gkTP3qh5CtVk6SOXd74fdFUslt1VCkqzJp9Geg==
+    size: 117401896
+  - url: https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.8/Gusset-1.0.0-beta.8-mac-x64.dmg
+    sha512: wXcYF/aUKtL3gCMoyv/qDaES7L2DlA+OkqWjFY6nRUjOkYwrTzCkVd5gKsu26e5WXX27HVVH2GPhP8665vqkcw==
+    size: 116022240
+  - url: https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.8/Gusset-1.0.0-beta.8-mac-x64.dmg
+    sha512: wXcYF/aUKtL3gCMoyv/qDaES7L2DlA+OkqWjFY6nRUjOkYwrTzCkVd5gKsu26e5WXX27HVVH2GPhP8665vqkcw==
+    size: 116022240
+  - url: https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.8/Gusset-1.0.0-beta.8-mac-arm64.dmg
+    sha512: 4yY42avtCbDw2MKcg27VbsurWkcc1FM3KcY3czUsX/zdApY6aRUcMLqGmae8sF0/46rsSDyA3Cb1Cvsj1NkyJw==
+    size: 111235345
+  - url: https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.8/Gusset-1.0.0-beta.8-mac-arm64.dmg
+    sha512: 4yY42avtCbDw2MKcg27VbsurWkcc1FM3KcY3czUsX/zdApY6aRUcMLqGmae8sF0/46rsSDyA3Cb1Cvsj1NkyJw==
+    size: 111235345
+path: https://github.com/fynndose/gusset-pattern-drafter/releases/download/v1.0.0-beta.8/Gusset-1.0.0-beta.8-mac-x64.zip
+sha512: oEqtOInqQUE0OwqA+92N4LDt0/f0xw3BQmCpUXg5yfr8CW1opBptFG5bCARNU4nWyYhcrgUkkMu5mrYt/AmTyg==
+releaseDate: '2026-11-11T13:20:11.960Z'
